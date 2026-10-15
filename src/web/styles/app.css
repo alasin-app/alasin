@@ -1146,6 +1146,16 @@ img {
   background: var(--fill-tertiary);
 }
 
+/* The Markdown switch sits apart from the formatting buttons. */
+.toolbar .toolbar-end {
+  margin-left: auto;
+}
+
+.toolbar button[aria-pressed="true"] {
+  background: var(--accent);
+  color: #fff;
+}
+
 
 .cover-thumb {
   width: 44px;
@@ -1267,16 +1277,6 @@ img {
 }
 
 /* ---------- Text editor (CodeMirror) ---------- */
-
-.editor-mode {
-  display: flex;
-  width: calc(100% - var(--gutter) - var(--gutter-right));
-  margin: 0 var(--gutter-right) 14px var(--gutter);
-}
-
-.editor-mode button {
-  flex: 1;
-}
 
 .md-editor {
   margin: 0 var(--gutter-right) 24px var(--gutter);
