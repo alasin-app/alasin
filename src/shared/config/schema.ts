@@ -103,7 +103,7 @@ const allowedUser = z.strictObject({
     .max(100)
     .optional()
     .describe(
-      "The user's full name, as in their git commits (e.g. `Jane Doe`): written to the author field of their new posts and pages, and used to show who last changed a file. Default: the name on their GitHub profile, else the login.",
+      "The user's full name, as in their git commits (e.g. `Jane Doe`): written to the author field of their new posts and pages, and used to show who last changed a file. Only needed if it differs from the name on their GitHub profile, which is used by default (else the login).",
     ),
   aliases: z
     .array(z.string().min(1).max(100))
