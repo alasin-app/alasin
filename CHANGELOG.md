@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.10.0](https://github.com/oh2th/alasin/compare/v0.9.0...v0.10.0) (2026-10-15)
+
+
+### ⚠ BREAKING CHANGES
+
+* [drafts] storage is removed and [drafts] repo_dir is renamed to [drafts] dir. Upgrade: delete the storage line from alasin.toml and rename repo_dir to dir (or remove it to use the default "drafts").
+
+### Features
+
+* always keep drafts in the site repository ([#14](https://github.com/oh2th/alasin/issues/14)) ([eb61506](https://github.com/oh2th/alasin/commit/eb615069964a0fd57dd896ae5e8ae66411bc2c7b))
+
+
+### Bug Fixes
+
+* accept bare hostnames in setup's URL questions ([#16](https://github.com/oh2th/alasin/issues/16)) ([2bccdc0](https://github.com/oh2th/alasin/commit/2bccdc0b1c22705c3b660f485ea49771825cba6e))
+
 ## 0.9.0 (2026-10-15)
 
 
