@@ -9,6 +9,7 @@ import { Bold, Check, ChevronLeft, Heading2, ImageOff, ImagePlus, Italic, Link, 
 import { PhotoError, photosMarkdown, processPhoto, uploadPhoto } from "../lib/photos";
 import type { MarkdownEditor } from "../editor/markdown-editor";
 import { BodyEditor } from "./BodyEditor";
+import { dropDanglingBreaks } from "../lib/line-breaks";
 import { removeEmptyItems } from "../lib/markdown-cleanup";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { fromLocalInput, slugify, toLocalInput } from "../../shared/frontmatter";
@@ -231,7 +232,7 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
     setMessage(null);
     // Tidy up list items and quote lines left empty while writing.
     // (Markdown mode is raw: nothing is changed there.)
-    const body = mode === "rich" ? removeEmptyItems(state.doc.form.body) : state.doc.form.body;
+    const body = mode === "rich" ? dropDanglingBreaks(removeEmptyItems(state.doc.form.body)) : state.doc.form.body;
     const doc = body === state.doc.form.body ? state.doc : { ...state.doc, form: { ...state.doc.form, body } };
     const toSave = serializeDraft(doc, state.site);
     let sha = state.sha;
@@ -302,7 +303,8 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
     else if (action === "italic") ed.wrap("_", "_", t("editor.sampleText"));
     else if (action === "link") ed.wrap("[", "](https://)", t("editor.sampleText"));
     else if (action === "heading") setHeadingMenu(true);
-    else ed.prefix(action === "list" ? "- " : "> ");
+    else if (action === "quote") ed.quote();
+    else ed.prefix("- ");
   };
 
   /** Markdown mode edits the whole file; a valid file updates the form as you type. */

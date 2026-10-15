@@ -23,7 +23,7 @@ import {
   type ViewUpdate,
   WidgetType,
 } from "@codemirror/view";
-import { continueBlock } from "../lib/continue-block";
+import { isQuoted, keepLineBreaks, quoteLines, richEnter, unquoteLines } from "../lib/line-breaks";
 import { findGalleries, findShortcodes, galleryText, type GalleryBlock, type GalleryImage, standaloneImage } from "./blocks";
 
 export interface EditorOptions {
@@ -67,10 +67,11 @@ function minimalChange(doc: Text, next: string) {
   return { from: start, to: endPrev, insert: next.slice(start, endNext) };
 }
 
+/** Enter in rich text mode: see line-breaks.ts. (Markdown mode is raw: a plain new line.) */
 function enter(view: EditorView): boolean {
   const sel = view.state.selection.main;
   if (!sel.empty) return false;
-  const r = continueBlock(view.state.doc.toString(), sel.head);
+  const r = richEnter(view.state.doc.toString(), sel.head);
   if (!r) return false;
   const change = minimalChange(view.state.doc, r.text);
   if (!change) return false;
@@ -113,6 +114,21 @@ export function prefixLines(view: EditorView, prefix: string) {
     if (!line.text.startsWith(prefix)) changes.push({ from: line.from, insert: prefix });
   }
   view.dispatch({ changes, userEvent: "input" });
+  view.focus();
+}
+
+/** Quotes the selected lines (line breaks within stanzas, ">" between them), or removes the quote. */
+export function toggleQuote(view: EditorView) {
+  const sel = view.state.selection.main;
+  const first = view.state.doc.lineAt(sel.from);
+  const last = view.state.doc.lineAt(sel.to);
+  const lines = view.state.sliceDoc(first.from, last.to).split("\n");
+  if (sel.empty && !first.text.trim()) {
+    view.dispatch({ changes: { from: first.from, insert: "> " }, selection: EditorSelection.cursor(first.from + 2), userEvent: "input" });
+  } else {
+    const next = (isQuoted(lines) ? unquoteLines(lines) : quoteLines(lines)).join("\n");
+    view.dispatch({ changes: { from: first.from, to: last.to, insert: next }, selection: EditorSelection.range(first.from, first.from + next.length), userEvent: "input" });
+  }
   view.focus();
 }
 
@@ -517,6 +533,8 @@ export interface MarkdownEditor {
   prefix: (prefix: string) => void;
   /** Heading level 2–5 for the selected lines, or 0 for normal text. */
   heading: (level: number) => void;
+  /** Quotes the selected lines, or removes the quote. */
+  quote: () => void;
   /** Inserts a block of text at the cursor, separated by blank lines. */
   insertBlock: (text: string) => void;
   destroy: () => void;
@@ -524,6 +542,7 @@ export interface MarkdownEditor {
 
 export function createMarkdownEditor(opts: EditorOptions): MarkdownEditor {
   const live = new Compartment();
+  let rich = opts.rich;
   const view = new EditorView({
     parent: opts.parent,
     state: EditorState.create({
@@ -532,7 +551,7 @@ export function createMarkdownEditor(opts: EditorOptions): MarkdownEditor {
         ...(opts.styleNonce ? [EditorView.cspNonce.of(opts.styleNonce)] : []),
         history(),
         keymap.of([
-          { key: "Enter", run: enter },
+          { key: "Enter", run: (v) => rich && enter(v) },
           { key: "Shift-Enter", run: lineBreak },
           { key: "Mod-b", run: (v) => (wrapSelection(v, "**", "**", ""), true) },
           { key: "Mod-i", run: (v) => (wrapSelection(v, "_", "_", ""), true) },
@@ -543,6 +562,8 @@ export function createMarkdownEditor(opts: EditorOptions): MarkdownEditor {
         ]),
         markdownLanguage,
         EditorView.lineWrapping,
+        // Pasted plain text keeps its line breaks in rich text mode.
+        EditorView.clipboardInputFilter.of((text) => (rich ? keepLineBreaks(text) : text)),
         placeholderExt(opts.placeholder),
         EditorView.contentAttributes.of({ autocapitalize: "sentences", autocorrect: "on", spellcheck: "true", "aria-multiline": "true" }),
         live.of(opts.rich ? richExtensions(opts) : []),
@@ -564,12 +585,14 @@ export function createMarkdownEditor(opts: EditorOptions): MarkdownEditor {
       const change = minimalChange(view.state.doc, text);
       if (change) view.dispatch({ changes: change, annotations: External.of(true) });
     },
-    setRich(rich) {
-      view.dispatch({ effects: live.reconfigure(rich ? richExtensions(opts) : []) });
+    setRich(next) {
+      rich = next;
+      view.dispatch({ effects: live.reconfigure(next ? richExtensions(opts) : []) });
     },
     wrap: (before, after, sample) => wrapSelection(view, before, after, sample),
     prefix: (p) => prefixLines(view, p),
     heading: (level) => setHeading(view, level),
+    quote: () => toggleQuote(view),
     insertBlock: (text) => insertBlock(view, text),
     destroy() {
       view.destroy();
