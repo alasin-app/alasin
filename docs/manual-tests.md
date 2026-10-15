@@ -40,7 +40,7 @@ Devices: Chrome on macOS (desktop), Chrome on iPhone (WebKit, like all iOS brows
 | 1.5 | ✅ | Desktop and iPhone. |
 | 1.6 | ⏳ | Covered by automated tests; not yet run by hand. |
 | 1.7 | ✅ | |
-| 1.8 | ✅ | Reloading after logout stays on the login page. After confirming, the account sheet reappeared until logout finished, which was confusing; a "Logging out…" screen now shows at once (#PR). |
+| 1.8 | ✅ | Reloading after logout stays on the login page. After confirming, the account sheet reappeared until logout finished, which was confusing; a "Logging out…" screen now shows at once (#46). |
 | 1.9 | ❌ → ✅ | Badge and avatar were repeated above the content in light mode; fixed in #34. |
 | 1.10 | ✅ | |
 | 1.11 | ⏳ | Checked on desktop screenshots during development only. |
