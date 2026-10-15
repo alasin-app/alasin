@@ -146,7 +146,7 @@ The Hugo site and its content layout.
 | `post_filename` | string | `"{slug}.md"` | `"{slug}.md"` | File name pattern for new posts, relative to `posts_dir`. Placeholders: `{slug}`, `{yyyy}`, `{mm}`, `{dd}`. Must end in `.md`. |
 | `page_filename` | string | `"{slug}.md"` | `"{slug}.md"` | File name pattern for new pages, relative to `pages_dir`. Placeholder: `{slug}`. Must end in `.md`. |
 | `cover_field` | string | `"image"` | `"image"` | Front matter field holding a post's cover image. |
-| `author_field` | string | — | — | Front matter field for the author: new posts and pages get the user's full name (`[users] allow` `author`, default: their GitHub profile name), and the lists show who wrote each one. Leave unset if the site doesn't use one. |
+| `author_field` | string | — | — | Front matter field for the author: new posts and pages get the user's full name from their GitHub profile, and the lists show who wrote each one. Leave unset if the site doesn't use one. |
 | `front_matter_format` | one of "yaml", "toml" | `"yaml"` | `"yaml"` | Front matter format for new files. Existing files keep the format they already use. |
 
 ### `[github]`
@@ -168,7 +168,7 @@ Who may log in.
 
 | Option | Type | Default | Example | Description |
 | --- | --- | --- | --- | --- |
-| `allow` | array of { login, id, author, aliases } | **required** | `[{"login" = "octocat", "id" = 583231}]` | GitHub users allowed to log in. `npm run setup` resolves usernames to numeric IDs. |
+| `allow` | array of { login, id, aliases } | **required** | `[{"login" = "octocat", "id" = 583231}]` | GitHub users allowed to log in. `npm run setup` resolves usernames to numeric IDs. |
 
 ### `[media]`
 

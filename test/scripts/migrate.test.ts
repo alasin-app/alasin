@@ -127,3 +127,30 @@ describe("adding sections new in alasin.example.toml", () => {
   });
 });
 
+
+describe("removed [users] author", () => {
+  it("drops author from the users, keeping everything else", () => {
+    const old = `[users]
+# \`author\` (optional) is written to new posts' author field (see [site] author_field).
+# Type: array of { login = string, id = integer, author = string }. Required, at least one.
+allow = [
+  { login = "octocat", id = 583231, author = "Mona Lisa", aliases = ["Mona"] },
+  { author = "Jane", login = "jane", id = 2 },
+  { login = "plain", id = 3 },
+]
+
+[env.dev.users]
+allow = [{ login = "octocat", id = 583231, author = 'Octo' }]
+`;
+    const { text, changes } = migrateAlasinToml(old);
+    expect(changes).toEqual([
+      '[users]: removed "author" from users (full names now come from GitHub profiles)',
+      '[env.dev.users]: removed "author" from users (full names now come from GitHub profiles)',
+    ]);
+    expect(text).toContain('  { login = "octocat", id = 583231, aliases = ["Mona"] },\n  { login = "jane", id = 2 },\n  { login = "plain", id = 3 },');
+    expect(text).toContain('allow = [{ login = "octocat", id = 583231 }]');
+    expect(text).not.toContain("author = string");
+    expect(text).toContain("full name is taken from their GitHub profile");
+    expect(() => parse(text)).not.toThrow();
+  });
+});

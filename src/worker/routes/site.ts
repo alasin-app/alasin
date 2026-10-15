@@ -77,9 +77,9 @@ site.get("/", async (c) => {
 
   const session = c.get("session");
   const user = config.users.allow.find((u) => u.id === session.uid);
-  // Full names from GitHub profiles, for users without `author` in the configuration.
-  const names = await profileNames(c.env.KV, token, config.users.allow.filter((u) => !u.author).map((u) => u.id));
-  const fullName = (u: (typeof config.users.allow)[number]) => u.author ?? names.get(u.id) ?? (u.id === session.uid ? session.name : null);
+  // Full names from GitHub profiles.
+  const names = await profileNames(c.env.KV, token, config.users.allow.map((u) => u.id));
+  const fullName = (u: (typeof config.users.allow)[number]) => names.get(u.id) ?? (u.id === session.uid ? session.name : null);
   return c.json({
     frontMatterFormat: config.site.front_matter_format,
     coverField: config.site.cover_field,
