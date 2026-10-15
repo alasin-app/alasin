@@ -1,0 +1,69 @@
+// SPDX-License-Identifier: MIT
+import { parse } from "smol-toml";
+import { describe, expect, it } from "vitest";
+import { migrateAlasinToml } from "../../scripts/lib/migrate";
+import { parseConfig, selectEnvironment } from "../../src/shared/config/schema";
+import currentExample from "../../alasin.example.toml?raw";
+
+// The [drafts] section as alasin.example.toml shipped it in 0.9.0.
+const V090_DRAFTS = `# ─────────────────────────────────────────────────────────────────────────────
+# [drafts] — unpublished drafts.
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Draft IMAGES always go to the private DRAFTS bucket. This decides where draft
+# TEXT lives. Both options are server-side, so a draft started on the phone can
+# be finished on the laptop.
+[drafts]
+
+# "r2":   draft text is kept in the private DRAFTS bucket and never enters git
+#         until you publish. Safe for public repositories.
+# "repo": draft text is committed to repo_dir in the site repository, with
+#         version history. WARNING: anyone who can read the repository can read
+#         the drafts — use it with a private repository.
+# Type: string. Default: "r2".
+storage = "r2"
+
+# With storage = "repo": directory for draft files in the site repository.
+# Must be outside Hugo's content directory, so Hugo never builds drafts.
+# Tip: exclude it from your site's build triggers (Cloudflare Workers Builds:
+# Settings → Build → Build watch paths) so saving a draft doesn't rebuild the site.
+# Type: string. Default: "drafts".
+repo_dir = "unpublished"
+`;
+
+function withOldDrafts(extra = ""): string {
+  const start = currentExample.indexOf("# ─────────────────────────────────────────────────────────────────────────────\n# [drafts]");
+  const end = currentExample.indexOf("# ─────────────────────────────────────────────────────────────────────────────\n# [images]");
+  return currentExample.slice(0, start) + V090_DRAFTS + "\n\n" + currentExample.slice(end) + extra;
+}
+
+describe("alasin.toml migration", () => {
+  it("upgrades a 0.9.0 [drafts] section to a valid configuration", () => {
+    const old = withOldDrafts();
+    expect(() => parseConfig(selectEnvironment(parse(old) as Record<string, unknown>, undefined))).toThrow(/storage/);
+    const { text, changes } = migrateAlasinToml(old);
+    expect(changes).toHaveLength(2);
+    const config = parseConfig(selectEnvironment(parse(text) as Record<string, unknown>, undefined));
+    expect(config.drafts.dir).toBe("unpublished");
+    expect(text).not.toMatch(/storage = "r2"|repo_dir|Both options are server-side/);
+    expect(text).toContain("# Folder for drafts in the site repository.");
+    expect(text).toContain("# Drafts are committed to the site repository");
+    // Everything outside [drafts] is untouched.
+    expect(text.slice(0, text.indexOf("# [drafts]"))).toBe(old.slice(0, old.indexOf("# [drafts]")));
+  });
+
+  it("migrates environment tables too", () => {
+    const { text, changes } = migrateAlasinToml('[app]\nurl = "x"\n\n[env.dev.drafts]\nstorage = "repo"\nrepo_dir = "drafts"\n');
+    expect(changes).toEqual([
+      '[env.dev.drafts]: removed "storage" (drafts are now always kept in the site repository)',
+      '[env.dev.drafts]: renamed "repo_dir" to "dir"',
+    ]);
+    expect(parse(text)).toEqual({ app: { url: "x" }, env: { dev: { drafts: { dir: "drafts" } } } });
+  });
+
+  it("leaves a current file unchanged", () => {
+    const { text, changes } = migrateAlasinToml(currentExample);
+    expect(changes).toEqual([]);
+    expect(text).toBe(currentExample);
+  });
+});
