@@ -69,7 +69,7 @@ const site = z
       .string()
       .regex(/^[A-Za-z_][A-Za-z0-9_-]*$/)
       .optional()
-      .describe("Front matter field for the author: new posts and pages get the user's `author` (default: their login), and the lists show who wrote each one. Leave unset if the site doesn't use one."),
+      .describe("Front matter field for the author: new posts and pages get the user's full name (`[users] allow` `author`, default: their GitHub profile name), and the lists show who wrote each one. Leave unset if the site doesn't use one."),
     front_matter_format: z
       .enum(["yaml", "toml"])
       .default("yaml")
@@ -102,7 +102,9 @@ const allowedUser = z.strictObject({
     .string()
     .max(100)
     .optional()
-    .describe("Value written to the author field of this user's new posts and pages. Default: the login."),
+    .describe(
+      "The user's full name, as in their git commits (e.g. `Jane Doe`): written to the author field of their new posts and pages, and used to show who last changed a file. Default: the name on their GitHub profile, else the login.",
+    ),
   aliases: z
     .array(z.string().min(1).max(100))
     .max(20)

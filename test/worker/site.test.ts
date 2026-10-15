@@ -63,7 +63,7 @@ describe("site settings", () => {
     expect(site).toMatchObject({ author: "Octo", authorField: "author" });
   });
 
-  it("writes the login as author by default, and tells who author values mean", async () => {
+  it("writes the GitHub profile name as author by default, and tells who author values mean", async () => {
     const config = parseConfig({
       ...testConfig,
       site: { ...testConfig.site, author_field: "author" },
@@ -72,8 +72,10 @@ describe("site settings", () => {
     const site = (await (await call("/api/site", { cookie }, { ALASIN_CONFIG_JSON: JSON.stringify(config) })).json()) as Site & {
       users: { login: string; id: number; names: string[] }[];
     };
-    expect(site.author).toBe(ALLOWED_USER.login);
-    expect(site.users).toEqual([{ login: ALLOWED_USER.login, id: ALLOWED_USER.id, names: [ALLOWED_USER.login, ALLOWED_USER.login, "Mona", "M. Octo"] }]);
+    const me = (await (await call("/api/me", { cookie })).json()) as { user: { name: string | null } };
+    const fullName = me.user.name ?? ALLOWED_USER.login;
+    expect(site.author).toBe(fullName);
+    expect(site.users).toEqual([{ login: ALLOWED_USER.login, id: ALLOWED_USER.id, names: [...new Set([fullName, ALLOWED_USER.login, "Mona", "M. Octo"])] }]);
   });
 
   it("requires a session", async () => {

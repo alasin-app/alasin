@@ -63,9 +63,9 @@ page_filename = "{slug}.md"
 # Front matter field holding a post's cover image. Type: string. Default: "image".
 cover_field = "image"
 
-# Front matter field for the author. New posts and pages get the user's
-# `author` from [users] (default: their GitHub login), and the lists show who
-# wrote each one. Leave unset if the site doesn't use one.
+# Front matter field for the author. New posts and pages get the user's full
+# name (`author` in [users], default: the name on their GitHub profile), and
+# the lists show who wrote each one. Leave unset if the site doesn't use one.
 # Type: string. Optional. Example: "author"
 # author_field = "author"
 
@@ -116,11 +116,14 @@ client_id = "Iv23liAbCdEfGhIjKlMn"
 # Removing a user takes effect on their next request after deploying.
 [users]
 
-# `author` (optional) is written to new posts' author field (see [site]
-# author_field); without it, the login is written. `aliases` (optional) lists
-# other author values that mean this user, e.g. names used on an older blog.
+# `author` (optional): the user's full name as in their git commits, written to
+# new posts' author field (see [site] author_field) and used to show who last
+# changed a file; default: the name on their GitHub profile. `aliases`
+# (optional): other author values that mean this user, e.g. names used on an
+# older blog.
 # Type: array of { login = string, id = integer, author = string, aliases = [string] }.
-# Required, at least one. Example: { login = "octocat", id = 583231, aliases = ["Mona"] }
+# Required, at least one.
+# Example: { login = "octocat", id = 583231, author = "Mona Lisa Octocat", aliases = ["Mona"] }
 allow = [
   { login = "octocat", id = 583231 },
 ]
