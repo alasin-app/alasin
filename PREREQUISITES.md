@@ -77,7 +77,9 @@ Check: the zone appears under **Websites** in the same account where Workers run
 npx wrangler login
 ```
 
-A browser window opens and asks you to allow Wrangler to access your Cloudflare account (Workers, R2, KV and related permissions). Approve it, then confirm:
+A browser window opens and asks you to allow Wrangler to access your Cloudflare account (Workers, R2, KV and related permissions). Approve it. The browser then shows that Wrangler is authorized, and the terminal prints `Successfully logged in.` **Close the browser tab and return to the terminal.**
+
+Confirm the login:
 
 ```sh
 npx wrangler whoami
