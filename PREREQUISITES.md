@@ -1,10 +1,10 @@
 # Prerequisites
 
-Everything to set up in Cloudflare and GitHub **before** running `npm run setup`. It's written for site owners who are comfortable in a terminal but haven't used Wrangler or GitHub Apps before.
+What to prepare in Cloudflare and GitHub **before** installing Alasin. It's written for site owners who are comfortable in a terminal but haven't used Wrangler before.
 
-Each step is marked **Manual** (you do it) or **Setup** (`npm run setup` does it for you; listed so you know what will happen). At the end there's a checklist of the values setup will ask for.
+Everything here is done by you, once. The rest — creating the drafts bucket, the GitHub App and the secrets — is done by `npm run setup` during [installation](README.md#installation). At the end there's a checklist of the values setup will ask for.
 
-## 1. Local tools — Manual
+## 1. Local tools
 
 | Tool | Version | Notes |
 | --- | --- | --- |
@@ -29,7 +29,7 @@ Alasin is developed on macOS, and its tests run on Linux in CI. On Windows, use 
 
 ## 2. Cloudflare account
 
-### Account and plan — Manual
+### Account and plan
 
 Any Cloudflare account works; the **Workers Free plan** is enough for a small site. The limits that matter:
 
@@ -42,11 +42,11 @@ Any Cloudflare account works; the **Workers Free plan** is enough for a small si
 | Cron triggers | included (used for the daily cleanup of abandoned draft images) |
 | R2 | 10 GB storage and generous monthly operation quotas free |
 
-### Enable R2 — Manual
+### Enable R2
 
 In the dashboard, open **Storage & databases → R2** and enable it. **Cloudflare asks for a payment method even if you stay within the free tier**; you're only charged beyond the free quotas.
 
-### Your existing media bucket — Manual
+### Your existing media bucket
 
 Alasin uses the R2 bucket that already serves your site's images (binding `MEDIA`). Under **R2 → Overview**, note:
 
@@ -56,11 +56,7 @@ Alasin uses the R2 bucket that already serves your site's images (binding `MEDIA
 
 Alasin only adds objects to this bucket. It never overwrites or deletes anything there.
 
-### The private drafts bucket — Setup
-
-Setup creates a second bucket (binding `DRAFTS`, e.g. `example-media-drafts`) in the same jurisdiction. It holds only images of unpublished drafts. Don't give it public access or a custom domain.
-
-### A hostname for the app — Manual
+### A hostname for the app
 
 Choose where the app will live:
 
@@ -71,7 +67,7 @@ For a **production and dev** setup, choose one hostname per deployment (e.g. `al
 
 Check: the zone appears under **Websites** in the same account where Workers runs.
 
-## 3. Wrangler connection — Manual
+## 3. Wrangler connection
 
 ```sh
 npx wrangler login
@@ -101,63 +97,16 @@ then `export CLOUDFLARE_API_TOKEN=<token>` (and `CLOUDFLARE_ACCOUNT_ID`).
 
 **Logging out afterwards:** `npx wrangler logout`; revoke API tokens on the same API Tokens page.
 
-## 4. GitHub — Manual
+## 4. GitHub
 
 - **The site repository:** note its owner and name (`owner/name`) and the branch Cloudflare builds the live site from (usually `main`). The site should already build and deploy on Cloudflare.
 - **Keep the site repository private (recommended).** Alasin commits drafts to the repository, in a `drafts/` folder, so anyone who can read the repository can read them. Images never go into git; they're stored in R2. To check or change the visibility: the repository's **Settings → General → Danger Zone → Change repository visibility**.
 - **Optional:** in the site's Cloudflare build settings (**Workers & Pages → your site → Settings → Build → Build watch paths**), exclude `drafts/*`, so saving a draft doesn't rebuild the site.
 - **Every author needs their own GitHub account with write access** to the site repository (as a collaborator, or through an organisation team). Alasin commits with each person's own token, so commits show who wrote what.
 - Note everyone's **GitHub username**. Setup turns them into numeric user IDs for the allowlist.
+- **Who runs setup:** setup creates a GitHub App for logging in to Alasin and installs it on the site repository, so run it as the repository's owner. If the repository belongs to an organisation, you need to be an owner of the organisation (or ask one to run setup).
 
-## 5. GitHub App for login
-
-Alasin uses a **GitHub App** (not an OAuth App) installed only on the site repository. It's used for:
-
-- **login**, through the app's OAuth flow;
-- **commits as the user**, with short-lived user tokens limited to what both the user and the app may do;
-- the daily cleanup's **read-only installation token**.
-
-A GitHub App can be limited to one repository and to exactly the permissions Alasin needs; an OAuth App would get access to every repository the user can reach.
-
-### Automatic — Setup (recommended)
-
-Setup creates the app with GitHub's **App Manifest flow**. In the browser you will:
-
-1. see a short local page and click **Continue to GitHub**;
-2. on GitHub, check the name and click **Create GitHub App** (for an organisation-owned repository you must be an owner of the organisation, or ask one to run setup);
-3. on the install page that opens next, choose **Only select repositories**, pick the site repository, and click **Install**.
-
-Setup then stores the client secret and private key as Worker secrets and the app's ID, client ID and installation ID in `alasin.toml`.
-
-### Manual
-
-If the manifest flow can't be used, create the app under **Settings → Developer settings → GitHub Apps → New GitHub App** (for an organisation: the organisation's **Settings → Developer settings**):
-
-- **GitHub App name:** anything unique, e.g. "Alasin my-site".
-- **Homepage URL:** the app URL, e.g. `https://alasin.example.com`.
-- **Callback URL:** `https://<app hostname>/auth/callback`. It must match `[app] url` in `alasin.toml` exactly. Add `http://localhost:8787/auth/callback` too if you'll develop locally.
-- **Expire user authorization tokens:** on.
-- **Request user authorization (OAuth) during installation:** off.
-- **Webhook:** uncheck **Active**.
-- **Repository permissions:** **Contents: Read and write**, **Metadata: Read-only**. Nothing else.
-- **Where can this GitHub App be installed?** **Only on this account**.
-
-Create it, then:
-
-1. **Install App** → **Only select repositories** → the site repository → **Install**. The installation ID is the number at the end of the page's URL.
-2. On the app's page, note the **App ID** and **Client ID**, click **Generate a new client secret**, and under **Private keys** click **Generate a private key** (a `.pem` file downloads).
-3. Run `npm run setup` and answer **no** to automatic creation; it asks for these values, converts the key and stores the secrets. Or store them yourself:
-
-   ```sh
-   npx wrangler secret put GITHUB_CLIENT_SECRET
-   openssl pkcs8 -topk8 -nocrypt -in downloaded-key.pem | npx wrangler secret put GITHUB_APP_PRIVATE_KEY
-   ```
-
-   Secrets never go in TOML files or git. Setup also generates `SESSION_KEY` and `TOKEN_KEY`.
-
-Rotating the client secret and private key later: see the README's [Security](README.md#security) section.
-
-## 6. Checklist
+## 5. Checklist
 
 Setup asks for these (and finds or creates the rest):
 
@@ -169,4 +118,3 @@ Setup asks for these (and finds or creates the rest):
 - [ ] `MEDIA` bucket name and jurisdiction
 - [ ] Public URL of the `MEDIA` bucket
 - [ ] Name for the new `DRAFTS` bucket (a default is suggested)
-- [ ] GitHub App: created automatically, or its App ID, client ID, client secret and private key

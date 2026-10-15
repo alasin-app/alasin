@@ -384,7 +384,7 @@ async function setupGitHubApp(): Promise<Record<string, string>> {
       info(installUrl);
       gh.openBrowser(installUrl);
     } else {
-      info(`Manual setup: see ${PREREQ} §5. Callback URL(s): ${callbacks.join(", ")}`);
+      info(`Create the app as described in README.md, "Creating the GitHub App manually". Callback URL(s): ${callbacks.join(", ")}`);
       setAlasin("github", "app_id", Number(await ask("App ID", { validate: (v) => (/^\d+$/.test(v) ? null : "a number") })));
       setAlasin("github", "client_id", await ask("Client ID", { validate: validName }));
       secrets.GITHUB_CLIENT_SECRET = await ask("Client secret");
