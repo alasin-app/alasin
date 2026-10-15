@@ -60,6 +60,14 @@ post_filename = "{slug}.md"
 # Type: string. Default: "{slug}.md".
 page_filename = "{slug}.md"
 
+# Front matter field holding a post's cover image. Type: string. Default: "image".
+cover_field = "image"
+
+# Front matter field for the author's name, filled from `author` in [users]
+# for new posts and pages. Leave unset if the site doesn't use one.
+# Type: string. Optional. Example: "author"
+# author_field = "author"
+
 # Front matter format for NEW files: "yaml" (---) or "toml" (+++). Existing
 # files always keep their own format. Type: string. Default: "yaml".
 front_matter_format = "yaml"
@@ -111,7 +119,8 @@ client_id = "Iv23liAbCdEfGhIjKlMn"
 # Removing a user takes effect on their next request after deploying.
 [users]
 
-# Type: array of { login = string, id = integer }. Required, at least one.
+# `author` (optional) is written to new posts' author field (see [site] author_field).
+# Type: array of { login = string, id = integer, author = string }. Required, at least one.
 allow = [
   { login = "octocat", id = 583231 },
 ]

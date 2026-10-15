@@ -85,9 +85,33 @@ export class FakeRepo {
     return c ? this.trees.get(c.tree) : undefined;
   }
 
+  /** Answers Alasin's GraphQL folder query (readFolderTexts) from the branch head. */
+  private async graphql(req: Request): Promise<Response> {
+    const body = (await req.json()) as { variables: { expr: string } };
+    const folder = body.variables.expr.split(":").slice(1).join(":");
+    const tree = this.treeAt(this.branch)!;
+    type Entry = { name: string; object: { text?: string; entries?: Entry[] } };
+    const top = new Map<string, Entry>();
+    for (const [p, sha] of tree) {
+      if (!p.startsWith(`${folder}/`)) continue;
+      const parts = p.slice(folder.length + 1).split("/");
+      if (parts.length === 1) top.set(parts[0]!, { name: parts[0]!, object: { text: this.blobs.get(sha)! } });
+      else if (parts.length === 2) {
+        const dir = top.get(parts[0]!) ?? { name: parts[0]!, object: { entries: [] } };
+        dir.object.entries!.push({ name: parts[1]!, object: { text: this.blobs.get(sha)! } });
+        top.set(parts[0]!, dir);
+      }
+    }
+    return Response.json({ data: { repository: { object: top.size ? { entries: [...top.values()] } : null } } });
+  }
+
   /** Handles a request for this repository, or returns undefined. */
   async handle(req: Request): Promise<Response | undefined> {
     const url = new URL(req.url);
+    if (url.href === "https://api.github.com/graphql" && req.method === "POST") {
+      this.tokens.push(req.headers.get("Authorization")?.replace(/^Bearer /, "") ?? "");
+      return this.graphql(req);
+    }
     const prefix = `/repos/${this.owner}/${this.name}`;
     if (url.hostname !== "api.github.com" || !url.pathname.startsWith(`${prefix}/`)) return undefined;
     this.tokens.push(req.headers.get("Authorization")?.replace(/^Bearer /, "") ?? "");

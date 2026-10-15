@@ -6,14 +6,17 @@ import type { ComponentType } from "preact";
 import { useState } from "preact/hooks";
 import type { Me } from "../lib/api";
 import { type MessageKey, t, useLanguage } from "../lib/i18n";
-import { hrefFor, linkHandler, type Route, useRoute } from "../lib/router";
+import { type DraftKind, hrefFor, linkHandler, navigate, type Section, useRoute } from "../lib/router";
+import { ulid } from "../../shared/ulid";
+import { DraftsList } from "./DraftsList";
+import { Editor } from "./Editor";
 import { settings } from "../lib/settings";
 import { AccountSheet } from "./AccountSheet";
 import { NavBar } from "./NavBar";
 
 type Icon = ComponentType<{ size?: number; "aria-hidden"?: "true" }>;
 
-const SECTIONS: { route: Route; label: MessageKey; icon: Icon }[] = [
+const SECTIONS: { route: Section; label: MessageKey; icon: Icon }[] = [
   { route: "home", label: "nav.home", icon: House },
   { route: "pages", label: "nav.pages", icon: FileText },
   { route: "posts", label: "nav.posts", icon: Newspaper },
@@ -22,14 +25,14 @@ const SECTIONS: { route: Route; label: MessageKey; icon: Icon }[] = [
   { route: "media", label: "nav.media", icon: Image },
 ];
 
-const TABS: { route: Route; label: MessageKey; icon: Icon }[] = [
+const TABS: { route: Section; label: MessageKey; icon: Icon }[] = [
   { route: "home", label: "nav.home", icon: House },
   { route: "drafts", label: "nav.drafts", icon: PenLine },
   { route: "media", label: "nav.media", icon: Image },
   { route: "more", label: "nav.more", icon: Ellipsis },
 ];
 
-const MORE: Route[] = ["pages", "posts", "categories"];
+const MORE: Section[] = ["pages", "posts", "categories"];
 
 export function EnvBadge() {
   return settings.environment ? <span class="badge badge-env">{settings.environment}</span> : null;
@@ -47,12 +50,15 @@ export function Shell(props: { me: Me; onLogout: () => void }) {
   useLanguage();
   const route = useRoute();
   const [accountOpen, setAccountOpen] = useState(false);
-  const section = SECTIONS.find((s) => s.route === route);
-  const title = route === "more" ? t("nav.more") : t(section?.label ?? "nav.home");
-  const tabActive = (r: Route) => r === route || (r === "more" && MORE.includes(route) );
+  // The editor belongs to the Drafts section.
+  const current: Section = route.name === "editor" ? "drafts" : route.name;
+  const section = SECTIONS.find((s) => s.route === current);
+  const title = current === "more" ? t("nav.more") : t(section?.label ?? "nav.home");
+  const tabActive = (r: Section) => r === current || (r === "more" && MORE.includes(current));
+  const create = (type: DraftKind) => navigate({ name: "editor", type, id: ulid() });
 
   return (
-    <div class="shell">
+    <div class={`shell${route.name === "editor" ? " editing" : ""}`}>
       <aside class="sidebar" aria-label={settings.appName}>
         <div class="sidebar-header">
           <span class="sidebar-app">
@@ -65,10 +71,10 @@ export function Shell(props: { me: Me; onLogout: () => void }) {
             {SECTIONS.map((s) => (
               <li>
                 <a
-                  href={hrefFor(s.route)}
-                  class={`sidebar-item${s.route === route ? " active" : ""}`}
-                  aria-current={s.route === route ? "page" : undefined}
-                  onClick={linkHandler(s.route)}
+                  href={hrefFor({ name: s.route })}
+                  class={`sidebar-item${s.route === current ? " active" : ""}`}
+                  aria-current={s.route === current ? "page" : undefined}
+                  onClick={linkHandler({ name: s.route })}
                 >
                   <s.icon size={22} aria-hidden="true" />
                   <span>{t(s.label)}</span>
@@ -80,44 +86,50 @@ export function Shell(props: { me: Me; onLogout: () => void }) {
       </aside>
 
       <main class="content" id="main">
-        <NavBar
-          title={title}
-          leading={<span class="nav-env"><EnvBadge /></span>}
-          trailing={<AvatarButton me={props.me} onClick={() => setAccountOpen(true)} />}
-        />
-        {route === "more" ? (
-          <ul class="grouped-list">
-            {MORE.map((r) => {
-              const s = SECTIONS.find((x) => x.route === r)!;
-              return (
-                <li>
-                  <a class="row row-link" href={hrefFor(r)} onClick={linkHandler(r)}>
-                    <s.icon size={22} aria-hidden="true" />
-                    <span class="row-label">{t(s.label)}</span>
-                    <ChevronRight class="chevron" size={18} aria-hidden="true" />
-                  </a>
-                </li>
-              );
-            })}
-          </ul>
+        {route.name === "editor" ? (
+          <Editor key={route.id} me={props.me} type={route.type} id={route.id} />
         ) : (
           <>
-            {route === "home" && (
+            <NavBar
+              title={title}
+              leading={<span class="nav-env"><EnvBadge /></span>}
+              trailing={<AvatarButton me={props.me} onClick={() => setAccountOpen(true)} />}
+            />
+            {(current === "home" || current === "drafts") && (
               <div class="button-row">
-                <button type="button" class="btn btn-filled" disabled>
+                <button type="button" class="btn btn-filled" onClick={() => create("post")}>
                   <Plus size={20} aria-hidden="true" />
                   {t("home.newPost")}
                 </button>
-                <button type="button" class="btn btn-tinted" disabled>
+                <button type="button" class="btn btn-tinted" onClick={() => create("page")}>
                   <Plus size={20} aria-hidden="true" />
                   {t("home.newPage")}
                 </button>
               </div>
             )}
-            <div class="empty-state">
-              <h2 class="headline">{t("empty.title")}</h2>
-              <p class="secondary">{t("empty.body")}</p>
-            </div>
+            {current === "more" ? (
+              <ul class="grouped-list">
+                {MORE.map((r) => {
+                  const s = SECTIONS.find((x) => x.route === r)!;
+                  return (
+                    <li>
+                      <a class="row row-link" href={hrefFor({ name: r })} onClick={linkHandler({ name: r })}>
+                        <s.icon size={22} aria-hidden="true" />
+                        <span class="row-label">{t(s.label)}</span>
+                        <ChevronRight class="chevron" size={18} aria-hidden="true" />
+                      </a>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : current === "drafts" ? (
+              <DraftsList me={props.me} />
+            ) : (
+              <div class="empty-state">
+                <h2 class="headline">{t("empty.title")}</h2>
+                <p class="secondary">{t("empty.body")}</p>
+              </div>
+            )}
           </>
         )}
       </main>
@@ -125,10 +137,10 @@ export function Shell(props: { me: Me; onLogout: () => void }) {
       <nav class="tab-bar" aria-label={settings.appName}>
         {TABS.map((tab) => (
           <a
-            href={hrefFor(tab.route)}
+            href={hrefFor({ name: tab.route })}
             class={`tab${tabActive(tab.route) ? " active" : ""}`}
             aria-current={tabActive(tab.route) ? "page" : undefined}
-            onClick={linkHandler(tab.route)}
+            onClick={linkHandler({ name: tab.route })}
           >
             <tab.icon size={26} aria-hidden="true" />
             <span>{t(tab.label)}</span>

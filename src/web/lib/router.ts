@@ -1,11 +1,15 @@
 // SPDX-License-Identifier: MIT
-// A tiny History API router: the app has a handful of top-level sections.
+// A small History API router for the app's sections and the editor.
 
 import { useEffect, useState } from "preact/hooks";
+import { isUlid } from "../../shared/ulid";
 
-export type Route = "home" | "pages" | "posts" | "drafts" | "categories" | "media" | "more";
+export type Section = "home" | "pages" | "posts" | "drafts" | "categories" | "media" | "more";
+export type DraftKind = "post" | "page";
 
-const PATHS: Record<Route, string> = {
+export type Route = { name: Section } | { name: "editor"; type: DraftKind; id: string };
+
+const SECTION_PATHS: Record<Section, string> = {
   home: "/",
   pages: "/pages",
   posts: "/posts",
@@ -15,29 +19,34 @@ const PATHS: Record<Route, string> = {
   more: "/more",
 };
 
-function parse(pathname: string): Route {
-  const found = (Object.entries(PATHS) as [Route, string][]).find(([, p]) => p === pathname.replace(/\/+$/, "") || (p === "/" && pathname === "/"));
-  return found?.[0] ?? "home";
+export function parseRoute(pathname: string): Route {
+  const path = pathname.replace(/\/+$/, "") || "/";
+  const m = /^\/drafts\/(post|page)\/([0-9A-Z]{26})$/.exec(path);
+  if (m && isUlid(m[2]!)) return { name: "editor", type: m[1] as DraftKind, id: m[2]! };
+  const section = (Object.entries(SECTION_PATHS) as [Section, string][]).find(([, p]) => p === path);
+  return { name: section?.[0] ?? "home" };
+}
+
+export function hrefFor(route: Route): string {
+  return route.name === "editor" ? `/drafts/${route.type}/${route.id}` : SECTION_PATHS[route.name];
 }
 
 const listeners = new Set<() => void>();
 window.addEventListener("popstate", () => listeners.forEach((l) => l()));
 
-export function hrefFor(route: Route): string {
-  return PATHS[route];
-}
-
-export function navigate(route: Route): void {
-  if (parse(location.pathname) === route) return;
-  history.pushState(null, "", PATHS[route]);
+export function navigate(route: Route, opts: { replace?: boolean } = {}): void {
+  const href = hrefFor(route);
+  if (location.pathname === href) return;
+  if (opts.replace) history.replaceState(null, "", href);
+  else history.pushState(null, "", href);
   listeners.forEach((l) => l());
   window.scrollTo({ top: 0 });
 }
 
 export function useRoute(): Route {
-  const [route, setRoute] = useState(() => parse(location.pathname));
+  const [route, setRoute] = useState(() => parseRoute(location.pathname));
   useEffect(() => {
-    const l = () => setRoute(parse(location.pathname));
+    const l = () => setRoute(parseRoute(location.pathname));
     listeners.add(l);
     return () => void listeners.delete(l);
   }, []);

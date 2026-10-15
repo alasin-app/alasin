@@ -152,3 +152,42 @@ export class Repo {
     }
   }
 }
+
+export interface TreeFile {
+  /** Path relative to the listed folder, e.g. "news/_index.md". */
+  path: string;
+  text: string;
+}
+
+/**
+ * The text of every file in a folder and its direct subfolders, in one
+ * GraphQL request (instead of one request per file).
+ */
+export async function readFolderTexts(token: string, owner: string, name: string, branch: string, folder: string): Promise<TreeFile[]> {
+  const query = `query($owner: String!, $name: String!, $expr: String!) {
+    repository(owner: $owner, name: $name) {
+      object(expression: $expr) {
+        ... on Tree { entries { name object {
+          ... on Blob { text }
+          ... on Tree { entries { name object { ... on Blob { text } } } }
+        } } }
+      }
+    }
+  }`;
+  const res = await fetch("https://api.github.com/graphql", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", "User-Agent": "Alasin" },
+    body: JSON.stringify({ query, variables: { owner, name, expr: `${branch}:${folder}` } }),
+  });
+  if (!res.ok) throw new GitHubError(`GraphQL returned ${res.status}`, res.status);
+  type Entry = { name: string; object: { text?: string | null; entries?: Entry[] } | null };
+  const data = (await res.json()) as { data?: { repository?: { object?: { entries?: Entry[] } | null } | null } };
+  const out: TreeFile[] = [];
+  for (const e of data.data?.repository?.object?.entries ?? []) {
+    if (typeof e.object?.text === "string") out.push({ path: e.name, text: e.object.text });
+    for (const sub of e.object?.entries ?? []) {
+      if (typeof sub.object?.text === "string") out.push({ path: `${e.name}/${sub.name}`, text: sub.object.text });
+    }
+  }
+  return out;
+}
