@@ -8,6 +8,7 @@ import { requireSession } from "../session";
 import { housekeepingDue } from "../../shared/housekeeping";
 import { drafts } from "./drafts";
 import { media } from "./media";
+import { site } from "./site";
 
 export const api = new Hono<AppEnv>();
 
@@ -49,5 +50,6 @@ api.get("/avatar/:id{[0-9]{1,12}}", async (c) => {
 
 api.route("/drafts", drafts);
 api.route("/draft-media", media);
+api.route("/site", site);
 
 api.all("*", (c) => c.json({ error: "not_found", message: "No such API route." }, 404));
