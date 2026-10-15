@@ -34,7 +34,7 @@ export interface EditorOptions {
   styleNonce?: string;
   gallery: string;
   placeholder: string;
-  labels: { moveEarlier: string; moveLater: string; remove: string; removeImage: string; gallery: string; lineBreak: string; shortcode: string };
+  labels: { moveEarlier: string; moveLater: string; remove: string; removeImage: string; gallery: string; shortcode: string };
   /** Image address to show for a Markdown image URL (e.g. /img/… → media domain). */
   resolveImage: (url: string) => string;
   onChange: (text: string) => void;
@@ -167,22 +167,6 @@ class RuleWidget extends WidgetType {
     const s = document.createElement("span");
     s.className = "cm-md-rule";
     s.setAttribute("role", "separator");
-    return s;
-  }
-}
-
-class BreakWidget extends WidgetType {
-  constructor(readonly label: string) {
-    super();
-  }
-  override eq(o: BreakWidget) {
-    return o.label === this.label;
-  }
-  toDOM() {
-    const s = document.createElement("span");
-    s.className = "cm-md-break";
-    s.textContent = "↵";
-    s.title = this.label;
     return s;
   }
 }
@@ -405,10 +389,9 @@ function blockDecorations(opts: EditorOptions) {
 const hide = Decoration.replace({});
 
 /** Inline formatting from the Markdown syntax tree, for the visible part of the document. */
-function inlineDecorations(opts: EditorOptions) {
+function inlineDecorations() {
   const bullet = Decoration.replace({ widget: new BulletWidget() });
   const rule = Decoration.replace({ widget: new RuleWidget() });
-  const lineBreakWidget = Decoration.replace({ widget: new BreakWidget(opts.labels.lineBreak) });
   const mark = (cls: string) => Decoration.mark({ class: cls });
   const lineDeco = (cls: string) => Decoration.line({ class: cls });
 
@@ -472,12 +455,7 @@ function inlineDecorations(opts: EditorOptions) {
             if (list?.name === "BulletList" && !touches(node.from, node.to + 1)) items.push({ from: node.from, to: node.to, deco: bullet });
             return;
           }
-          if (n === "HardBreak") {
-            const text = state.doc.sliceString(node.from, node.to);
-            const len = text.replace(/\n$/, "").length;
-            if (len > 0) items.push({ from: node.from, to: node.from + len, deco: lineBreakWidget });
-            return;
-          }
+          // Line breaks (two trailing spaces) need no marker: each line already shows on its own.
           if (n === "HorizontalRule") {
             items.push({ from: state.doc.lineAt(node.from).from, to: state.doc.lineAt(node.from).from, deco: lineDeco("cm-md-hr") });
             // A line across, unless the cursor is on it.
@@ -526,7 +504,7 @@ function inlineDecorations(opts: EditorOptions) {
 }
 
 function richExtensions(opts: EditorOptions): Extension {
-  return [inlineDecorations(opts), blockDecorations(opts), EditorView.editorAttributes.of({ class: "cm-rich" })];
+  return [inlineDecorations(), blockDecorations(opts), EditorView.editorAttributes.of({ class: "cm-rich" })];
 }
 
 export interface MarkdownEditor {
@@ -574,6 +552,12 @@ export function createMarkdownEditor(opts: EditorOptions): MarkdownEditor {
       ],
     }),
   });
+  // Testing aid: with localStorage "alasin.debug" = "1", the editor is reachable as window.__alasinEditor.
+  try {
+    if (localStorage.getItem("alasin.debug") === "1") (window as unknown as { __alasinEditor?: EditorView }).__alasinEditor = view;
+  } catch {
+    // Storage unavailable.
+  }
   return {
     view,
     setText(text) {

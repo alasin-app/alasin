@@ -48,7 +48,6 @@ export function BodyEditor(props: {
         remove: t("editor.removeFromGallery"),
         removeImage: t("editor.removeImage"),
         gallery: t("editor.gallery"),
-        lineBreak: t("editor.lineBreak"),
         shortcode: t("editor.shortcode"),
       },
       resolveImage,
