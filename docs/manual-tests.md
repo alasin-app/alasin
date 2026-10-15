@@ -85,13 +85,13 @@ Devices: Chrome on macOS (desktop), Chrome on iPhone (WebKit, like all iOS brows
 | 2.7 | ✅ | First photo became the cover. |
 | 2.8 | ✅ | Four photos as a gallery. Gallery images stay separated by blank lines: sites whose image render hook uses `.IsBlock` need them for figures and lightbox links. |
 | 2.9 | ✅ | On iOS: photos from the Photos library and taken with the camera. |
-| 2.10 | ⏳ | |
-| 2.11 | ⏳ | |
+| 2.10 | ✅ | On iOS. |
+| 2.11 | ✅ | Photo taken on iOS, checked with exiftool: no GPS or other camera metadata in the JPEG or any WebP size (`keep_exif = false`). |
 | 2.12 | ✅ | Main JPEG and 480/960/1600 WebP variants under the draft's prefix in the drafts bucket. |
 | 2.13 | ✅ | Horizontal rules shown as text at first; fixed (#57). Heading levels 2–5 added (#58). |
 | 2.14 | ❌ → ✅ | Line breaks needed Shift+Enter, which tablets don't have; now Enter makes a line break, Enter twice a paragraph, and Quote on a selection keeps lines and stanzas (#60). |
-| 2.15 | ⏳ | |
-| 2.16 | ⏳ | |
-| 2.17 | ⏳ | |
+| 2.15 | ✅ | |
+| 2.16 | ✅ | The mode switch moved from above the details to a toolbar button (#63). |
+| 2.17 | ✅ | |
 
 Also found during this run: reloading after a new deployment gave a blank page (old script names answered with the app page); fixed with real 404s, a no-store app page and a one-time automatic reload (#55).
