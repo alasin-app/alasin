@@ -159,7 +159,7 @@ const archive = z
     dir: repoDir
       .default("archive")
       .describe(
-        "Directory in the site repository for archived posts and pages: taken off the site but kept, and can be republished. Keeps their path relative to the content directory. Must be outside Hugo's content directory.",
+        "Directory in the site repository for archived posts and pages: taken off the site but kept, and can be republished. Each keeps its repository path under this directory (e.g. `archive/content/posts/…`). Must be outside Hugo's content directory.",
       ),
   })
   .strict()

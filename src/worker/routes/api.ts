@@ -6,6 +6,7 @@ import { Hono } from "hono";
 import type { AppEnv } from "../app";
 import { requireSession } from "../session";
 import { housekeepingDue } from "../../shared/housekeeping";
+import { content } from "./content";
 import { drafts } from "./drafts";
 import { media } from "./media";
 import { site } from "./site";
@@ -48,6 +49,7 @@ api.get("/avatar/:id{[0-9]{1,12}}", async (c) => {
   return c.body(body, 200, { "Content-Type": type, "Cache-Control": "private, max-age=86400" });
 });
 
+api.route("/content", content);
 api.route("/drafts", drafts);
 api.route("/draft-media", media);
 api.route("/site", site);

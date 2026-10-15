@@ -184,9 +184,10 @@ dir = "drafts"
 # ─────────────────────────────────────────────────────────────────────────────
 [archive]
 
-# Folder for archived posts and pages in the site repository. They keep their
-# path relative to the content directory and can be republished. Must be
-# outside Hugo's content directory and separate from [drafts] and [bin].
+# Folder for archived posts and pages in the site repository. Each keeps its
+# repository path under it (e.g. archive/content/posts/…) and can be
+# republished. Must be outside Hugo's content directory and separate from
+# [drafts] and [bin].
 # Type: string. Default: "archive".
 dir = "archive"
 

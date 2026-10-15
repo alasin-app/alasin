@@ -85,9 +85,42 @@ export class FakeRepo {
     return c ? this.trees.get(c.tree) : undefined;
   }
 
-  /** Answers Alasin's GraphQL folder query (readFolderTexts) from the branch head. */
+  /** A folder as nested GraphQL tree entries (the shape of Alasin's content query). */
+  private async contentTree(folder: string): Promise<unknown> {
+    type Node = { name: string; type: "blob" | "tree"; object: Record<string, unknown> };
+    const tree = this.treeAt(this.branch)!;
+    const root: Node[] = [];
+    let found = false;
+    for (const [p, sha] of tree) {
+      if (!p.startsWith(`${folder}/`)) continue;
+      found = true;
+      const parts = p.slice(folder.length + 1).split("/");
+      let level = root;
+      parts.forEach((part, i) => {
+        const last = i === parts.length - 1;
+        let node = level.find((n) => n.name === part);
+        if (!node) {
+          node = last
+            ? { name: part, type: "blob", object: { oid: sha, text: this.blobs.get(sha)!, isBinary: false, isTruncated: false } }
+            : { name: part, type: "tree", object: { entries: [] } };
+          level.push(node);
+        }
+        if (!last) level = node.object.entries as Node[];
+      });
+    }
+    return found ? { entries: root } : null;
+  }
+
+  /** Answers Alasin's GraphQL queries from the branch head. */
   private async graphql(req: Request): Promise<Response> {
-    const body = (await req.json()) as { variables: { expr: string } };
+    const body = (await req.json()) as { variables: Record<string, string> & { expr: string } };
+    if (body.variables.ref) {
+      const repository: Record<string, unknown> = { ref: { target: { oid: this.head } } };
+      for (const f of ["posts", "pages", "drafts", "archive", "bin"]) {
+        if (body.variables[f]) repository[f] = await this.contentTree(body.variables[f]!.split(":").slice(1).join(":"));
+      }
+      return Response.json({ data: { repository } });
+    }
     const folder = body.variables.expr.split(":").slice(1).join(":");
     const tree = this.treeAt(this.branch)!;
     type Entry = { name: string; object: { text?: string; entries?: Entry[] } };

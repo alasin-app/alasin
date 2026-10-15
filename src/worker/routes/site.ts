@@ -83,6 +83,13 @@ site.get("/", async (c) => {
     categories,
     gallery: { shortcode: config.editor.gallery_shortcode, paired: config.editor.gallery_paired },
     media: { publicUrl: config.media.public_url, contentPrefix: config.media.content_prefix },
+    folders: {
+      posts: config.site.posts_dir,
+      pages: config.site.pages_dir,
+      drafts: config.drafts.dir,
+      archive: config.archive.dir,
+      bin: config.bin.dir,
+    },
     images: {
       ...images,
       mainQuality: img.main_quality,
