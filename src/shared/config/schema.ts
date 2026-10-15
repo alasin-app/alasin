@@ -154,6 +154,28 @@ const drafts = z
   .strict()
   .describe("Unpublished drafts: their text is committed to the site repository, their images go to R2.");
 
+const archive = z
+  .object({
+    dir: repoDir
+      .default("archive")
+      .describe(
+        "Directory in the site repository for archived posts and pages: taken off the site but kept, and can be republished. Keeps their path relative to the content directory. Must be outside Hugo's content directory.",
+      ),
+  })
+  .strict()
+  .describe("Archived posts and pages: off the site, kept in the site repository.");
+
+const bin = z
+  .object({
+    dir: repoDir
+      .default("bin")
+      .describe(
+        "Directory in the site repository for deleted items until the Bin is emptied. Each keeps the path it was deleted from, so it can be recovered to exactly that place. Must be outside Hugo's content directory. Alasin deletes files from the repository only inside this directory.",
+      ),
+  })
+  .strict()
+  .describe("The Bin: deleted posts, pages and drafts stay here, recoverable, until the Bin is emptied.");
+
 const images = z
   .object({
     accepted_types: z
@@ -273,6 +295,8 @@ export const configSchema = z
     users,
     media,
     drafts: drafts.prefault({}),
+    archive: archive.prefault({}),
+    bin: bin.prefault({}),
     images: images.prefault({}),
     editor: editor.prefault({}),
     categories: categories.prefault({}),
@@ -296,19 +320,32 @@ export const configSchema = z
         message: "must not be longer than security.session_max_days",
       });
     }
+    // Drafts, archive and Bin are separate folders that Hugo never builds.
     const inside = (dir: string, parent: string) => dir === parent || dir.startsWith(`${parent}/`) || parent.startsWith(`${dir}/`);
-    for (const key of ["posts_dir", "pages_dir"] as const) {
-      if (inside(c.drafts.dir, c.site[key])) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["drafts", "dir"],
-          message: `must be outside site.${key} ("${c.site[key]}"), or Hugo would publish drafts`,
-        });
+    const unbuilt = [
+      ["drafts", c.drafts.dir, "drafts"],
+      ["archive", c.archive.dir, "archived items"],
+      ["bin", c.bin.dir, "items in the Bin"],
+    ] as const;
+    unbuilt.forEach(([section, dir, what], i) => {
+      for (const key of ["posts_dir", "pages_dir"] as const) {
+        if (inside(dir, c.site[key])) {
+          ctx.addIssue({
+            code: "custom",
+            path: [section, "dir"],
+            message: `must be outside site.${key} ("${c.site[key]}"), or Hugo would publish ${what}`,
+          });
+        }
       }
-    }
-    if (c.drafts.dir === "content" || c.drafts.dir.startsWith("content/")) {
-      ctx.addIssue({ code: "custom", path: ["drafts", "dir"], message: "must be outside Hugo's content directory" });
-    }
+      if (dir === "content" || dir.startsWith("content/")) {
+        ctx.addIssue({ code: "custom", path: [section, "dir"], message: "must be outside Hugo's content directory" });
+      }
+      for (const [other, otherDir] of unbuilt.slice(0, i)) {
+        if (inside(dir, otherDir)) {
+          ctx.addIssue({ code: "custom", path: [section, "dir"], message: `must be separate from ${other}.dir ("${otherDir}")` });
+        }
+      }
+    });
     const ids = new Set<number>();
     c.users.allow.forEach((u, i) => {
       if (ids.has(u.id)) ctx.addIssue({ code: "custom", path: ["users", "allow", i, "id"], message: "is listed twice" });
