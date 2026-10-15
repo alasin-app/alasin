@@ -42,7 +42,9 @@ export function withUiSettings(res: Response, config: AlasinConfig): Response {
     })
     .transform(res);
   const headers = new Headers(out.headers);
-  headers.set("Cache-Control", "no-cache");
+  // Never keep the app page: it names the current build's script files.
+  headers.set("Cache-Control", "no-store");
+  headers.delete("ETag");
   return new Response(out.body, { status: out.status, headers });
 }
 

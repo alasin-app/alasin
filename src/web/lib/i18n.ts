@@ -111,6 +111,10 @@ const en = {
   "error.network": "Can't reach the server. Check your connection and try again.",
   "error.generic": "Something went wrong. Please try again.",
   "error.retry": "Try again",
+  "crash.title": "Something went wrong",
+  "crash.body": "The app stopped because of an error. Your text is kept on this device. If this happens again, please send the details below to the site's owner.",
+  "crash.reload": "Reload",
+  "crash.toDrafts": "Go to drafts",
   "language.en": "English",
   "language.fi": "Suomi",
 } as const;
@@ -224,6 +228,10 @@ const fi: Messages = {
   "error.network": "Palvelimeen ei saada yhteyttä. Tarkista verkkoyhteys ja yritä uudelleen.",
   "error.generic": "Jokin meni vikaan. Yritä uudelleen.",
   "error.retry": "Yritä uudelleen",
+  "crash.title": "Jokin meni vikaan",
+  "crash.body": "Sovellus pysähtyi virheeseen. Tekstisi on tallessa tällä laitteella. Jos tämä toistuu, lähetä alla olevat tiedot sivuston omistajalle.",
+  "crash.reload": "Lataa uudelleen",
+  "crash.toDrafts": "Luonnoksiin",
   "language.en": "English",
   "language.fi": "Suomi",
 };

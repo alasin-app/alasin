@@ -54,6 +54,19 @@ describe("security headers", () => {
     expect((await call("/api/me")).headers.get("Cache-Control")).toBe("no-store");
   });
 
+  it("answers a missing build file with 404, not the app page", async () => {
+    const res = await call("/assets/index-old123.js");
+    expect(res.status).toBe(404);
+    expect(res.headers.get("Content-Type")).not.toContain("text/html");
+    expect((await call("/assets/app.js")).status).toBe(200);
+  });
+
+  it("never lets the app page be stored", async () => {
+    const res = await call("/drafts/post/01JA2B3C4D5E6F7G8H9JKMNPQR");
+    expect(res.headers.get("Content-Type")).toContain("text/html");
+    expect(res.headers.get("Cache-Control")).toBe("no-store");
+  });
+
   it("injects UI settings into the app shell as meta tags, without inline script", async () => {
     const html = await (await call("/")).text();
     expect(html).toContain('<meta name="alasin:name" content="Alasin">');

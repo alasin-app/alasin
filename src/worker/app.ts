@@ -108,6 +108,11 @@ export function createApp() {
   app.all("*", async (c) => {
     if (c.req.method !== "GET" && c.req.method !== "HEAD") return c.text("Method not allowed", 405);
     const res = await c.env.ASSETS.fetch(c.req.raw);
+    // A missing build file is a real 404, not the app page: a browser asking for a
+    // script that no longer exists (after a deployment) must not get HTML instead.
+    if (c.req.path.startsWith("/assets/") && (res.headers.get("Content-Type") ?? "").startsWith("text/html")) {
+      return c.text("Not found", 404, { "Cache-Control": "no-store" });
+    }
     return withUiSettings(res, c.get("config"));
   });
 
