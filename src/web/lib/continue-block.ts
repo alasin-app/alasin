@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Enter in the Markdown text area continues a list item or quote line, like
 // Notes or Mail: "- ", "* ", "+ ", "1. " (numbered up) and "> ". Enter on an
-// empty item ends the list or quote instead.
+// empty item ends the list or quote instead, leaving a blank line after it.
 
 const PREFIX = /^(\s*)(?:([-*+])|(\d{1,9})([.)])|(>))(\s+)/;
 
@@ -15,9 +15,14 @@ export function continueBlock(text: string, cursor: number): { text: string; cur
   if (!m) return null;
   const prefix = m[0];
 
-  // Enter on an item with nothing in it: end the list or quote.
+  // Enter on an item with nothing in it: end the list or quote with a blank line,
+  // so the next paragraph isn't read as part of it (Markdown's lazy continuation).
   if (line.slice(prefix.length).trim() === "" && cursor >= lineStart + prefix.length) {
-    return { text: text.slice(0, lineStart) + text.slice(lineEnd), cursor: lineStart };
+    const rest = text.slice(lineEnd);
+    // If more text follows, the emptied line itself is the blank line.
+    return rest.startsWith("\n")
+      ? { text: text.slice(0, lineStart) + rest, cursor: lineStart }
+      : { text: `${text.slice(0, lineStart)}\n`, cursor: lineStart + 1 };
   }
   // Only continue when the cursor is after the marker.
   if (cursor < lineStart + prefix.length) return null;
