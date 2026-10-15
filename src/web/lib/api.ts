@@ -48,7 +48,6 @@ export interface Me {
   version: string;
   environment: string | null;
   site: { url: string };
-  drafts: { storage: "r2" | "repo" };
 }
 
 /** Removes everything the app stored on this device (local drafts, caches). */

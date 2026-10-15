@@ -22,7 +22,6 @@ api.get("/me", (c) => {
     version: __ALASIN_VERSION__,
     environment: config.ui.environment_label ?? null,
     site: { url: config.site.url },
-    drafts: { storage: config.drafts.storage },
   });
 });
 

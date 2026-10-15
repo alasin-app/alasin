@@ -132,20 +132,14 @@ const media = z
 
 const drafts = z
   .object({
-    storage: z
-      .enum(["r2", "repo"])
-      .default("r2")
-      .describe(
-        "Where unpublished draft text is kept. Both are server-side, so drafts follow the user between devices. `r2`: in the private `DRAFTS` bucket, never in git until published. `repo`: committed to `repo_dir` in the site repository, outside Hugo's content, with version history; anyone who can read the repository can read drafts, so use it with private repositories.",
-      ),
-    repo_dir: repoDir
+    dir: repoDir
       .default("drafts")
       .describe(
-        "With `storage = \"repo\"`: directory for draft files, e.g. `drafts`. Must be outside Hugo's content directory so drafts are never built.",
+        "Directory in the site repository where draft posts and pages are committed until they are published. Must be outside Hugo's content directory, so drafts are never built. Draft images go to the `DRAFTS` R2 bucket, never into git.",
       ),
   })
   .strict()
-  .describe("Unpublished drafts. Draft images always go to the private `DRAFTS` bucket.");
+  .describe("Unpublished drafts: their text is committed to the site repository, their images go to R2.");
 
 const images = z
   .object({
@@ -277,19 +271,17 @@ export const configSchema = z
       });
     }
     const inside = (dir: string, parent: string) => dir === parent || dir.startsWith(`${parent}/`) || parent.startsWith(`${dir}/`);
-    if (c.drafts.storage === "repo") {
-      for (const key of ["posts_dir", "pages_dir"] as const) {
-        if (inside(c.drafts.repo_dir, c.site[key])) {
-          ctx.addIssue({
-            code: "custom",
-            path: ["drafts", "repo_dir"],
-            message: `must be outside site.${key} ("${c.site[key]}"), or Hugo would publish drafts`,
-          });
-        }
+    for (const key of ["posts_dir", "pages_dir"] as const) {
+      if (inside(c.drafts.dir, c.site[key])) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["drafts", "dir"],
+          message: `must be outside site.${key} ("${c.site[key]}"), or Hugo would publish drafts`,
+        });
       }
-      if (c.drafts.repo_dir === "content" || c.drafts.repo_dir.startsWith("content/")) {
-        ctx.addIssue({ code: "custom", path: ["drafts", "repo_dir"], message: "must be outside Hugo's content directory" });
-      }
+    }
+    if (c.drafts.dir === "content" || c.drafts.dir.startsWith("content/")) {
+      ctx.addIssue({ code: "custom", path: ["drafts", "dir"], message: "must be outside Hugo's content directory" });
     }
     const ids = new Set<number>();
     c.users.allow.forEach((u, i) => {

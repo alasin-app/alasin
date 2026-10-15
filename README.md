@@ -136,12 +136,11 @@ The site's existing public image bucket (`MEDIA` binding). Alasin never overwrit
 
 ### `[drafts]`
 
-Unpublished drafts. Draft images always go to the private `DRAFTS` bucket.
+Unpublished drafts: their text is committed to the site repository, their images go to R2.
 
 | Option | Type | Default | Example | Description |
 | --- | --- | --- | --- | --- |
-| `storage` | one of "r2", "repo" | `"r2"` | `"r2"` | Where unpublished draft text is kept. Both are server-side, so drafts follow the user between devices. `r2`: in the private `DRAFTS` bucket, never in git until published. `repo`: committed to `repo_dir` in the site repository, outside Hugo's content, with version history; anyone who can read the repository can read drafts, so use it with private repositories. |
-| `repo_dir` | string | `"drafts"` | `"drafts"` | With `storage = "repo"`: directory for draft files, e.g. `drafts`. Must be outside Hugo's content directory so drafts are never built. |
+| `dir` | string | `"drafts"` | `"drafts"` | Directory in the site repository where draft posts and pages are committed until they are published. Must be outside Hugo's content directory, so drafts are never built. Draft images go to the `DRAFTS` R2 bucket, never into git. |
 
 ### `[images]`
 
@@ -231,7 +230,7 @@ npm run deploy
 - **Sessions:** an encrypted, `HttpOnly`, `Secure`, `SameSite=Lax` `__Host-` cookie that refers to a server-side session in KV. Idle and absolute timeouts; logout deletes the session server-side.
 - **Tokens:** GitHub tokens never reach the browser. They are stored encrypted (AES-GCM) in KV and refreshed before expiry.
 - **Browser:** a strict Content-Security-Policy (no inline or third-party scripts), CSRF protection on every state-changing request, HSTS and other security headers. No analytics or trackers.
-- **Data:** the app never overwrites or deletes images in your public bucket; draft images live in a separate private bucket.
+- **Data:** drafts are committed to a `drafts/` folder of the site repository (keep it private). Images never go into git: draft images are in a private R2 bucket, published images in your public bucket, where the app never overwrites or deletes anything.
 - **Logs** contain request IDs, routes, status codes and GitHub user IDs only.
 
 **Rotating secrets** (per deployment; add `-- --env dev` for the dev app):

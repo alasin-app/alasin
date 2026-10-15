@@ -7,7 +7,7 @@ describe("config schema", () => {
   it("accepts the test config and fills in defaults", () => {
     const c = parseConfig(testConfig);
     expect(c.github.branch).toBe("main");
-    expect(c.drafts.storage).toBe("r2");
+    expect(c.drafts.dir).toBe("drafts");
     expect(c.editor.lock_expiry_seconds).toBe(180);
     expect(c.security.session_idle_days).toBe(7);
     expect(c.ui.name).toBe("Alasin");
@@ -47,12 +47,15 @@ describe("config schema", () => {
     ).toThrow(/twice/);
   });
 
-  it("keeps repository drafts outside the content directories", () => {
-    const ok = parseConfig({ ...testConfig, drafts: { storage: "repo", repo_dir: "drafts" } });
-    expect(ok.drafts.repo_dir).toBe("drafts");
-    expect(() => parseConfig({ ...testConfig, drafts: { storage: "repo", repo_dir: "content/posts/drafts" } })).toThrow(/posts_dir/);
-    expect(() => parseConfig({ ...testConfig, drafts: { storage: "repo", repo_dir: "content/drafts" } })).toThrow(/content directory/);
-    expect(() => parseConfig({ ...testConfig, drafts: { storage: "repo", repo_dir: "../drafts" } })).toThrow();
+  it("keeps the drafts directory outside the content directories", () => {
+    expect(parseConfig({ ...testConfig, drafts: { dir: "unpublished" } }).drafts.dir).toBe("unpublished");
+    expect(() => parseConfig({ ...testConfig, drafts: { dir: "content/posts/drafts" } })).toThrow(/posts_dir/);
+    expect(() => parseConfig({ ...testConfig, drafts: { dir: "content/drafts" } })).toThrow(/content directory/);
+    expect(() => parseConfig({ ...testConfig, drafts: { dir: "../drafts" } })).toThrow();
+  });
+
+  it("no longer accepts the removed drafts.storage option", () => {
+    expect(() => parseConfig({ ...testConfig, drafts: { storage: "r2" } })).toThrow(/storage/);
   });
 
   it("requires the lock expiry to be longer than the heartbeat", () => {
