@@ -40,7 +40,14 @@ const isUnset = (v: unknown) => v === undefined || v === "" || PLACEHOLDERS.has(
 
 const PREREQ = "PREREQUISITES.md";
 
-const args = parseArgs(process.argv.slice(2));
+const args = (() => {
+  try {
+    return parseArgs(process.argv.slice(2));
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : String(err));
+    process.exit(1);
+  }
+})();
 const env = args.env;
 const envLabel = env ? ` [env.${env}]` : "";
 
@@ -470,7 +477,11 @@ function finalCheck() {
 }
 
 async function main() {
-  console.log(bold(`Alasin setup${envLabel}`));
+  const unexpected = args.rest.filter((a) => a !== "--rotate-keys");
+  if (unexpected.length) {
+    throw new Error(`Unexpected argument(s): ${unexpected.join(" ")}. Options: --env <name>, --config <alasin.toml>, --wrangler-config <wrangler.toml>, --rotate-keys.`);
+  }
+  console.log(bold(`Alasin setup — environment: ${env ?? "default (production)"}`));
   console.log(dim(`alasin.toml:   ${displayPath(args.configPath)}\nwrangler.toml: ${displayPath(args.wranglerPath)}`));
   ensureFiles();
   await checkPrerequisites();

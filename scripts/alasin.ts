@@ -9,7 +9,6 @@
 
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { ConfigError } from "../src/shared/config/schema";
 import { parseArgs } from "./lib/args";
 import { displayPath, loadAlasinConfig } from "./lib/config";
 import { capture, run, start } from "./lib/proc";
@@ -71,6 +70,9 @@ async function main() {
           return 1;
         }
       }
+      console.log(
+        `Deploying Worker ${gen.workerName} — environment: ${args.env ?? "default (production)"}, app ${config.app.url}, site branch ${config.github.branch}`,
+      );
       if ((await run("vite", ["build", "--logLevel", "warn"])) !== 0) return 1;
       return run("wrangler", ["deploy", "--config", gen.path, ...envArgs, ...args.rest]);
     }
@@ -84,7 +86,8 @@ async function main() {
 main().then(
   (code) => process.exit(code),
   (err) => {
-    if (err instanceof ConfigError) console.error(err.message);
+    // Expected problems (configuration, arguments) are reported as plain messages.
+    if (err instanceof Error && !process.env.ALASIN_DEBUG) console.error(err.message);
     else console.error(err);
     process.exit(1);
   },
