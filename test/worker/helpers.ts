@@ -4,13 +4,15 @@ import { vi } from "vitest";
 import { createApp } from "../../src/worker/app";
 import type { Env } from "../../src/worker/env";
 import { APP_URL } from "../fixtures";
+import { FakeRepo } from "./fake-repo";
 
 const app = createApp();
 
 export const fakeAssets: Fetcher = {
   fetch: async (input: RequestInfo | URL) => {
     const url = new URL(input instanceof Request ? input.url : String(input));
-    if (url.pathname.startsWith("/assets/")) return new Response("console.log(1)", { headers: { "Content-Type": "text/javascript" } });
+    if (url.pathname === "/assets/app.js") return new Response("console.log(1)", { headers: { "Content-Type": "text/javascript" } });
+    // Like Workers static assets in SPA mode: unknown paths get the app page.
     return new Response(
       '<!doctype html><html><head><title>x</title><meta name="theme-color" content="#000000"></head><body></body></html>',
       { headers: { "Content-Type": "text/html; charset=utf-8" } },
@@ -60,11 +62,20 @@ export interface FakeGitHub {
   users: Map<string, { id: number; login: string; name: string | null }>;
   nextTokens: { access_token: string; expires_in?: number; refresh_token?: string; refresh_token_expires_in?: number }[];
   failRefresh: boolean;
+  /** The site repository (owner/name/branch from the test config). */
+  repo: FakeRepo;
 }
 
 /** Replaces global fetch with a fake GitHub (OAuth, /user, token revocation, avatars). */
 export function fakeGitHub(): FakeGitHub {
-  const gh: FakeGitHub = { tokenRequests: [], revoked: [], users: new Map(), nextTokens: [], failRefresh: false };
+  const gh: FakeGitHub = {
+    tokenRequests: [],
+    revoked: [],
+    users: new Map(),
+    nextTokens: [],
+    failRefresh: false,
+    repo: new FakeRepo("example-owner", "example-site", "main"),
+  };
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
     const req = new Request(input, init);
     const url = new URL(req.url);
@@ -88,6 +99,8 @@ export function fakeGitHub(): FakeGitHub {
     if (url.hostname === "avatars.githubusercontent.com") {
       return new Response(new Uint8Array([0x89, 0x50, 0x4e, 0x47]), { headers: { "Content-Type": "image/png", "Content-Length": "4" } });
     }
+    const repoResponse = await gh.repo.handle(req);
+    if (repoResponse) return repoResponse;
     throw new Error(`unexpected fetch in test: ${req.method} ${url.href}`);
   });
   return gh;

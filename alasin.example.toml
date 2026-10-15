@@ -60,13 +60,17 @@ post_filename = "{slug}.md"
 # Type: string. Default: "{slug}.md".
 page_filename = "{slug}.md"
 
+# Front matter field holding a post's cover image. Type: string. Default: "image".
+cover_field = "image"
+
+# Front matter field for the author's name, filled from `author` in [users]
+# for new posts and pages. Leave unset if the site doesn't use one.
+# Type: string. Optional. Example: "author"
+# author_field = "author"
+
 # Front matter format for NEW files: "yaml" (---) or "toml" (+++). Existing
 # files always keep their own format. Type: string. Default: "yaml".
 front_matter_format = "yaml"
-
-# IANA time zone for the date of new posts; usually Hugo's `timeZone`.
-# Type: string. Default: "UTC". Example: "Europe/Helsinki"
-timezone = "UTC"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -111,7 +115,8 @@ client_id = "Iv23liAbCdEfGhIjKlMn"
 # Removing a user takes effect on their next request after deploying.
 [users]
 
-# Type: array of { login = string, id = integer }. Required, at least one.
+# `author` (optional) is written to new posts' author field (see [site] author_field).
+# Type: array of { login = string, id = integer, author = string }. Required, at least one.
 allow = [
   { login = "octocat", id = 583231 },
 ]
@@ -297,7 +302,7 @@ default_language = "en"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# [security] — sessions.
+# [security] — sessions and secret rotation reminders.
 # ─────────────────────────────────────────────────────────────────────────────
 #
 # Rate limits are Worker bindings and live in wrangler.toml ([[ratelimits]]).
@@ -309,6 +314,15 @@ session_idle_days = 7
 
 # Log out this many days after login, regardless of activity. Type: number. Default: 30.
 session_max_days = 30
+
+# Secrets are rotated by hand. After this many days, `npm run deploy` and the
+# app's account sheet remind you to rotate them. Type: integer (30–730). Default: 180.
+rotation_reminder_days = 180
+
+# When the secrets were last rotated, as "YYYY-MM-DD" (in quotes). Written by
+# `npm run setup` when it creates or rotates them; you don't need to edit these.
+# session_keys_rotated = "2026-01-15"
+# github_secrets_rotated = "2026-01-15"
 
 
 # ─────────────────────────────────────────────────────────────────────────────

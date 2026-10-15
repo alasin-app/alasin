@@ -15,10 +15,11 @@ afterEach(() => {
 function expectSecurityHeaders(res: Response) {
   const csp = res.headers.get("Content-Security-Policy")!;
   expect(csp).toContain("default-src 'self'");
-  expect(csp).toContain("script-src 'self'");
+  expect(csp).toContain("script-src 'self' 'wasm-unsafe-eval';");
   expect(csp).not.toContain("unsafe-inline");
-  expect(csp).not.toContain("unsafe-eval");
-  expect(csp).toContain("img-src 'self' blob: data: https://media.example.com");
+  // WebAssembly may be compiled; JavaScript eval may not.
+  expect(csp).not.toMatch(/'unsafe-eval'/);
+  expect(csp).toContain("img-src 'self' blob: data: https://media.example.com https://i.ytimg.com");
   expect(csp).toContain("connect-src 'self'");
   expect(csp).toContain("object-src 'none'");
   expect(csp).toContain("base-uri 'none'");
@@ -51,6 +52,33 @@ describe("security headers", () => {
     const { cookie } = await login(gh, ALLOWED_USER);
     expect((await call("/api/me", { cookie })).headers.get("Cache-Control")).toBe("no-store");
     expect((await call("/api/me")).headers.get("Cache-Control")).toBe("no-store");
+  });
+
+  it("answers a missing build file with 404, not the app page", async () => {
+    const res = await call("/assets/index-old123.js");
+    expect(res.status).toBe(404);
+    expect(res.headers.get("Content-Type")).not.toContain("text/html");
+    expect((await call("/assets/app.js")).status).toBe(200);
+  });
+
+  it("gives each app page a one-time style nonce, never for scripts", async () => {
+    const a = await call("/");
+    const b = await call("/");
+    const nonceOf = (csp: string) => /style-src 'self' 'nonce-([A-Za-z0-9_-]{22})'/.exec(csp)?.[1];
+    const na = nonceOf(a.headers.get("Content-Security-Policy")!);
+    expect(na).toBeTruthy();
+    expect(nonceOf(b.headers.get("Content-Security-Policy")!)).not.toBe(na);
+    expect(a.headers.get("Content-Security-Policy")).toMatch(/script-src 'self' 'wasm-unsafe-eval';/);
+    expect(await a.text()).toContain(`<meta name="alasin:style-nonce" content="${na}">`);
+    // API responses get no nonce.
+    const api = await call("/api/me");
+    expect(api.headers.get("Content-Security-Policy")).not.toContain("nonce-");
+  });
+
+  it("never lets the app page be stored", async () => {
+    const res = await call("/drafts/post/01JA2B3C4D5E6F7G8H9JKMNPQR");
+    expect(res.headers.get("Content-Type")).toContain("text/html");
+    expect(res.headers.get("Cache-Control")).toBe("no-store");
   });
 
   it("injects UI settings into the app shell as meta tags, without inline script", async () => {

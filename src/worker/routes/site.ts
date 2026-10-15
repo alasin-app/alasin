@@ -1,0 +1,91 @@
+// SPDX-License-Identifier: MIT
+//
+// GET /api/site — what the editor needs to know about the site: categories,
+// image settings (from the site's own config file when configured), the
+// gallery shortcode, time zone and front matter conventions, and the signed-in
+// user's author name. Read from the repository on each request, so it follows
+// changes made outside Alasin.
+
+import { Hono } from "hono";
+import { parse as parseToml } from "smol-toml";
+import { parse as parseYaml } from "yaml";
+import { parseFields, splitFrontMatter } from "../../shared/frontmatter";
+import type { AppEnv } from "../app";
+import { readFolderTexts, Repo } from "../lib/repo";
+import { getUserToken } from "../session";
+
+export interface Category {
+  slug: string;
+  title: string;
+}
+
+export const site = new Hono<AppEnv>();
+
+function asNumberList(v: unknown): number[] | undefined {
+  return Array.isArray(v) && v.every((x) => Number.isInteger(x) && x > 0) ? (v as number[]) : undefined;
+}
+
+site.get("/", async (c) => {
+  const config = c.get("config");
+  const token = await getUserToken(c);
+  const { owner, repo: name, branch } = config.github;
+  const repo = new Repo(token, owner, name, branch);
+
+  // Categories.
+  let categories: Category[] = [];
+  const cat = config.categories;
+  if (cat.storage === "term-pages") {
+    for (const f of await readFolderTexts(token, owner, name, branch, cat.path)) {
+      const m = /^([^/]+)\/_index\.md$/.exec(f.path);
+      if (!m) continue;
+      const split = splitFrontMatter(f.text);
+      const fields = split ? parseFields(split.format, split.raw) : new Map();
+      const title = fields.get("title");
+      categories.push({ slug: m[1]!, title: typeof title === "string" && title ? title : m[1]! });
+    }
+  } else if (cat.storage === "data-file") {
+    const file = await repo.getFile(cat.path);
+    if (file) {
+      const data: unknown = cat.path.endsWith(".toml") ? parseToml(file.content) : parseYaml(file.content);
+      const list = Array.isArray(data) ? data : data && typeof data === "object" ? Object.entries(data).map(([slug, title]) => ({ slug, title })) : [];
+      categories = list
+        .map((x) => (typeof x === "string" ? { slug: x, title: x } : { slug: String(x.slug ?? ""), title: String(x.title ?? x.slug ?? "") }))
+        .filter((x) => x.slug);
+    }
+  }
+  categories.sort((a, b) => a.title.localeCompare(b.title));
+
+  // Image settings: alasin.toml, overridden by the site's own config file.
+  const img = config.images;
+  const images = { widths: img.widths, quality: img.quality, maxSize: img.max_size };
+  if (img.site_config_file) {
+    const file = await repo.getFile(img.site_config_file);
+    if (file) {
+      const params = parseToml(file.content) as Record<string, unknown>;
+      images.widths = asNumberList(params[img.widths_key]) ?? images.widths;
+      if (typeof params[img.quality_key] === "number") images.quality = params[img.quality_key] as number;
+      if (typeof params[img.max_size_key] === "number") images.maxSize = params[img.max_size_key] as number;
+    }
+  }
+
+  const user = config.users.allow.find((u) => u.id === c.get("session").uid);
+  return c.json({
+    frontMatterFormat: config.site.front_matter_format,
+    coverField: config.site.cover_field,
+    authorField: config.site.author_field ?? null,
+    author: user?.author ?? null,
+    categories,
+    gallery: { shortcode: config.editor.gallery_shortcode, paired: config.editor.gallery_paired },
+    media: { publicUrl: config.media.public_url, contentPrefix: config.media.content_prefix },
+    images: {
+      ...images,
+      mainQuality: img.main_quality,
+      variantFormat: img.variant_format,
+      variantName: img.variant_name,
+      keepExif: img.keep_exif,
+      acceptedTypes: img.accepted_types,
+      maxUploadMb: img.max_upload_mb,
+    },
+    lock: { heartbeatSeconds: config.editor.lock_heartbeat_seconds, expirySeconds: config.editor.lock_expiry_seconds },
+  });
+});

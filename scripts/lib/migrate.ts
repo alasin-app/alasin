@@ -82,9 +82,27 @@ function migrateDrafts(lines: string[], changes: string[]): void {
   }
 }
 
+// The [site] timezone option was removed: post dates are stored in UTC and shown in the browser's time zone.
+function migrateTimezone(lines: string[], changes: string[]): void {
+  for (let h = 0; h < lines.length; h++) {
+    const m = HEADER.exec(lines[h]!);
+    if (!m || !/^(env\.[^.]+\.)?site$/.test(m[1]!)) continue;
+    let end = h + 1;
+    while (end < lines.length && !HEADER.test(lines[end]!)) end++;
+    const at = lines.slice(h + 1, end).findIndex((l) => /^\s*timezone\s*=/.test(l));
+    if (at === -1) continue;
+    const line = h + 1 + at;
+    const from = commentBlockAbove(lines, line, h);
+    const blank = lines[line + 1]?.trim() === "" && lines[from - 1]?.trim() === "" ? 1 : 0;
+    lines.splice(from, line + 1 + blank - from);
+    changes.push(`[${m[1]}]: removed "timezone" (dates are now stored in UTC and shown in each browser's time zone)`);
+  }
+}
+
 export function migrateAlasinToml(text: string): Migration {
   const lines = text.split("\n");
   const changes: string[] = [];
   migrateDrafts(lines, changes);
+  migrateTimezone(lines, changes);
   return { text: changes.length ? lines.join("\n") : text, changes };
 }

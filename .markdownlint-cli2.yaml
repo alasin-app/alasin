@@ -5,6 +5,8 @@ config:
   MD013: false # prose paragraphs are kept on one line
   MD060:
     style: compact
+  MD024:
+    siblings_only: true # e.g. a "Checklist" under each milestone
 ignores:
   - node_modules/**
   - dist/**

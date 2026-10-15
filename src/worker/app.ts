@@ -11,7 +11,8 @@ import { api } from "./routes/api";
 import { auth } from "./routes/auth";
 import type { Session } from "./session";
 import { SessionExpiredError } from "./session";
-import { KeyConfigError } from "./lib/crypto";
+import { KeyConfigError, randomToken } from "./lib/crypto";
+import { GitHubError } from "./lib/github";
 import { iconPng, iconSvg, PNG_SIZES } from "./icons";
 import { webManifest, withUiSettings } from "./shell";
 
@@ -21,6 +22,8 @@ export interface AppEnv {
     config: AlasinConfig;
     session: Session;
     requestId: string;
+    /** One-time nonce for runtime `<style>` elements on an app page. */
+    styleNonce?: string;
   };
 }
 
@@ -66,7 +69,7 @@ export function createApp() {
     }
 
     await next();
-    c.res = withSecurityHeaders(c.res, config, canonical.protocol === "https:");
+    c.res = withSecurityHeaders(c.res, config, canonical.protocol === "https:", c.get("styleNonce"));
     log({
       rid,
       method: c.req.method,
@@ -107,11 +110,23 @@ export function createApp() {
   app.all("*", async (c) => {
     if (c.req.method !== "GET" && c.req.method !== "HEAD") return c.text("Method not allowed", 405);
     const res = await c.env.ASSETS.fetch(c.req.raw);
-    return withUiSettings(res, c.get("config"));
+    // A missing build file is a real 404, not the app page: a browser asking for a
+    // script that no longer exists (after a deployment) must not get HTML instead.
+    if (c.req.path.startsWith("/assets/") && (res.headers.get("Content-Type") ?? "").startsWith("text/html")) {
+      return c.text("Not found", 404, { "Cache-Control": "no-store" });
+    }
+    if (!(res.headers.get("Content-Type") ?? "").startsWith("text/html")) return res;
+    const nonce = randomToken(16);
+    c.set("styleNonce", nonce);
+    return withUiSettings(res, c.get("config"), nonce);
   });
 
   app.onError((err, c) => {
     if (err instanceof SessionExpiredError) return c.json({ error: "unauthenticated", message: err.message }, 401);
+    if (err instanceof GitHubError && (err.status === 403 || err.status === 404)) {
+      logError({ rid: c.get("requestId"), route: c.req.routePath, event: "github_denied" }, err);
+      return c.json({ error: "github", message: "GitHub refused the request. Check that you have write access to the site repository." }, 502);
+    }
     logError({ rid: c.get("requestId"), route: c.req.routePath, event: err instanceof KeyConfigError ? "secret_invalid" : "unhandled" }, err);
     return c.json({ error: "internal", message: "Something went wrong. Please try again." }, 500);
   });

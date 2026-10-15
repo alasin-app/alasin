@@ -10,7 +10,7 @@ export const STRANGER = { login: "mallory", id: 999001 };
 
 export const testConfig: AlasinConfigInput = {
   app: { url: APP_URL },
-  site: { url: "https://www.example.com", timezone: "Europe/Helsinki" },
+  site: { url: "https://www.example.com" },
   github: { owner: "example-owner", repo: "example-site", branch: "main", app_id: 12345, client_id: "Iv23liEXAMPLE" },
   users: { allow: [ALLOWED_USER, OTHER_ALLOWED_USER] },
   media: { public_url: "https://media.example.com/" },

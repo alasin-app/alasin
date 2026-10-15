@@ -3,7 +3,8 @@
 // app shell) so the app opens quickly and can be installed. API responses and
 // auth routes are never cached.
 
-const CACHE = "alasin-static-v1";
+// Bumped when cached content could be wrong; older caches are deleted on activation.
+const CACHE = "alasin-static-v2";
 
 self.addEventListener("install", () => self.skipWaiting());
 
@@ -34,7 +35,9 @@ self.addEventListener("fetch", (event) => {
         const hit = await cache.match(req);
         if (hit) return hit;
         const res = await fetch(req);
-        if (res.ok) await cache.put(req, res.clone());
+        // Never keep an HTML page under a build file's address.
+        const type = res.headers.get("Content-Type") || "";
+        if (res.ok && !type.startsWith("text/html")) await cache.put(req, res.clone());
         return res;
       })(),
     );

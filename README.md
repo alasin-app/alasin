@@ -10,7 +10,9 @@ Alasin (Finnish for "anvil") is a web app for writing and publishing pages and p
 - iOS-style app that works on iPhone, iPad and any modern desktop browser, in light and dark mode, in English and Finnish
 - Runs on the Cloudflare Workers Free plan: one Worker with static assets, R2 for images, KV for sessions, a Durable Object for edit locks
 - Uses your site's existing conventions (content folders, image bucket layout, gallery shortcode, image sizes) through configuration
-- Coming next: rich-text editor with a Markdown view, automatic image resizing and upload, drafts, publishing, edit locks
+- Drafts of posts and pages, saved in the site repository; photos resized in the browser (with WebP sizes, GPS removed) and uploaded to a private R2 bucket; galleries with the site's own shortcode
+- A live-formatting editor on the Markdown itself (formatted text, inline images, gallery cards, line breaks shown) with a switch to the raw Markdown; posts change only where you edit them
+- Coming next: publishing, editing existing posts, edit locks
 
 ## Requirements
 
@@ -132,8 +134,9 @@ The Hugo site and its content layout.
 | `pages_dir` | string | `"content/pages"` | `"content/pages"` | Directory of pages in the site repository. |
 | `post_filename` | string | `"{slug}.md"` | `"{slug}.md"` | File name pattern for new posts, relative to `posts_dir`. Placeholders: `{slug}`, `{yyyy}`, `{mm}`, `{dd}`. Must end in `.md`. |
 | `page_filename` | string | `"{slug}.md"` | `"{slug}.md"` | File name pattern for new pages, relative to `pages_dir`. Placeholder: `{slug}`. Must end in `.md`. |
+| `cover_field` | string | `"image"` | `"image"` | Front matter field holding a post's cover image. |
+| `author_field` | string | — | — | Front matter field for the author's name (from `[users] allow` `author`). Leave unset if the site doesn't use one. |
 | `front_matter_format` | one of "yaml", "toml" | `"yaml"` | `"yaml"` | Front matter format for new files. Existing files keep the format they already use. |
-| `timezone` | string | `"UTC"` | `"UTC"` | IANA time zone used for the date of new posts, e.g. `Europe/Helsinki`. Usually matches Hugo's `timeZone`. |
 
 ### `[github]`
 
@@ -154,7 +157,7 @@ Who may log in.
 
 | Option | Type | Default | Example | Description |
 | --- | --- | --- | --- | --- |
-| `allow` | array of { login, id } | **required** | `[{"login" = "octocat", "id" = 583231}]` | GitHub users allowed to log in. `npm run setup` resolves usernames to numeric IDs. |
+| `allow` | array of { login, id, author } | **required** | `[{"login" = "octocat", "id" = 583231}]` | GitHub users allowed to log in. `npm run setup` resolves usernames to numeric IDs. |
 
 ### `[media]`
 
@@ -237,12 +240,15 @@ What users see.
 
 ### `[security]`
 
-Sessions. Rate limits are set in `wrangler.toml` (`[[ratelimits]]`).
+Sessions and secret rotation reminders. Rate limits are set in `wrangler.toml` (`[[ratelimits]]`).
 
 | Option | Type | Default | Example | Description |
 | --- | --- | --- | --- | --- |
 | `session_idle_days` | number | `7` | `7` | Log out after this many days without activity. |
 | `session_max_days` | number | `30` | `30` | Log out this many days after login, regardless of activity. |
+| `rotation_reminder_days` | integer | `180` | `180` | Remind (in `npm run deploy` and the app's account sheet) to rotate secrets this many days after they were last rotated. |
+| `session_keys_rotated` | string | — | — | Date the session and token encryption keys were last rotated, `YYYY-MM-DD`. Written by `npm run setup`. |
+| `github_secrets_rotated` | string | — | — | Date the GitHub App's client secret and private key were last rotated, `YYYY-MM-DD`. Written by `npm run setup`. |
 
 <!-- config-reference:end -->
 
@@ -258,12 +264,23 @@ npm run setup      # updates alasin.toml if options were renamed or removed
 npm run deploy
 ```
 
+## Housekeeping
+
+Secrets are rotated by hand, and Alasin reminds you when it's time. `npm run setup` records in `alasin.toml` when each secret was last rotated (`[security] session_keys_rotated`, `github_secrets_rotated`). Once `[security] rotation_reminder_days` (default 180) have passed, `npm run deploy` prints a reminder with the exact steps, and the app's account sheet shows a *Housekeeping* section.
+
+| Task | How often | How |
+| --- | --- | --- |
+| Rotate the session and token keys | when reminded | `npm run setup -- --rotate-keys` (everyone has to log in again) |
+| Rotate the GitHub App's client secret and private key | when reminded | see *Rotating secrets* below |
+| Update Alasin | when a release appears | see [Updating](#updating) |
+| Review who may log in | now and then | `[users] allow` in `alasin.toml`, then `npm run deploy` |
+
 ## Security
 
 - **Login:** GitHub App OAuth with PKCE and a single-use `state`. Only GitHub user IDs listed in `[users]` can log in, re-checked on every request.
 - **Sessions:** an encrypted, `HttpOnly`, `Secure`, `SameSite=Lax` `__Host-` cookie that refers to a server-side session in KV. Idle and absolute timeouts; logout deletes the session server-side.
 - **Tokens:** GitHub tokens never reach the browser. They are stored encrypted (AES-GCM) in KV and refreshed before expiry.
-- **Browser:** a strict Content-Security-Policy (no inline or third-party scripts), CSRF protection on every state-changing request, HSTS and other security headers. No analytics or trackers.
+- **Browser:** a strict Content-Security-Policy (no inline or third-party scripts, no `eval`; WebAssembly is allowed only for the bundled WebP encoder, needed because iOS browsers can't encode WebP), CSRF protection on every state-changing request, HSTS and other security headers. No analytics or trackers.
 - **Data:** drafts are committed to a `drafts/` folder of the site repository (keep it private). Images never go into git: draft images are in a private R2 bucket, published images in your public bucket, where the app never overwrites or deletes anything.
 - **Logs** contain request IDs, routes, status codes and GitHub user IDs only.
 
@@ -272,8 +289,7 @@ npm run deploy
 | Secret | How to rotate | Effect |
 | --- | --- | --- |
 | `SESSION_KEY`, `TOKEN_KEY` | `npm run setup -- --rotate-keys` | Everyone has to log in again |
-| `GITHUB_CLIENT_SECRET` | Generate a new client secret on the GitHub App's settings page, `npx wrangler secret put GITHUB_CLIENT_SECRET`, then delete the old one on GitHub | None |
-| `GITHUB_APP_PRIVATE_KEY` | Generate a new private key on the GitHub App's settings page, convert it with `openssl pkcs8 -topk8 -nocrypt -in key.pem`, `npx wrangler secret put GITHUB_APP_PRIVATE_KEY`, then delete the old key on GitHub | None |
+| `GITHUB_CLIENT_SECRET`, `GITHUB_APP_PRIVATE_KEY` | On the GitHub App's settings page, generate a new client secret and a new private key; run `npm run setup -- --rotate-github` and enter them; then delete the old ones on GitHub | None |
 
 Pass `--config <path to wrangler.toml>` to `wrangler secret put` if your configuration lives outside this repository.
 

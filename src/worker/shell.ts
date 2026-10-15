@@ -6,7 +6,7 @@
 
 import type { AlasinConfig } from "../shared/config/schema";
 
-export function withUiSettings(res: Response, config: AlasinConfig): Response {
+export function withUiSettings(res: Response, config: AlasinConfig, styleNonce: string): Response {
   const type = res.headers.get("Content-Type") ?? "";
   if (!type.startsWith("text/html")) return res;
   const { ui } = config;
@@ -35,14 +35,17 @@ export function withUiSettings(res: Response, config: AlasinConfig): Response {
           meta("alasin:name", ui.name) +
             meta("alasin:accent", ui.accent_color) +
             meta("alasin:environment", ui.environment_label ?? "") +
-            meta("alasin:language", ui.default_language),
+            meta("alasin:language", ui.default_language) +
+            meta("alasin:style-nonce", styleNonce),
           { html: true },
         );
       },
     })
     .transform(res);
   const headers = new Headers(out.headers);
-  headers.set("Cache-Control", "no-cache");
+  // Never keep the app page: it names the current build's script files.
+  headers.set("Cache-Control", "no-store");
+  headers.delete("ETag");
   return new Response(out.body, { status: out.status, headers });
 }
 

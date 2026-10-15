@@ -67,6 +67,13 @@ For a **production and dev** setup, choose one hostname per deployment (e.g. `al
 
 Check: the zone appears under **Websites** in the same account where Workers runs.
 
+### Cloudflare features that add scripts to pages
+
+Some zone features insert their own scripts into every HTML page: **Web Analytics** with automatic setup (a beacon from `static.cloudflareinsights.com`) and **JavaScript detections** for bots (an inline script and `/cdn-cgi/challenge-platform/…`). Alasin's Content-Security-Policy blocks them — Alasin has no trackers — so they do nothing but print errors in the browser console. To avoid that, leave the app's hostname out of them:
+
+- **Web Analytics:** dashboard → Analytics & Logs → Web Analytics → your site → *Manage site* → turn off automatic setup, or add a rule that excludes the app's hostname.
+- **JavaScript detections:** dashboard → your zone → Security → Bots → turn off *JavaScript detections* (or Bot Fight Mode) if you don't need it.
+
 ## 3. Wrangler connection
 
 ```sh

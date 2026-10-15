@@ -18,4 +18,8 @@ export const settings = {
   get language() {
     return meta("alasin:language");
   },
+  /** One-time nonce for runtime <style> elements (the editor's), from the page's CSP. */
+  get styleNonce() {
+    return meta("alasin:style-nonce");
+  },
 };

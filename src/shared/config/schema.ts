@@ -26,6 +26,12 @@ const repoDir = z
     message: "must be a relative path inside the repository, without leading or trailing slashes or '..'",
   });
 
+/** A calendar date as a quoted string, e.g. "2026-10-15". */
+const isoDate = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "must be a date written as \"YYYY-MM-DD\" (in quotes)")
+  .refine((d) => !Number.isNaN(Date.parse(`${d}T00:00:00Z`)), { message: "is not a valid date" });
+
 const ghName = z.string().regex(/^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,99})$/, "is not a valid GitHub owner or repository name");
 
 const app = z
@@ -54,14 +60,20 @@ const site = z
       .default("{slug}.md")
       .describe("File name pattern for new pages, relative to `pages_dir`. Placeholder: `{slug}`. Must end in `.md`.")
       .refine((s) => s.endsWith(".md") && !s.includes(".."), { message: "must end in .md and must not contain '..'" }),
+    cover_field: z
+      .string()
+      .regex(/^[A-Za-z_][A-Za-z0-9_-]*$/)
+      .default("image")
+      .describe("Front matter field holding a post's cover image."),
+    author_field: z
+      .string()
+      .regex(/^[A-Za-z_][A-Za-z0-9_-]*$/)
+      .optional()
+      .describe("Front matter field for the author's name (from `[users] allow` `author`). Leave unset if the site doesn't use one."),
     front_matter_format: z
       .enum(["yaml", "toml"])
       .default("yaml")
       .describe("Front matter format for new files. Existing files keep the format they already use."),
-    timezone: z
-      .string()
-      .default("UTC")
-      .describe("IANA time zone used for the date of new posts, e.g. `Europe/Helsinki`. Usually matches Hugo's `timeZone`."),
   })
   .strict()
   .describe("The Hugo site and its content layout.");
@@ -86,6 +98,7 @@ const github = z
 const allowedUser = z.strictObject({
   login: z.string().min(1).describe("GitHub username, for readability. Not used for access checks."),
   id: z.number().int().positive().describe("Numeric GitHub user ID; this is what access is checked against."),
+  author: z.string().max(100).optional().describe("Value written to the author field of this user's new posts and pages."),
 });
 
 const users = z
@@ -235,9 +248,22 @@ const security = z
   .object({
     session_idle_days: z.number().positive().max(90).default(7).describe("Log out after this many days without activity."),
     session_max_days: z.number().positive().max(365).default(30).describe("Log out this many days after login, regardless of activity."),
+    rotation_reminder_days: z
+      .number()
+      .int()
+      .min(30)
+      .max(730)
+      .default(180)
+      .describe("Remind (in `npm run deploy` and the app's account sheet) to rotate secrets this many days after they were last rotated."),
+    session_keys_rotated: isoDate
+      .optional()
+      .describe("Date the session and token encryption keys were last rotated, `YYYY-MM-DD`. Written by `npm run setup`."),
+    github_secrets_rotated: isoDate
+      .optional()
+      .describe("Date the GitHub App's client secret and private key were last rotated, `YYYY-MM-DD`. Written by `npm run setup`."),
   })
   .strict()
-  .describe("Sessions. Rate limits are set in `wrangler.toml` (`[[ratelimits]]`).");
+  .describe("Sessions and secret rotation reminders. Rate limits are set in `wrangler.toml` (`[[ratelimits]]`).");
 
 export const configSchema = z
   .object({
