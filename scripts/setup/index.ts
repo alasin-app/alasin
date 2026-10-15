@@ -214,10 +214,11 @@ async function askSiteValues() {
   const repo = String(get(effective(), "github.repo"));
   const vis = await gh.repoVisibility(owner, repo);
   if (vis.status === "public") {
-    warn(`Repository ${owner}/${repo} is public. Recommended: make it private (Settings → General → Change repository visibility).`);
-    if (get(effective(), "drafts.storage") === "repo") {
-      warn("drafts.storage = \"repo\" on a public repository makes draft text readable by anyone on GitHub.");
-      warn("Consider [drafts] storage = \"r2\" (drafts in the private DRAFTS bucket) or making the repository private.");
+    warn(`Repository ${owner}/${repo} is public.`);
+    warn(`Alasin commits drafts to its ${String(get(effective(), "drafts.dir") ?? "drafts")}/ folder, so anyone could read them on GitHub.`);
+    info("Recommended: make it private (Settings → General → Danger Zone → Change repository visibility).");
+    if (!(await confirm("Continue with a public repository?", false))) {
+      throw new Error(`Make ${owner}/${repo} private, then run setup again.`);
     }
   } else {
     ok(`Repository ${owner}/${repo} is private, as recommended (the GitHub App step confirms it exists)`);
