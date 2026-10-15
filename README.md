@@ -32,7 +32,7 @@ Starting from a state where everything in [PREREQUISITES.md](PREREQUISITES.md) i
    npm install
    ```
 
-2. Log in to Cloudflare: `npx wrangler login` (details in [PREREQUISITES.md §3](PREREQUISITES.md#3-wrangler-connection)).
+2. Log in to Cloudflare: `npx wrangler login`. Approve access in the browser window that opens; when the terminal prints `Successfully logged in.`, close the browser tab (details in [PREREQUISITES.md §3](PREREQUISITES.md#3-wrangler-connection)).
 
 3. Run the setup:
 
