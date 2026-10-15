@@ -26,6 +26,12 @@ const repoDir = z
     message: "must be a relative path inside the repository, without leading or trailing slashes or '..'",
   });
 
+/** A calendar date as a quoted string, e.g. "2026-10-15". */
+const isoDate = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "must be a date written as \"YYYY-MM-DD\" (in quotes)")
+  .refine((d) => !Number.isNaN(Date.parse(`${d}T00:00:00Z`)), { message: "is not a valid date" });
+
 const ghName = z.string().regex(/^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,99})$/, "is not a valid GitHub owner or repository name");
 
 const app = z
@@ -235,9 +241,22 @@ const security = z
   .object({
     session_idle_days: z.number().positive().max(90).default(7).describe("Log out after this many days without activity."),
     session_max_days: z.number().positive().max(365).default(30).describe("Log out this many days after login, regardless of activity."),
+    rotation_reminder_days: z
+      .number()
+      .int()
+      .min(30)
+      .max(730)
+      .default(180)
+      .describe("Remind (in `npm run deploy` and the app's account sheet) to rotate secrets this many days after they were last rotated."),
+    session_keys_rotated: isoDate
+      .optional()
+      .describe("Date the session and token encryption keys were last rotated, `YYYY-MM-DD`. Written by `npm run setup`."),
+    github_secrets_rotated: isoDate
+      .optional()
+      .describe("Date the GitHub App's client secret and private key were last rotated, `YYYY-MM-DD`. Written by `npm run setup`."),
   })
   .strict()
-  .describe("Sessions. Rate limits are set in `wrangler.toml` (`[[ratelimits]]`).");
+  .describe("Sessions and secret rotation reminders. Rate limits are set in `wrangler.toml` (`[[ratelimits]]`).");
 
 export const configSchema = z
   .object({

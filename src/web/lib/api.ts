@@ -48,6 +48,7 @@ export interface Me {
   version: string;
   environment: string | null;
   site: { url: string };
+  housekeeping: { item: "session_keys" | "github_secrets"; lastRotated: string | null; ageDays: number | null }[];
 }
 
 /** Removes everything the app stored on this device (local drafts, caches). */

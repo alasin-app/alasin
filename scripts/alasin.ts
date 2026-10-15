@@ -13,6 +13,7 @@ import { parseArgs } from "./lib/args";
 import { displayPath, loadAlasinConfig } from "./lib/config";
 import { capture, run, start } from "./lib/proc";
 import { generateWranglerConfig, REQUIRED_SECRETS } from "./lib/wrangler-config";
+import { HOUSEKEEPING_HOWTO, housekeepingDue } from "../src/shared/housekeeping";
 
 async function main() {
   const [command, ...argv] = process.argv.slice(2);
@@ -69,6 +70,11 @@ async function main() {
           console.error(`Worker ${gen.workerName} is missing secrets: ${missing.join(", ")}. Run \`npm run setup${args.env ? ` -- --env ${args.env}` : ""}\`.`);
           return 1;
         }
+      }
+      for (const due of housekeepingDue(config)) {
+        const { title, howTo } = HOUSEKEEPING_HOWTO[due.item];
+        const when = due.lastRotated ? `last rotated ${due.lastRotated} (${due.ageDays} days ago)` : "no rotation date recorded";
+        console.warn(`Housekeeping: ${title}: ${when}.\n  ${howTo}`);
       }
       console.log(
         `Deploying Worker ${gen.workerName} — environment: ${args.env ?? "default (production)"}, app ${config.app.url}, site branch ${config.github.branch}`,

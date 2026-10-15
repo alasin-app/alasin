@@ -51,6 +51,11 @@ describe("login", () => {
     expect(body.user).toMatchObject({ id: ALLOWED_USER.id, login: ALLOWED_USER.login });
     expect(body.version).toBe("0.0.0-test");
     expect(body.environment).toBe("TEST");
+    // The test config records no rotations, so both reminders are due.
+    expect((body as unknown as { housekeeping: { item: string }[] }).housekeeping.map((h) => h.item)).toEqual([
+      "session_keys",
+      "github_secrets",
+    ]);
     // Tokens never reach the browser.
     expect(JSON.stringify(body)).not.toContain("ghu_");
     expect(set).not.toContain("ghu_");

@@ -237,12 +237,15 @@ What users see.
 
 ### `[security]`
 
-Sessions. Rate limits are set in `wrangler.toml` (`[[ratelimits]]`).
+Sessions and secret rotation reminders. Rate limits are set in `wrangler.toml` (`[[ratelimits]]`).
 
 | Option | Type | Default | Example | Description |
 | --- | --- | --- | --- | --- |
 | `session_idle_days` | number | `7` | `7` | Log out after this many days without activity. |
 | `session_max_days` | number | `30` | `30` | Log out this many days after login, regardless of activity. |
+| `rotation_reminder_days` | integer | `180` | `180` | Remind (in `npm run deploy` and the app's account sheet) to rotate secrets this many days after they were last rotated. |
+| `session_keys_rotated` | string | — | — | Date the session and token encryption keys were last rotated, `YYYY-MM-DD`. Written by `npm run setup`. |
+| `github_secrets_rotated` | string | — | — | Date the GitHub App's client secret and private key were last rotated, `YYYY-MM-DD`. Written by `npm run setup`. |
 
 <!-- config-reference:end -->
 
@@ -258,6 +261,17 @@ npm run setup      # updates alasin.toml if options were renamed or removed
 npm run deploy
 ```
 
+## Housekeeping
+
+Secrets are rotated by hand, and Alasin reminds you when it's time. `npm run setup` records in `alasin.toml` when each secret was last rotated (`[security] session_keys_rotated`, `github_secrets_rotated`). Once `[security] rotation_reminder_days` (default 180) have passed, `npm run deploy` prints a reminder with the exact steps, and the app's account sheet shows a *Housekeeping* section.
+
+| Task | How often | How |
+| --- | --- | --- |
+| Rotate the session and token keys | when reminded | `npm run setup -- --rotate-keys` (everyone has to log in again) |
+| Rotate the GitHub App's client secret and private key | when reminded | see *Rotating secrets* below |
+| Update Alasin | when a release appears | see [Updating](#updating) |
+| Review who may log in | now and then | `[users] allow` in `alasin.toml`, then `npm run deploy` |
+
 ## Security
 
 - **Login:** GitHub App OAuth with PKCE and a single-use `state`. Only GitHub user IDs listed in `[users]` can log in, re-checked on every request.
@@ -272,8 +286,7 @@ npm run deploy
 | Secret | How to rotate | Effect |
 | --- | --- | --- |
 | `SESSION_KEY`, `TOKEN_KEY` | `npm run setup -- --rotate-keys` | Everyone has to log in again |
-| `GITHUB_CLIENT_SECRET` | Generate a new client secret on the GitHub App's settings page, `npx wrangler secret put GITHUB_CLIENT_SECRET`, then delete the old one on GitHub | None |
-| `GITHUB_APP_PRIVATE_KEY` | Generate a new private key on the GitHub App's settings page, convert it with `openssl pkcs8 -topk8 -nocrypt -in key.pem`, `npx wrangler secret put GITHUB_APP_PRIVATE_KEY`, then delete the old key on GitHub | None |
+| `GITHUB_CLIENT_SECRET`, `GITHUB_APP_PRIVATE_KEY` | On the GitHub App's settings page, generate a new client secret and a new private key; run `npm run setup -- --rotate-github` and enter them; then delete the old ones on GitHub | None |
 
 Pass `--config <path to wrangler.toml>` to `wrangler secret put` if your configuration lives outside this repository.
 

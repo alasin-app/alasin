@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 
+import { TriangleAlert } from "lucide-preact";
 import { useState } from "preact/hooks";
 import type { Me } from "../lib/api";
-import { getLanguage, LANGUAGES, setLanguage, t, useLanguage } from "../lib/i18n";
+import { getLanguage, LANGUAGES, type MessageKey, setLanguage, t, useLanguage } from "../lib/i18n";
 import { settings } from "../lib/settings";
 import { ActionSheet, Sheet } from "./Sheet";
 
@@ -37,6 +38,26 @@ export function AccountSheet(props: { open: boolean; onClose: () => void; me: Me
             <span class="row-value">{me.version}</span>
           </li>
         </ul>
+
+        {me.housekeeping.length > 0 && (
+          <>
+            <h3 class="group-header">{t("housekeeping.title")}</h3>
+            <ul class="grouped-list">
+              {me.housekeeping.map((h) => (
+                <li class="row">
+                  <TriangleAlert class="warning-icon" size={20} aria-hidden="true" />
+                  <span class="row-label">
+                    {t(`housekeeping.${h.item}` as MessageKey)}
+                    <span class="row-subtitle">
+                      {h.lastRotated ? t("housekeeping.lastRotated", { date: h.lastRotated }) : t("housekeeping.notRecorded")}
+                    </span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <p class="group-footer">{t("housekeeping.hint")}</p>
+          </>
+        )}
 
         <h3 class="group-header">{t("account.settings")}</h3>
         <ul class="grouped-list">

@@ -606,6 +606,24 @@ img {
   flex: 1;
 }
 
+.row-subtitle {
+  display: block;
+  font-size: var(--footnote);
+  color: var(--secondary-label);
+}
+
+.warning-icon {
+  flex: none;
+  color: var(--orange);
+}
+
+.group-footer {
+  margin: -18px var(--gutter-right) 24px var(--gutter);
+  padding: 0 16px;
+  font-size: var(--footnote);
+  color: var(--secondary-label);
+}
+
 .row-value {
   color: var(--secondary-label);
 }
