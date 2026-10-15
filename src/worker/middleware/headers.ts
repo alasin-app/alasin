@@ -13,7 +13,10 @@ export function contentSecurityPolicy(config: AlasinConfig): string {
   if (config.preview.css_url) styleSrc.add(new URL(config.preview.css_url).origin);
   csp = [
     "default-src 'self'",
-    "script-src 'self'",
+    // 'wasm-unsafe-eval' allows compiling WebAssembly (the WebP encoder, needed on
+    // browsers that can't encode WebP, e.g. all iOS browsers). It doesn't allow
+    // JavaScript eval or inline scripts.
+    "script-src 'self' 'wasm-unsafe-eval'",
     `style-src ${[...styleSrc].join(" ")}`,
     `img-src ${[...imgSrc].join(" ")}`,
     "font-src 'self'",

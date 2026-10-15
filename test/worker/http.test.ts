@@ -15,9 +15,10 @@ afterEach(() => {
 function expectSecurityHeaders(res: Response) {
   const csp = res.headers.get("Content-Security-Policy")!;
   expect(csp).toContain("default-src 'self'");
-  expect(csp).toContain("script-src 'self'");
+  expect(csp).toContain("script-src 'self' 'wasm-unsafe-eval';");
   expect(csp).not.toContain("unsafe-inline");
-  expect(csp).not.toContain("unsafe-eval");
+  // WebAssembly may be compiled; JavaScript eval may not.
+  expect(csp).not.toMatch(/'unsafe-eval'/);
   expect(csp).toContain("img-src 'self' blob: data: https://media.example.com");
   expect(csp).toContain("connect-src 'self'");
   expect(csp).toContain("object-src 'none'");

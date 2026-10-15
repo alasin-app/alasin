@@ -10,7 +10,8 @@ Alasin (Finnish for "anvil") is a web app for writing and publishing pages and p
 - iOS-style app that works on iPhone, iPad and any modern desktop browser, in light and dark mode, in English and Finnish
 - Runs on the Cloudflare Workers Free plan: one Worker with static assets, R2 for images, KV for sessions, a Durable Object for edit locks
 - Uses your site's existing conventions (content folders, image bucket layout, gallery shortcode, image sizes) through configuration
-- Coming next: rich-text editor with a Markdown view, automatic image resizing and upload, drafts, publishing, edit locks
+- Drafts of posts and pages, saved in the site repository; photos resized in the browser (with WebP sizes, GPS removed) and uploaded to a private R2 bucket; galleries with the site's own shortcode
+- Coming next: rich-text editor, publishing, edit locks
 
 ## Requirements
 
@@ -278,7 +279,7 @@ Secrets are rotated by hand, and Alasin reminds you when it's time. `npm run set
 - **Login:** GitHub App OAuth with PKCE and a single-use `state`. Only GitHub user IDs listed in `[users]` can log in, re-checked on every request.
 - **Sessions:** an encrypted, `HttpOnly`, `Secure`, `SameSite=Lax` `__Host-` cookie that refers to a server-side session in KV. Idle and absolute timeouts; logout deletes the session server-side.
 - **Tokens:** GitHub tokens never reach the browser. They are stored encrypted (AES-GCM) in KV and refreshed before expiry.
-- **Browser:** a strict Content-Security-Policy (no inline or third-party scripts), CSRF protection on every state-changing request, HSTS and other security headers. No analytics or trackers.
+- **Browser:** a strict Content-Security-Policy (no inline or third-party scripts, no `eval`; WebAssembly is allowed only for the bundled WebP encoder, needed because iOS browsers can't encode WebP), CSRF protection on every state-changing request, HSTS and other security headers. No analytics or trackers.
 - **Data:** drafts are committed to a `drafts/` folder of the site repository (keep it private). Images never go into git: draft images are in a private R2 bucket, published images in your public bucket, where the app never overwrites or deletes anything.
 - **Logs** contain request IDs, routes, status codes and GitHub user IDs only.
 
