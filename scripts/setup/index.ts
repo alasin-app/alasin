@@ -250,6 +250,44 @@ async function askSiteValues() {
   }
 }
 
+function workerName(): string {
+  const raw = wranglerRaw();
+  if (!env) return String(raw.name ?? "alasin");
+  const envTable = ((raw.env as Table | undefined)?.[env] as Table | undefined) ?? {};
+  return String(envTable.name ?? `${String(raw.name ?? "alasin")}-${env}`);
+}
+
+const validWorker = (v: string) =>
+  /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(v) ? null : "lower-case letters, digits and '-' (not at the ends)";
+
+/**
+ * Shows what this deployment is (Worker, address, branch, badge) and lets the
+ * operator correct it. The example files default to a production Worker named
+ * "alasin" that commits to "main"; a dev deployment needs other values.
+ */
+async function confirmDeployment() {
+  step(`Deployment${envLabel}`);
+  const show = () => {
+    const e = effective();
+    const label = get(e, "ui.environment_label") as string | undefined;
+    info(`Worker:         ${bold(workerName())}`);
+    info(`App address:    ${String(get(e, "app.url"))}`);
+    info(`Commits to:     ${String(get(e, "github.owner"))}/${String(get(e, "github.repo"))}, branch ${bold(String(get(e, "github.branch")))}`);
+    info(`Badge in app:   ${label ? label : "none (production)"}`);
+  };
+  show();
+  if (await confirm("Is this right?")) return;
+  setWrangler("name", await ask("Worker name", { default: workerName(), validate: validWorker }));
+  setAlasin("github", "branch", await ask("Site branch to commit to", { default: String(get(effective(), "github.branch")), validate: validName }));
+  const current = (get(effective(), "ui.environment_label") as string | undefined) ?? "";
+  const label = await ask("Badge for a non-production deployment, e.g. DEV (empty for production)", {
+    default: current || undefined,
+    validate: (v) => (v.length <= 12 ? null : "at most 12 characters"),
+  });
+  if (label || current) setAlasin("ui", "environment_label", label);
+  show();
+}
+
 async function askUsers() {
   step(`Allowed users${envLabel}`);
   const allow = (get(effective(), "users.allow") as { login: string; id: number }[] | undefined) ?? [];
@@ -305,7 +343,7 @@ async function setupBuckets() {
   const drafts = buckets.find((b) => b.binding === "DRAFTS") ?? {};
   let draftsName = drafts.bucket_name as string | undefined;
   if (isUnset(draftsName)) {
-    draftsName = await ask("Name for the private DRAFTS bucket", { default: `${mediaName}-drafts${env ? `-${env}` : ""}`, validate: validBucket });
+    draftsName = await ask("Name for the private DRAFTS bucket", { default: `${workerName()}-drafts`, validate: validBucket });
     setWrangler("bucket_name", draftsName, { table: "r2_buckets", where: { key: "binding", value: "DRAFTS" } });
     if (jurisdiction) setWrangler("jurisdiction", jurisdiction, { table: "r2_buckets", where: { key: "binding", value: "DRAFTS" } });
   }
@@ -326,10 +364,9 @@ function setupKv() {
     ok(`KV: ${String(kv.id)}`);
     return;
   }
-  const workerName = String(wranglerTarget().name ?? wranglerRaw().name ?? "alasin");
-  const id = cf.ensureKvNamespace(`${workerName}-sessions`);
+  const id = cf.ensureKvNamespace(`${workerName()}-sessions`);
   setWrangler("id", id, { table: "kv_namespaces", where: { key: "binding", value: "KV" } });
-  ok(`KV: ${workerName}-sessions (${id})`);
+  ok(`KV: ${workerName()}-sessions (${id})`);
 }
 
 function setupDomain() {
@@ -364,12 +401,19 @@ async function setupGitHubApp(): Promise<Record<string, string>> {
   if (haveApp && haveSecrets) {
     ok(`GitHub App ${String(get(e, "github.app_id"))} and its secrets are set`);
   } else if (haveApp) {
-    info(`GitHub App ${String(get(e, "github.app_id"))} is configured, but its secrets aren't stored on the Worker.`);
-    info("Generate a client secret and a private key on the app's settings page on GitHub.");
-    secrets.GITHUB_CLIENT_SECRET = await ask("Client secret");
-    const keyPath = await ask("Path to the private key (.pem)", { validate: (v) => (existsSync(v) ? null : "file not found") });
-    privateKey = gh.toPkcs8(readText(keyPath));
-    secrets.GITHUB_APP_PRIVATE_KEY = privateKey;
+    info(`GitHub App ${String(get(e, "github.app_id"))} is configured, but its secrets aren't stored on Worker ${workerName()}.`);
+    const local = readDevVars();
+    if (local.GITHUB_CLIENT_SECRET && local.GITHUB_APP_PRIVATE_KEY && (await confirm(`Use the app's client secret and private key from ${displayPath(devVarsPath())}?`))) {
+      secrets.GITHUB_CLIENT_SECRET = local.GITHUB_CLIENT_SECRET;
+      privateKey = gh.toPkcs8(local.GITHUB_APP_PRIVATE_KEY);
+      secrets.GITHUB_APP_PRIVATE_KEY = privateKey;
+    } else {
+      info("Generate a client secret and a private key on the app's settings page on GitHub.");
+      secrets.GITHUB_CLIENT_SECRET = await ask("Client secret");
+      const keyPath = await ask("Path to the private key (.pem)", { validate: (v) => (existsSync(v) ? null : "file not found") });
+      privateKey = gh.toPkcs8(readText(keyPath));
+      secrets.GITHUB_APP_PRIVATE_KEY = privateKey;
+    }
   } else {
     const callbacks = [`${appUrl}/auth/callback`];
     const local = await confirm("Also allow logins from local development (http://localhost:8787)?", false);
@@ -424,6 +468,24 @@ async function setupGitHubApp(): Promise<Record<string, string>> {
   return secrets;
 }
 
+function devVarsPath(): string {
+  return join(dirname(args.wranglerPath), env ? `.dev.vars.${env}` : ".dev.vars");
+}
+
+/** Reads the local-development secrets file written by setup (KEY=value, values may be "quoted" with \\n escapes). */
+function readDevVars(): Record<string, string> {
+  if (!existsSync(devVarsPath())) return {};
+  const out: Record<string, string> = {};
+  for (const line of readText(devVarsPath()).split("\n")) {
+    const m = /^([A-Z0-9_]+)=(.*)$/.exec(line.trim());
+    if (!m) continue;
+    let value = m[2]!;
+    if (value.startsWith('"') && value.endsWith('"')) value = value.slice(1, -1).replace(/\\n/g, "\n");
+    out[m[1]!] = value;
+  }
+  return out;
+}
+
 const newKey = () => randomBytes(32).toString("base64");
 
 async function storeSecrets(fromApp: Record<string, string>) {
@@ -443,9 +505,8 @@ async function storeSecrets(fromApp: Record<string, string>) {
   if (missing.length) warn(`Still missing: ${missing.join(", ")}. Run setup again or set them with \`npx wrangler secret put\`.`);
   else ok("All secrets present");
 
-  const devVarsPath = join(dirname(args.wranglerPath), env ? `.dev.vars.${env}` : ".dev.vars");
-  if (!existsSync(devVarsPath) && fromApp.GITHUB_CLIENT_SECRET) {
-    if (await confirm(`Write ${displayPath(devVarsPath)} for local development (npm run dev)?`, false)) {
+  if (!existsSync(devVarsPath()) && fromApp.GITHUB_CLIENT_SECRET) {
+    if (await confirm(`Write ${displayPath(devVarsPath())} for local development (npm run dev)?`, false)) {
       const lines = [
         "# Local development secrets for `npm run dev`. Never commit this file.",
         `SESSION_KEY=${newKey()}`,
@@ -453,8 +514,8 @@ async function storeSecrets(fromApp: Record<string, string>) {
         `GITHUB_CLIENT_SECRET=${fromApp.GITHUB_CLIENT_SECRET}`,
         `GITHUB_APP_PRIVATE_KEY="${(fromApp.GITHUB_APP_PRIVATE_KEY ?? "").trim().replace(/\n/g, "\\n")}"`,
       ];
-      writeFileSync(devVarsPath, `${lines.join("\n")}\n`, { mode: 0o600 });
-      ok(`Wrote ${displayPath(devVarsPath)}`);
+      writeFileSync(devVarsPath(), `${lines.join("\n")}\n`, { mode: 0o600 });
+      ok(`Wrote ${displayPath(devVarsPath())}`);
     }
   }
 }
@@ -486,6 +547,7 @@ async function main() {
   ensureFiles();
   await checkPrerequisites();
   await askSiteValues();
+  await confirmDeployment();
   await askUsers();
   await setupBuckets();
   setupKv();
