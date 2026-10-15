@@ -73,6 +73,7 @@ If you run a deployment, list its identifying terms in `.local/denylist` (gitign
 - New `alasin.toml` options go in `src/shared/config/schema.ts` with a description and in `alasin.example.toml`; then run `npm run docs:config`.
 - Dependencies must have MIT-compatible licences (MIT, BSD, Apache-2.0, ISC) and are pinned exactly.
 - Security-relevant behaviour gets a test (see `test/worker`).
+- Things only a person on a real device can check are listed in [docs/manual-tests.md](docs/manual-tests.md); add checks for new features there and record each test run.
 
 ## Reporting security issues
 
