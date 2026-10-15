@@ -129,7 +129,7 @@ The site's existing public image bucket (`MEDIA` binding). Alasin never overwrit
 | Option | Type | Default | Example | Description |
 |---|---|---|---|---|
 | `public_url` | string (URL) | **required** | `"https://media.example.com/"` | Public base URL of the `MEDIA` bucket, ending in `/`. Its origin is added to the Content-Security-Policy. |
-| `path_pattern` | string | `"{yyyy}/{mm}/{dd}/{name}.{ext}"` | `"{yyyy}/{mm}/{dd}/{name}.{ext}"` | R2 key pattern for published images. Placeholders: `{yyyy}`, `{mm}`, `{dd}` (from the post date), `{name}`, `{ext}`. Must match the bucket's existing layout. |
+| `path_pattern` | string | `"{yyyy}/{mm}/{dd}/{name}.{ext}"` | `"{yyyy}/{mm}/{dd}/{name}.{ext}"` | R2 key pattern for published images. Placeholders: `{yyyy}`, `{mm}`, `{dd}` (from the post date), `{name}` (the original file name, lower-cased and URL-safe; `-2`, `-3`… is added only if that name is already taken), `{ext}` (from the image type). Must match the bucket's existing layout. |
 | `content_prefix` | string | `"/img/"` | `"/img/"` | How Markdown refers to published images: this prefix followed by the R2 key. Use the site's own convention, e.g. `/img/` when a render hook maps it to the media domain, or the full `public_url`. |
 | `cache_control` | string | `"public, max-age=604800"` | `"public, max-age=604800"` | `Cache-Control` header set on images copied to `MEDIA`. |
 | `browse_prefixes` | array of string | `[""]` | `[""]` | Top-level prefixes of `MEDIA` the media browser may list. `""` means the bucket root. |

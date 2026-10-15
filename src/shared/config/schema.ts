@@ -107,7 +107,7 @@ const media = z
       .string()
       .default("{yyyy}/{mm}/{dd}/{name}.{ext}")
       .describe(
-        "R2 key pattern for published images. Placeholders: `{yyyy}`, `{mm}`, `{dd}` (from the post date), `{name}`, `{ext}`. Must match the bucket's existing layout.",
+        "R2 key pattern for published images. Placeholders: `{yyyy}`, `{mm}`, `{dd}` (from the post date), `{name}` (the original file name, lower-cased and URL-safe; `-2`, `-3`… is added only if that name is already taken), `{ext}` (from the image type). Must match the bucket's existing layout.",
       )
       .refine((p) => p.includes("{name}") && !p.startsWith("/") && !p.includes(".."), {
         message: "must contain {name}, must not start with '/' and must not contain '..'",

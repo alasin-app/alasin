@@ -130,7 +130,9 @@ allow = [
 public_url = "https://media.example.com/"
 
 # R2 key of published images. Placeholders: {yyyy}, {mm}, {dd} (from the post
-# date), {name} (generated, lower case, unique), {ext}.
+# date), {name} (the original file name, lower-cased and URL-safe, e.g.
+# IMG_3438.JPG → img_3438; "-2", "-3"… is added only if that name is already
+# taken, since existing images are never overwritten), {ext} (from the image type).
 # WARNING: must match the layout already used in the bucket; Alasin never
 # restructures an existing bucket. Type: string. Default: "{yyyy}/{mm}/{dd}/{name}.{ext}".
 path_pattern = "{yyyy}/{mm}/{dd}/{name}.{ext}"
