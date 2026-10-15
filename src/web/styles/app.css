@@ -603,6 +603,7 @@ img {
 .nav-trailing {
   display: flex;
   justify-content: flex-end;
+  gap: 8px;
 }
 
 .nav-inline-title {
@@ -1572,4 +1573,8 @@ img {
   background: var(--cell-bg);
   color: var(--label);
   font: inherit;
+}
+
+.published-check {
+  color: var(--green);
 }

@@ -99,3 +99,17 @@ Devices: Chrome on macOS (desktop), Chrome on iOS (WebKit, like all iOS browsers
 | 2.18 | ✅ | Added after this run (#69); a YouTube link pasted on its own line now becomes the shortcode too (#70). |
 
 Also found during this run: reloading after a new deployment gave a blank page (old script names answered with the app page); fixed with real 404s, a no-store app page and a one-time automatic reload (#55).
+
+## Milestone 3 — publish, archive and delete
+
+Before starting, save a listing of the public media bucket (`npx wrangler r2 object list <media-bucket>` or the dashboard) to compare at the end.
+
+### Checklist
+
+| # | Check | How |
+| --- | --- | --- |
+| 3.1 | Publish | Draft with a title, text and photos → *Publish* → confirm: "Published" with the file's path; the file is in the posts folder (not in `drafts/`), with `draft: false` and no `draftId`, in one commit as the user |
+| 3.2 | Published photos | The photos used in the text and the cover are in the media bucket under the date path, with their WebP sizes; the text and cover refer to them with the site's image prefix; the draft's folder in the drafts bucket is empty (also photos that weren't used) |
+| 3.3 | Unsaved changes | Change the text, then *Publish* without saving: the change is saved first and is in the published file |
+| 3.4 | Address taken | Publish a draft whose address (slug) is already used by a post: refused with a message, the draft stays; change the slug and publish again |
+| 3.5 | Nothing overwritten | Compare the media bucket with the listing from the start: only new files were added; a photo whose name was taken got `-2` |

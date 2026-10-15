@@ -35,7 +35,7 @@ interface Loaded {
   remote?: { content: string; sha: string };
 }
 
-type Status = "idle" | "saving" | "saved" | "error";
+type Status = "idle" | "saving" | "saved" | "publishing" | "error";
 
 interface Upload {
   token: string;
@@ -84,6 +84,9 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
   const [conflict, setConflict] = useState(false);
   const [coverOpen, setCoverOpen] = useState(false);
   const [videoOpen, setVideoOpen] = useState(false);
+  const [publishOpen, setPublishOpen] = useState(false);
+  /** Where the draft was published to, once it is. */
+  const [published, setPublished] = useState<string | null>(null);
   const [videoLink, setVideoLink] = useState("");
   const [videoError, setVideoError] = useState(false);
   const [uploads, setUploads] = useState<Upload[]>([]);
@@ -245,16 +248,17 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
     setForm({ title, ...(slugFollows ? { slug: title.trim() ? slugify(title) : "" } : {}) });
   };
 
-  const save = async (opts: { overwrite?: boolean } = {}) => {
-    if (!state || status === "saving") return;
+  /** Commits the draft; the new blob SHA, or null if it wasn't saved. */
+  const save = async (opts: { overwrite?: boolean } = {}): Promise<string | null> => {
+    if (!state || status === "saving" || status === "publishing") return null;
     if (uploading) {
       setMessage(t("photos.waitForUploads"));
-      return;
+      return null;
     }
     if (!state.doc.form.title.trim()) {
       setMessage(t("editor.needTitle"));
       titleRef.current?.focus();
-      return;
+      return null;
     }
     setStatus("saving");
     setMessage(null);
@@ -289,10 +293,34 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
       setConflict(false);
       setStatus("saved");
       setSavedAt(new Date());
+      return res.sha;
     } catch (err) {
       setStatus("error");
       if (err instanceof ApiError && err.status === 409) setConflict(true);
       else if (err instanceof NetworkError) setMessage(t("editor.offline"));
+      else setMessage(err instanceof ApiError ? err.message : t("error.generic"));
+      return null;
+    }
+  };
+
+  /** Saves any changes, then publishes the saved version. */
+  const publish = async () => {
+    if (!state) return;
+    const sha = unsaved || !state.sha ? await save() : state.sha;
+    if (!sha) return;
+    setStatus("publishing");
+    setMessage(null);
+    try {
+      const res = await api<{ path: string }>(`/api/drafts/${type}/${id}/publish`, {
+        method: "POST",
+        // The post's day as the author sees it, for folders named by date.
+        body: { sha, day: toLocalInput(state.doc.form.date).slice(0, 10) || undefined },
+      });
+      await deleteLocalDraft(me.user.id, type, id);
+      setPublished(res.path);
+    } catch (err) {
+      setStatus("error");
+      if (err instanceof NetworkError) setMessage(t("editor.offline"));
       else setMessage(err instanceof ApiError ? err.message : t("error.generic"));
     }
   };
@@ -367,6 +395,18 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
       </div>
     );
   }
+  if (published) {
+    return (
+      <div class="center-screen" role="status">
+        <Check class="published-check" size={44} aria-hidden="true" />
+        <h2 class="headline">{t("editor.published")}</h2>
+        <p class="secondary">{t("editor.publishedBody", { path: published })}</p>
+        <button type="button" class="btn btn-tinted" onClick={back}>
+          {t("editor.backToDrafts")}
+        </button>
+      </div>
+    );
+  }
   if (!state) {
     return (
       <div class="center-screen" role="status">
@@ -378,7 +418,9 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
 
   const f = state.doc.form;
   const statusText =
-    status === "saving"
+    status === "publishing"
+      ? t("editor.publishing")
+      : status === "saving"
       ? t("editor.saving")
       : unsaved
         ? state.savedContent === null
@@ -403,8 +445,26 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
           {statusText}
         </div>
         <div class="nav-trailing">
-          <button type="button" class="btn btn-filled btn-small" onClick={() => void save()} disabled={status === "saving" || uploading || markdownError || !unsaved}>
+          <button
+            type="button"
+            class="btn btn-tinted btn-small"
+            onClick={() => void save()}
+            disabled={status === "saving" || status === "publishing" || uploading || markdownError || !unsaved}
+          >
             {t("editor.saveDraft")}
+          </button>
+          <button
+            type="button"
+            class="btn btn-filled btn-small"
+            onClick={() => {
+              if (!f.title.trim()) {
+                setMessage(t("editor.needTitlePublish"));
+                titleRef.current?.focus();
+              } else setPublishOpen(true);
+            }}
+            disabled={status === "saving" || status === "publishing" || uploading || markdownError || conflict}
+          >
+            {t("editor.publish")}
           </button>
         </div>
       </header>
@@ -613,6 +673,15 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
           onFiles={addPhotos}
         />
       </div>
+
+      <ActionSheet
+        open={publishOpen}
+        onClose={() => setPublishOpen(false)}
+        title={t("editor.publishTitle", { title: f.title.trim() })}
+        message={t(type === "post" ? "editor.publishMessagePost" : "editor.publishMessagePage")}
+        actions={[{ label: t("editor.publish"), onSelect: () => void publish() }]}
+        cancelLabel={t("common.cancel")}
+      />
 
       <ActionSheet
         open={headingMenu}
