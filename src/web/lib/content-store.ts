@@ -1,16 +1,23 @@
 // SPDX-License-Identifier: MIT
 //
 // The post and page list, kept in IndexedDB together with the commit it was
-// read from. On start the app asks for the branch's head commit (one small
-// request) and reads the content again only when the repository has changed,
-// including changes made outside Alasin. Removed on logout (clearLocalData).
+// read from. The lists show the kept copy at once and bring it up to date in
+// the background: if the branch has moved (also by changes made outside
+// Alasin), only the files changed since that commit are read again. The whole
+// content is read only the first time, after a big change, or on request.
+// Removed on logout (clearLocalData).
 
 import { api, NetworkError } from "./api";
-import { buildIndex, type ContentIndex } from "./content-index";
+import { buildIndex, type ChangedFile, changedPaths, type ContentIndex, type ContentItem, itemFromFile } from "./content-index";
 import type { SiteSettings } from "./site-types";
 
 const DB = "alasin-content";
 const STORE = "index";
+/** GitHub's compare lists at most this many files; with more, read everything. */
+const COMPARE_LIMIT = 300;
+const BATCH = 100;
+
+type Folders = SiteSettings["folders"];
 
 function open(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -21,7 +28,8 @@ function open(): Promise<IDBDatabase> {
   });
 }
 
-async function cached(uid: number): Promise<ContentIndex | undefined> {
+/** The list as last read on this device, if any. */
+export async function cachedContent(uid: number): Promise<ContentIndex | undefined> {
   try {
     const db = await open();
     return await new Promise<ContentIndex | undefined>((resolve, reject) => {
@@ -48,20 +56,59 @@ async function store(uid: number, index: ContentIndex): Promise<void> {
   }
 }
 
+async function readAll(folders: Folders): Promise<ContentIndex> {
+  return buildIndex(await api<unknown>("/api/content"), folders);
+}
+
+/** The cached list with only the changed files read again; null if that isn't possible. */
+async function readChanges(current: ContentIndex, head: string, folders: Folders): Promise<ContentIndex | null> {
+  let compare: { files?: ChangedFile[] };
+  try {
+    compare = await api<{ files?: ChangedFile[] }>(`/api/content/changes?base=${current.commit}`);
+  } catch (err) {
+    if (err instanceof NetworkError) throw err;
+    return null; // e.g. the cached commit no longer exists
+  }
+  const files = compare.files ?? [];
+  if (files.length >= COMPARE_LIMIT) return null;
+  const { remove, read } = changedPaths(files, folders);
+  const items = new Map<string, ContentItem>(current.items.map((i) => [i.path, i]));
+  for (const p of [...remove, ...read]) items.delete(p);
+  for (let i = 0; i < read.length; i += BATCH) {
+    const paths = read.slice(i, i + BATCH);
+    const res = await api<{ data?: { repository?: Record<string, { oid?: string; text?: string | null } | null> } }>("/api/content/files", {
+      method: "POST",
+      body: { paths },
+    });
+    paths.forEach((path, k) => {
+      const blob = res.data?.repository?.[`p${k}`];
+      if (!blob?.oid || typeof blob.text !== "string") return;
+      const it = itemFromFile(path, blob.oid, blob.text, folders);
+      if (it) items.set(path, it);
+    });
+  }
+  return { commit: head, items: [...items.values()] };
+}
+
 export interface LoadedContent extends ContentIndex {
   /** True when offline and showing the list as it was last read. */
   stale: boolean;
 }
 
-/** The current list: from the cache if the repository hasn't changed, otherwise read again. */
-export async function loadContent(uid: number, folders: SiteSettings["folders"], opts: { force?: boolean } = {}): Promise<LoadedContent> {
-  const saved = await cached(uid);
+/**
+ * The current list. Starts from `current` (or the cached copy) and reads only
+ * what changed; `force` reads everything again.
+ */
+export async function updateContent(uid: number, folders: Folders, opts: { current?: ContentIndex; force?: boolean } = {}): Promise<LoadedContent> {
+  const saved = opts.current ?? (await cachedContent(uid));
   try {
+    let index: ContentIndex | null = null;
     if (saved && !opts.force) {
       const { commit } = await api<{ commit: string }>("/api/content/head");
       if (commit === saved.commit) return { ...saved, stale: false };
+      index = await readChanges(saved, commit, folders);
     }
-    const index = buildIndex(await api<unknown>("/api/content"), folders);
+    index ??= await readAll(folders);
     await store(uid, index);
     return { ...index, stale: false };
   } catch (err) {

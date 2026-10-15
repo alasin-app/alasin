@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildIndex, plainText } from "../../src/web/lib/content-index";
+import { buildIndex, changedPaths, plainText } from "../../src/web/lib/content-index";
 
 const folders = { posts: "content/posts", pages: "content/pages", drafts: "drafts", archive: "archive", bin: "bin" };
 
@@ -55,4 +55,19 @@ describe("content index", () => {
   it("reports GitHub errors", () => {
     expect(() => buildIndex({ errors: [{ message: "Bad credentials" }] }, folders)).toThrow("Bad credentials");
   });
+
+  it("works out which files to read again after changes", () => {
+    const files = [
+      { filename: "content/posts/a.md", status: "modified" },
+      { filename: "content/posts/b.md", status: "removed" },
+      { filename: "archive/content/posts/c.md", status: "renamed", previous_filename: "content/posts/c.md" },
+      { filename: "static/x.jpg", status: "added" },
+      { filename: "README.md", status: "modified" },
+    ];
+    expect(changedPaths(files, folders)).toEqual({
+      remove: ["content/posts/b.md", "content/posts/c.md"],
+      read: ["content/posts/a.md", "archive/content/posts/c.md"],
+    });
+  });
 });
+

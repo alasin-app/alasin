@@ -94,6 +94,12 @@ export function plainText(body: string): string {
 const str = (v: unknown) => (typeof v === "string" ? v : v instanceof Date ? v.toISOString() : v == null ? "" : String(v));
 const list = (v: unknown) => (Array.isArray(v) ? v.map(String) : typeof v === "string" && v ? [v] : []);
 
+/** The list entry for one file, or null if it isn't a post or page. */
+export function itemFromFile(path: string, sha: string, text: string, folders: Folders): ContentItem | null {
+  if (/(^|\/)_index\.md$/.test(path) || !path.endsWith(".md")) return null;
+  return item(path, sha, text, folders, path.startsWith(`${folders.bin}/`));
+}
+
 function item(path: string, sha: string, text: string, folders: Folders, bin: boolean): ContentItem | null {
   const split = splitFrontMatter(text);
   let fields: Map<string, unknown> = new Map();
@@ -138,12 +144,36 @@ export function buildIndex(response: unknown, folders: Folders): ContentIndex {
     const dir = folders[key];
     for (const f of files((repo[key] as { entries?: Entry[] } | null)?.entries)) {
       const path = `${dir}/${f.rel}`;
-      // Section list pages aren't posts or pages of their own.
-      if (seen.has(path) || /(^|\/)_index\.md$/.test(path)) continue;
+      if (seen.has(path)) continue;
       seen.add(path);
-      const it = item(path, f.sha, f.text, folders, key === "bin");
+      // Section list pages (_index.md) aren't posts or pages of their own.
+      const it = itemFromFile(path, f.sha, f.text, folders);
       if (it) items.push(it);
     }
   }
   return { commit, items };
 }
+
+/** A file changed between two commits, as GitHub's compare lists it. */
+export interface ChangedFile {
+  filename: string;
+  status: string;
+  previous_filename?: string | null;
+}
+
+/** Which listed paths to drop and which to read again after these changes. */
+export function changedPaths(files: ChangedFile[], folders: Folders): { remove: string[]; read: string[] } {
+  const dirs = [folders.posts, folders.pages, folders.drafts, folders.archive, folders.bin];
+  const ours = (p: string | null | undefined) => !!p && p.endsWith(".md") && dirs.some((d) => p.startsWith(`${d}/`));
+  const remove = new Set<string>();
+  const read = new Set<string>();
+  for (const f of files) {
+    if (f.previous_filename && ours(f.previous_filename)) remove.add(f.previous_filename);
+    if (!ours(f.filename)) continue;
+    if (f.status === "removed") remove.add(f.filename);
+    else read.add(f.filename);
+  }
+  for (const p of read) remove.delete(p);
+  return { remove: [...remove], read: [...read] };
+}
+

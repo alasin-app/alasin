@@ -116,6 +116,12 @@ export class FakeRepo {
     const body = (await req.json()) as { variables: Record<string, string> & { expr: string } };
     if (body.variables.ref) {
       const repository: Record<string, unknown> = { ref: { target: { oid: this.head } } };
+      const tree = this.treeAt(this.branch)!;
+      for (const [k, v] of Object.entries(body.variables)) {
+        if (!/^p\d+$/.test(k)) continue;
+        const sha = tree.get(v.split(":").slice(1).join(":"));
+        repository[k] = sha ? { oid: sha, text: this.blobs.get(sha)!, isBinary: false, isTruncated: false } : null;
+      }
       for (const f of ["posts", "pages", "drafts", "archive", "bin"]) {
         if (body.variables[f]) repository[f] = await this.contentTree(body.variables[f]!.split(":").slice(1).join(":"));
       }
@@ -167,6 +173,16 @@ export class FakeRepo {
       return children.size ? json([...children.values()]) : json({ message: "Not Found" }, 404);
     }
     if (req.method === "GET" && path === `/git/ref/heads/${this.branch}`) return json({ object: { sha: this.head } });
+    if (req.method === "GET" && path.startsWith("/compare/")) {
+      const [base, head] = path.slice("/compare/".length).split("...") as [string, string];
+      const from = this.treeAt(base);
+      const to = this.treeAt(head);
+      if (!from || !to) return json({ message: "Not Found" }, 404);
+      const files: { filename: string; status: string; sha: string | null }[] = [];
+      for (const [p, sha] of to) if (from.get(p) !== sha) files.push({ filename: p, status: from.has(p) ? "modified" : "added", sha });
+      for (const [p] of from) if (!to.has(p)) files.push({ filename: p, status: "removed", sha: null });
+      return json({ status: "ahead", files });
+    }
     if (req.method === "GET" && path.startsWith("/git/commits/")) {
       const c = this.commits.get(path.slice("/git/commits/".length));
       return c ? json({ tree: { sha: c.tree } }) : json({ message: "Not Found" }, 404);
