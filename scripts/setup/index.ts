@@ -189,7 +189,7 @@ function ensureFiles() {
   }
   alasinText = readText(args.configPath);
   wranglerText = readText(args.wranglerPath);
-  const migration = migrateAlasinToml(alasinText);
+  const migration = migrateAlasinToml(alasinText, readText(join(repoRoot, "alasin.example.toml")));
   if (migration.changes.length) {
     alasinText = migration.text;
     writeFileSync(args.configPath, alasinText);

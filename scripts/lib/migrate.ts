@@ -99,10 +99,69 @@ function migrateTimezone(lines: string[], changes: string[]): void {
   }
 }
 
-export function migrateAlasinToml(text: string): Migration {
+interface SectionBlock {
+  name: string;
+  /** First line of the block: the banner comment above its header. */
+  start: number;
+  /** First header line of the section. */
+  header: number;
+}
+
+/** Top-level sections (not `[env.*]`) with the comment banner above each, in file order. */
+function sectionBlocks(lines: string[]): SectionBlock[] {
+  const blocks: SectionBlock[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    const m = HEADER.exec(lines[i]!);
+    if (!m) continue;
+    const name = m[1]!.split(".")[0]!.trim();
+    if (name === "env" || blocks.some((b) => b.name === name)) continue;
+    blocks.push({ name, start: commentBlockAbove(lines, i, (blocks.at(-1)?.header ?? -1)), header: i });
+  }
+  return blocks;
+}
+
+/**
+ * Sections of alasin.example.toml that the file doesn't have yet are added,
+ * with their comments, where the example has them. Only optional sections can
+ * be missing, and the example lists their defaults, so this documents new
+ * options without changing what the configuration means.
+ */
+function addMissingSections(lines: string[], example: string, changes: string[]): void {
+  const ex = example.split("\n");
+  const exBlocks = sectionBlocks(ex);
+  for (let k = 0; k < exBlocks.length; k++) {
+    const block = exBlocks[k]!;
+    const present = sectionBlocks(lines);
+    if (present.some((b) => b.name === block.name)) continue;
+    // The block's lines, up to the next banner (a section, or the [env.<name>]
+    // introduction after the last one), without trailing blank lines.
+    const banner = ex.findIndex((l, i) => i > block.header && /^# ─{10,}/.test(l));
+    const end = Math.min(k + 1 < exBlocks.length ? exBlocks[k + 1]!.start : ex.length, banner === -1 ? ex.length : banner);
+    const text = ex.slice(block.start, end);
+    while (text.length && text.at(-1)!.trim() === "") text.pop();
+    // Before the first later section the file has; otherwise after the last
+    // section (before any [env.*] tables), separated by two blank lines.
+    const later = exBlocks.slice(k + 1).map((b) => present.find((p) => p.name === b.name)).find(Boolean);
+    if (later) {
+      lines.splice(later.start, 0, ...text, "", "");
+    } else {
+      // The [env.*] part: its introduction banner, or else the first [env.*] table.
+      const intro = lines.findIndex((l, i) => /^# ─{10,}/.test(l) && /^# \[env\./.test(lines[i + 1] ?? ""));
+      const table = lines.findIndex((l) => /^\s*\[\[?\s*env\./.test(l));
+      const env = intro !== -1 ? intro : table !== -1 ? commentBlockAbove(lines, table, -1) : -1;
+      let at = env === -1 ? lines.length : env;
+      while (at > 0 && lines[at - 1]!.trim() === "") at--;
+      lines.splice(at, 0, "", "", ...text, ...(env === -1 ? [] : ["", ""]));
+    }
+    changes.push(`added [${block.name}] from alasin.example.toml (defaults; no change in behaviour)`);
+  }
+}
+
+export function migrateAlasinToml(text: string, example?: string): Migration {
   const lines = text.split("\n");
   const changes: string[] = [];
   migrateDrafts(lines, changes);
   migrateTimezone(lines, changes);
+  if (example) addMissingSections(lines, example, changes);
   return { text: changes.length ? lines.join("\n") : text, changes };
 }
