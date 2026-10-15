@@ -53,6 +53,8 @@ Starting from a state where everything in [PREREQUISITES.md](PREREQUISITES.md) i
 
    It's safe to re-run: finished steps are skipped. If the GitHub App can't be created this way, see [Creating the GitHub App manually](#creating-the-github-app-manually).
 
+   Optionally, give the GitHub App a logo: on its settings page under **Display information → Upload a logo**, use [`icons/alasin-logo-512.png`](icons/alasin-logo-512.png), or [`icons/alasin-logo-512-dev.png`](icons/alasin-logo-512-dev.png) for a dev deployment.
+
 4. Deploy:
 
    ```sh
