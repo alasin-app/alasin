@@ -6,15 +6,17 @@ Each step is marked **Manual** (you do it) or **Setup** (`npm run setup` does it
 
 ## 1. Local tools — Manual
 
-- **Node.js LTS** (version 22 or newer) and **npm**, which comes with it. Install from [nodejs.org](https://nodejs.org) or your package manager. Check:
+| Tool | Version | Check | Notes |
+| --- | --- | --- | --- |
+| Node.js | 22 or 24 (an LTS release; 24 recommended) | `node --version` → `v24.x.x` | From [nodejs.org](https://nodejs.org) or your package manager |
+| npm | 10 or newer | `npm --version` → `10.x.x` or `11.x.x` | Comes with Node.js |
+| git | 2.9 or newer (any current version) | `git --version` → `git version 2.x.x` | Needed to clone and update Alasin |
+| Wrangler | installed by `npm install` (the exact version is pinned in `package.json`) | `npx wrangler --version` → `4.x.x` | Cloudflare's CLI; no global install needed, always run it as `npx wrangler …` |
+| Web browser | any current one | — | `npm run setup` opens it to create the GitHub App |
 
-  ```sh
-  node --version   # v22.x or newer
-  npm --version
-  ```
+`npm run setup` checks the Node.js version and stops with a message if it's too old. If you already have a global Wrangler installed, that's fine, but use `npx wrangler` so the version Alasin was tested with is used.
 
-- **git**: `git --version`.
-- **Wrangler**, Cloudflare's CLI, comes with Alasin (`npm install` installs the pinned version). Run it as `npx wrangler …`; no global install is needed.
+Alasin is developed on macOS, and its tests run on Linux in CI. On Windows, use WSL.
 
 ## 2. Cloudflare account
 
