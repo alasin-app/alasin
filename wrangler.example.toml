@@ -29,13 +29,15 @@ compatibility_date = "2026-10-01"
 # Find it with `npx wrangler whoami`. Alternatively set CLOUDFLARE_ACCOUNT_ID.
 # account_id = "0123456789abcdef0123456789abcdef"
 
-# The workers.dev hostname. Alasin redirects it to [app].url in alasin.toml, so
-# it is harmless to leave on; set false once the custom domain works.
+# The <name>.<subdomain>.workers.dev address. Keep it on (true) only if that is
+# the app's address ([app].url in alasin.toml). With a custom domain,
+# `npm run setup` sets it to false, so the app has exactly one address.
 workers_dev = true
 
 # Preview URLs (extra hostnames per version) are turned off by `npm run deploy`,
 # because Alasin serves one canonical address. Set `preview_urls = true` here
-# only if you need them.
+# only if you need them. (With workers_dev = true, Wrangler mentions on deploy
+# that preview URLs are disabled; that is expected.)
 
 # Custom domain for the app (a zone in the same Cloudflare account). Wrangler
 # creates the DNS record and certificate on deploy. Must match [app].url.
