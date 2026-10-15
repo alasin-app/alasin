@@ -7,18 +7,18 @@
 import {
   applyChanges,
   type Fields,
-  formatDateInZone,
   type FrontMatterFormat,
   joinFile,
   parseFields,
   splitFrontMatter,
   stringifyFields,
+  utcIso,
 } from "../../shared/frontmatter";
 import type { SiteSettings } from "./site";
 
 export interface DraftForm {
   title: string;
-  /** Hugo date string with offset, e.g. 2026-10-15T14:05:00+03:00. */
+  /** Hugo date: UTC for new drafts (2026-10-15T11:05:00Z); existing files keep their own form until edited. */
   date: string;
   slug: string;
   categories: string[];
@@ -39,7 +39,7 @@ const list = (v: unknown) => (Array.isArray(v) ? v.map(String) : typeof v === "s
 
 export function newDraft(id: string, site: SiteSettings, now = new Date()): DraftDoc {
   const fields: Fields = new Map();
-  const form: DraftForm = { title: "", date: formatDateInZone(now, site.timezone), slug: "", categories: [], tags: [], cover: "", body: "" };
+  const form: DraftForm = { title: "", date: utcIso(now), slug: "", categories: [], tags: [], cover: "", body: "" };
   // The order of a new file's front matter.
   fields.set("title", "");
   fields.set("date", form.date);

@@ -4,7 +4,6 @@
 import { api } from "./api";
 
 export interface SiteSettings {
-  timezone: string;
   frontMatterFormat: "yaml" | "toml";
   coverField: string;
   authorField: string | null;

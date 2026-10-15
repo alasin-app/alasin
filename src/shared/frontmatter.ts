@@ -101,41 +101,25 @@ export function slugify(title: string): string {
   );
 }
 
-/** `2026-10-15T14:05:00+03:00` for a moment in an IANA time zone (Hugo's date format). */
-export function formatDateInZone(date: Date, timeZone: string): string {
-  const parts = Object.fromEntries(
-    new Intl.DateTimeFormat("en-US", {
-      timeZone,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hourCycle: "h23",
-    })
-      .formatToParts(date)
-      .map((p) => [p.type, p.value]),
-  );
-  const local = `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}`;
-  const offsetMinutes = Math.round((Date.parse(`${local}Z`) - Math.floor(date.getTime() / 1000) * 1000) / 60000);
-  const sign = offsetMinutes >= 0 ? "+" : "-";
-  const abs = Math.abs(offsetMinutes);
-  return `${local}${sign}${String(Math.floor(abs / 60)).padStart(2, "0")}:${String(abs % 60).padStart(2, "0")}`;
+/** A moment as a UTC date for front matter: `2026-10-15T11:05:00Z`. */
+export function utcIso(date: Date): string {
+  return date.toISOString().replace(/\.\d{3}Z$/, "Z");
 }
 
+const pad = (n: number) => String(n).padStart(2, "0");
+
 /**
- * The date string for a wall-clock time ("2026-10-15T14:05") in a time zone,
- * e.g. "2026-10-15T14:05:00+03:00", accounting for daylight saving time.
+ * A front matter date (any offset, or UTC) as the value of a
+ * `<input type="datetime-local">`, in the browser's own time zone.
  */
-export function zonedLocalToIso(local: string, timeZone: string): string {
-  const base = Date.parse(`${local.length === 16 ? `${local}:00` : local}Z`);
-  // The offset depends on the instant itself; two passes settle it (also around DST changes).
-  let instant = base;
-  for (let i = 0; i < 2; i++) {
-    const shown = formatDateInZone(new Date(instant), timeZone);
-    const shownLocal = Date.parse(`${shown.slice(0, 19)}Z`);
-    instant += base - shownLocal;
-  }
-  return formatDateInZone(new Date(instant), timeZone);
+export function toLocalInput(date: string): string {
+  const d = new Date(date);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** The value of a `datetime-local` input (browser time zone) as a UTC front matter date. */
+export function fromLocalInput(value: string): string | null {
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : utcIso(d);
 }

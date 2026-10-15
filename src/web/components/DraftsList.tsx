@@ -89,7 +89,7 @@ export function DraftsList(props: { me: Me }) {
                 {r.title || <span class="secondary">{t("drafts.untitled")}</span>}
                 <span class="row-subtitle">
                   {r.type === "post" ? t("drafts.post") : t("drafts.page")}
-                  {r.date ? ` · ${r.date.slice(0, 10)}` : ""}
+                  {r.date && !Number.isNaN(Date.parse(r.date)) ? ` · ${new Date(r.date).toLocaleDateString()}` : ""}
                   {r.local === "unsaved" ? ` · ${t("drafts.unsaved")}` : r.local === "only" ? ` · ${t("drafts.onlyHere")}` : ""}
                 </span>
               </span>

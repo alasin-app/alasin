@@ -72,10 +72,6 @@ cover_field = "image"
 # files always keep their own format. Type: string. Default: "yaml".
 front_matter_format = "yaml"
 
-# IANA time zone for the date of new posts; usually Hugo's `timeZone`.
-# Type: string. Default: "UTC". Example: "Europe/Helsinki"
-timezone = "UTC"
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 # [github] — the site repository and the GitHub App used to log in.

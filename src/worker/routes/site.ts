@@ -70,7 +70,6 @@ site.get("/", async (c) => {
 
   const user = config.users.allow.find((u) => u.id === c.get("session").uid);
   return c.json({
-    timezone: config.site.timezone,
     frontMatterFormat: config.site.front_matter_format,
     coverField: config.site.cover_field,
     authorField: config.site.author_field ?? null,

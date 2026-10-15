@@ -74,10 +74,6 @@ const site = z
       .enum(["yaml", "toml"])
       .default("yaml")
       .describe("Front matter format for new files. Existing files keep the format they already use."),
-    timezone: z
-      .string()
-      .default("UTC")
-      .describe("IANA time zone used for the date of new posts, e.g. `Europe/Helsinki`. Usually matches Hugo's `timeZone`."),
   })
   .strict()
   .describe("The Hugo site and its content layout.");
