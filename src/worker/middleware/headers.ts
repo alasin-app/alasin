@@ -18,7 +18,8 @@ export function contentSecurityPolicy(config: AlasinConfig, styleNonce?: string)
 function basePolicy(config: AlasinConfig): string {
   let csp = cspCache.get(config);
   if (csp) return csp;
-  const imgSrc = new Set(["'self'", "blob:", "data:", new URL(config.media.public_url).origin]);
+  // i.ytimg.com: thumbnails of YouTube videos, previewed in the editor.
+  const imgSrc = new Set(["'self'", "blob:", "data:", new URL(config.media.public_url).origin, "https://i.ytimg.com"]);
   const styleSrc = new Set(["'self'"]);
   if (config.preview.css_url) styleSrc.add(new URL(config.preview.css_url).origin);
   csp = [

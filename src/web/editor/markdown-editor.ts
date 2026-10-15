@@ -24,6 +24,7 @@ import {
   WidgetType,
 } from "@codemirror/view";
 import { isQuoted, keepLineBreaks, quoteLines, richEnter, unquoteLines } from "../lib/line-breaks";
+import { shortcodeYoutubeId, youtubeThumbnail } from "../../shared/youtube";
 import { findGalleries, findShortcodes, galleryText, type GalleryBlock, type GalleryImage, standaloneImage } from "./blocks";
 
 export interface EditorOptions {
@@ -254,7 +255,19 @@ class ShortcodeWidget extends WidgetType {
     const d = document.createElement("div");
     d.className = "cm-md-shortcode";
     d.title = this.label;
-    d.textContent = this.text;
+    const video = shortcodeYoutubeId(this.text);
+    if (video) {
+      // A preview of the video: its thumbnail, with the shortcode below.
+      d.classList.add("cm-md-youtube");
+      const img = document.createElement("img");
+      img.src = youtubeThumbnail(video);
+      img.alt = "";
+      img.loading = "lazy";
+      img.referrerPolicy = "no-referrer";
+      const code = document.createElement("span");
+      code.textContent = this.text;
+      d.append(img, code);
+    } else d.textContent = this.text;
     return d;
   }
   override ignoreEvent() {
