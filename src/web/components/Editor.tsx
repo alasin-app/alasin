@@ -5,7 +5,8 @@
 // repository. If the draft changed on GitHub meanwhile, the user chooses
 // which version to keep — nothing is overwritten silently.
 
-import { Bold, ChevronLeft, Heading2, Italic, Link, List, Quote } from "lucide-preact";
+import { Bold, Check, ChevronLeft, Heading2, ImageOff, Italic, Link, List, Quote } from "lucide-preact";
+import { continueBlock } from "../lib/continue-block";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { slugify, zonedLocalToIso } from "../../shared/frontmatter";
 import { api, ApiError, type Me, NetworkError } from "../lib/api";
@@ -78,6 +79,17 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
   const [detailsOpen, setDetailsOpen] = useState(true);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [conflict, setConflict] = useState(false);
+  const [coverOpen, setCoverOpen] = useState(false);
+  const [draftImages, setDraftImages] = useState<{ file: string; url: string; thumb: string }[] | null>(null);
+
+  const openCover = () => {
+    setCoverOpen(true);
+    setDraftImages(null);
+    api<{ images: { file: string; url: string; thumb: string }[] }>(`/api/draft-media/${id}`).then(
+      (r) => setDraftImages(r.images),
+      () => setDraftImages([]),
+    );
+  };
   const textRef = useRef<HTMLTextAreaElement>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
 
@@ -344,19 +356,15 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
                 }
               />
             </li>
-            <li class="row">
-              <label class="row-label" for="f-cover">
-                {t("editor.cover")}
-              </label>
-              <input
-                id="f-cover"
-                class="row-input"
-                value={f.cover}
-                placeholder={t("editor.coverPlaceholder")}
-                autocapitalize="off"
-                spellcheck={false}
-                onInput={(e) => setForm({ cover: (e.target as HTMLInputElement).value.trim() })}
-              />
+            <li>
+              <button type="button" class="row row-button-left" onClick={openCover}>
+                <span class="row-label">{t("editor.cover")}</span>
+                {f.cover ? (
+                  <img class="cover-thumb" src={f.cover} alt="" width={44} height={44} />
+                ) : (
+                  <span class="row-value">{t("editor.none")}</span>
+                )}
+              </button>
             </li>
           </ul>
         )}
@@ -387,9 +395,59 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
           placeholder={t("editor.bodyPlaceholder")}
           value={f.body}
           onInput={(e) => setForm({ body: (e.target as HTMLTextAreaElement).value })}
+          onKeyDown={(e) => {
+            const el = e.currentTarget;
+            if (e.key !== "Enter" || e.shiftKey || e.isComposing || el.selectionStart !== el.selectionEnd) return;
+            const r = continueBlock(el.value, el.selectionStart);
+            if (!r) return;
+            e.preventDefault();
+            setForm({ body: r.text });
+            requestAnimationFrame(() => el.setSelectionRange(r.cursor, r.cursor));
+          }}
           aria-label={t("editor.text")}
         />
       </div>
+
+      <Sheet open={coverOpen} onClose={() => setCoverOpen(false)} title={t("editor.cover")} doneLabel={t("account.done")}>
+        {draftImages === null ? (
+          <div class="empty-state" role="status">
+            <span class="spinner" aria-hidden="true" />
+          </div>
+        ) : (
+          <>
+            {draftImages.length === 0 && <p class="secondary sheet-note">{t("editor.noDraftImages")}</p>}
+            <div class="image-grid">
+              <button
+                type="button"
+                class={`image-choice none${f.cover ? "" : " selected"}`}
+                aria-pressed={!f.cover}
+                onClick={() => {
+                  setForm({ cover: "" });
+                  setCoverOpen(false);
+                }}
+              >
+                <ImageOff size={28} aria-hidden="true" />
+                <span>{t("editor.noCover")}</span>
+              </button>
+              {draftImages.map((img) => (
+                <button
+                  type="button"
+                  class={`image-choice${f.cover === img.url ? " selected" : ""}`}
+                  aria-pressed={f.cover === img.url}
+                  aria-label={img.file}
+                  onClick={() => {
+                    setForm({ cover: img.url });
+                    setCoverOpen(false);
+                  }}
+                >
+                  <img src={img.thumb} alt="" loading="lazy" />
+                  {f.cover === img.url && <Check class="image-check" size={20} aria-hidden="true" />}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+      </Sheet>
 
       <Sheet open={categoriesOpen} onClose={() => setCategoriesOpen(false)} title={t("editor.categories")} doneLabel={t("account.done")}>
         {state.site.categories.length === 0 ? (

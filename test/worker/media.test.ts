@@ -156,3 +156,20 @@ describe("draft media", () => {
     expect(res.status).toBe(415);
   });
 });
+
+describe("draft media listing", () => {
+  it("lists main images with their smallest variant as thumbnail", async () => {
+    const id = ulid();
+    await upload(id, "img_1.jpg", jpeg(), "image/jpeg");
+    await upload(id, "img_1-960.webp", webp(), "image/webp");
+    await upload(id, "img_1-480.webp", webp(), "image/webp");
+    await upload(id, "photo-2024.jpg", jpeg(), "image/jpeg"); // looks like a variant, but "photo" doesn't exist
+    const { images } = (await (await call(`/api/draft-media/${id}`, { cookie })).json()) as {
+      images: { file: string; thumb: string }[];
+    };
+    expect(images.map((i) => i.file).sort()).toEqual(["img_1.jpg", "photo-2024.jpg"]);
+    expect(images.find((i) => i.file === "img_1.jpg")!.thumb).toBe(`/api/draft-media/${id}/img_1-480.webp`);
+    expect((await call(`/api/draft-media/${id}`)).status).toBe(401);
+    expect((await call("/api/draft-media/not-an-id", { cookie })).status).toBe(404);
+  });
+});
