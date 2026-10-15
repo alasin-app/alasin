@@ -165,7 +165,7 @@ browse_prefixes = [""]
 #         until you publish. Safe for public repositories.
 # "repo": draft text is committed to repo_dir in the site repository, with
 #         version history. WARNING: anyone who can read the repository can read
-#         the drafts — use it with a private repository.
+#         the drafts — use it with a private repository (recommended anyway).
 # Type: string. Default: "r2".
 storage = "r2"
 

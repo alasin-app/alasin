@@ -214,13 +214,13 @@ async function askSiteValues() {
   const repo = String(get(effective(), "github.repo"));
   const vis = await gh.repoVisibility(owner, repo);
   if (vis.status === "public") {
-    ok(`Repository ${owner}/${repo} (public)`);
+    warn(`Repository ${owner}/${repo} is public. Recommended: make it private (Settings → General → Change repository visibility).`);
     if (get(effective(), "drafts.storage") === "repo") {
       warn("drafts.storage = \"repo\" on a public repository makes draft text readable by anyone on GitHub.");
       warn("Consider [drafts] storage = \"r2\" (drafts in the private DRAFTS bucket) or making the repository private.");
     }
   } else {
-    info(`Repository ${owner}/${repo} isn't publicly visible — fine if it's private; it's checked again once the GitHub App is installed.`);
+    ok(`Repository ${owner}/${repo} is private, as recommended (the GitHub App step confirms it exists)`);
   }
   if (!get(alasinRaw(), env ? `env.${env}.github.branch` : "github.branch")) {
     const branch = await ask("Branch Alasin commits to", { default: env === "dev" ? "dev" : (vis.defaultBranch ?? "main"), validate: validName });

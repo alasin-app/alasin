@@ -14,7 +14,7 @@ Alasin (Finnish for "anvil") is a web app for writing and publishing pages and p
 
 ## Requirements
 
-- A Hugo site in a GitHub repository, deployed by Cloudflare
+- A Hugo site in a GitHub repository (private recommended), deployed by Cloudflare
 - A Cloudflare account with R2 enabled, and the site's images in an R2 bucket
 - Node.js LTS (22 or newer) and npm. Wrangler, Cloudflare's CLI, comes with the project.
 
