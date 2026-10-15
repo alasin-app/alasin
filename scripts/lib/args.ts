@@ -6,6 +6,7 @@
 
 import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+import { swallowedOptions, swallowedOptionsMessage } from "./npm-args";
 
 export const repoRoot = resolve(dirname(new URL(import.meta.url).pathname), "../..");
 
@@ -18,6 +19,8 @@ export interface CommonArgs {
 }
 
 export function parseArgs(argv: string[]): CommonArgs {
+  const swallowed = swallowedOptions(process.env);
+  if (swallowed.length) throw new Error(swallowedOptionsMessage(process.env.npm_lifecycle_event ?? "<script>", swallowed));
   let env: string | undefined;
   let config: string | undefined;
   let wrangler: string | undefined;
