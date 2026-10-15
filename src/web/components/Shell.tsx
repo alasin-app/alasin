@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // App frame: a sidebar split view on iPad and desktop, a tab bar on iPhone.
 
-import { ChevronRight, Ellipsis, FileText, House, Image, Newspaper, PenLine, Plus, Tags } from "lucide-preact";
+import { ChevronRight, Ellipsis, FileText, House, Image, Newspaper, PanelLeftClose, PanelLeftOpen, PenLine, Plus, Tags } from "lucide-preact";
 import type { ComponentType } from "preact";
 import { useState } from "preact/hooks";
 import type { Me } from "../lib/api";
@@ -46,10 +46,36 @@ function AvatarButton(props: { me: Me; onClick: () => void }) {
   );
 }
 
+const SIDEBAR_KEY = "alasin.sidebar";
+
+function storedCollapsed(): boolean {
+  try {
+    return localStorage.getItem(SIDEBAR_KEY) === "collapsed";
+  } catch {
+    return false;
+  }
+}
+
+/** Whether the sidebar shows icons only; remembered on this device. */
+function useSidebarCollapsed(): [boolean, () => void] {
+  const [collapsed, setCollapsed] = useState(storedCollapsed);
+  const toggle = () => {
+    const next = !collapsed;
+    setCollapsed(next);
+    try {
+      localStorage.setItem(SIDEBAR_KEY, next ? "collapsed" : "expanded");
+    } catch {
+      // Private mode: the choice lasts for this visit only.
+    }
+  };
+  return [collapsed, toggle];
+}
+
 export function Shell(props: { me: Me; onLogout: () => void }) {
   useLanguage();
   const route = useRoute();
   const [accountOpen, setAccountOpen] = useState(false);
+  const [collapsed, toggleSidebar] = useSidebarCollapsed();
   // The editor belongs to the Drafts section.
   const current: Section = route.name === "editor" ? "drafts" : route.name;
   const section = SECTIONS.find((s) => s.route === current);
@@ -58,12 +84,24 @@ export function Shell(props: { me: Me; onLogout: () => void }) {
   const create = (type: DraftKind) => navigate({ name: "editor", type, id: ulid() });
 
   return (
-    <div class={`shell${route.name === "editor" ? " editing" : ""}`}>
+    <div class={`shell${route.name === "editor" ? " editing" : ""}${collapsed ? " sidebar-collapsed" : ""}`}>
       <aside class="sidebar" aria-label={settings.appName}>
         <div class="sidebar-header">
-          <span class="sidebar-app">
-            {settings.appName} <EnvBadge />
-          </span>
+          <button
+            type="button"
+            class="sidebar-toggle"
+            onClick={toggleSidebar}
+            aria-expanded={!collapsed}
+            aria-label={collapsed ? t("nav.showSidebar") : t("nav.hideSidebar")}
+            title={collapsed ? t("nav.showSidebar") : t("nav.hideSidebar")}
+          >
+            {collapsed ? <PanelLeftOpen size={22} aria-hidden="true" /> : <PanelLeftClose size={22} aria-hidden="true" />}
+          </button>
+          {!collapsed && (
+            <span class="sidebar-app">
+              {settings.appName} <EnvBadge />
+            </span>
+          )}
           <AvatarButton me={props.me} onClick={() => setAccountOpen(true)} />
         </div>
         <nav>
@@ -75,9 +113,10 @@ export function Shell(props: { me: Me; onLogout: () => void }) {
                   class={`sidebar-item${s.route === current ? " active" : ""}`}
                   aria-current={s.route === current ? "page" : undefined}
                   onClick={linkHandler({ name: s.route })}
+                  title={collapsed ? t(s.label) : undefined}
                 >
                   <s.icon size={22} aria-hidden="true" />
-                  <span>{t(s.label)}</span>
+                  <span class={collapsed ? "visually-hidden" : undefined}>{t(s.label)}</span>
                 </a>
               </li>
             ))}
