@@ -87,16 +87,6 @@ export function Shell(props: { me: Me; onLogout: () => void }) {
     <div class={`shell${route.name === "editor" ? " editing" : ""}${collapsed ? " sidebar-collapsed" : ""}`}>
       <aside class="sidebar" aria-label={settings.appName}>
         <div class="sidebar-header">
-          <button
-            type="button"
-            class="sidebar-toggle"
-            onClick={toggleSidebar}
-            aria-expanded={!collapsed}
-            aria-label={collapsed ? t("nav.showSidebar") : t("nav.hideSidebar")}
-            title={collapsed ? t("nav.showSidebar") : t("nav.hideSidebar")}
-          >
-            {collapsed ? <PanelLeftOpen size={22} aria-hidden="true" /> : <PanelLeftClose size={22} aria-hidden="true" />}
-          </button>
           {!collapsed && (
             <span class="sidebar-app">
               {settings.appName} <EnvBadge />
@@ -122,6 +112,18 @@ export function Shell(props: { me: Me; onLogout: () => void }) {
             ))}
           </ul>
         </nav>
+        <div class="sidebar-footer">
+          <button
+            type="button"
+            class="sidebar-toggle"
+            onClick={toggleSidebar}
+            aria-expanded={!collapsed}
+            aria-label={collapsed ? t("nav.showSidebar") : t("nav.hideSidebar")}
+            title={collapsed ? t("nav.showSidebar") : t("nav.hideSidebar")}
+          >
+            {collapsed ? <PanelLeftOpen size={22} aria-hidden="true" /> : <PanelLeftClose size={22} aria-hidden="true" />}
+          </button>
+        </div>
       </aside>
 
       <main class="content" id="main">
