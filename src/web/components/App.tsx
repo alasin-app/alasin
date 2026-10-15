@@ -6,7 +6,12 @@ import { t, useLanguage } from "../lib/i18n";
 import { Login } from "./Login";
 import { Shell } from "./Shell";
 
-type State = { kind: "loading" } | { kind: "anonymous" } | { kind: "signedIn"; me: Me } | { kind: "error"; network: boolean };
+type State =
+  | { kind: "loading" }
+  | { kind: "loggingOut" }
+  | { kind: "anonymous" }
+  | { kind: "signedIn"; me: Me }
+  | { kind: "error"; network: boolean };
 
 export function App() {
   useLanguage();
@@ -27,6 +32,8 @@ export function App() {
   }, []);
 
   const logout = async () => {
+    // Leave the signed-in views at once, so nothing looks clickable while logging out.
+    setState({ kind: "loggingOut" });
     try {
       await api("/auth/logout", { method: "POST" });
     } finally {
@@ -42,6 +49,13 @@ export function App() {
         <div class="center-screen" role="status">
           <span class="spinner" aria-hidden="true" />
           <span class="visually-hidden">{t("app.loading")}</span>
+        </div>
+      );
+    case "loggingOut":
+      return (
+        <div class="center-screen" role="status" aria-live="polite">
+          <span class="spinner" aria-hidden="true" />
+          <span class="secondary">{t("account.loggingOut")}</span>
         </div>
       );
     case "anonymous":
