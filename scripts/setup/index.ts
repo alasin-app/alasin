@@ -403,7 +403,7 @@ async function setupGitHubApp(): Promise<Record<string, string>> {
   } else if (haveApp) {
     info(`GitHub App ${String(get(e, "github.app_id"))} is configured, but its secrets aren't stored on Worker ${workerName()}.`);
     const local = readDevVars();
-    if (local.GITHUB_CLIENT_SECRET && local.GITHUB_APP_PRIVATE_KEY && (await confirm(`Use the app's client secret and private key from ${displayPath(devVarsPath())}?`))) {
+    if (local.GITHUB_CLIENT_SECRET && local.GITHUB_APP_PRIVATE_KEY && (await confirm(`Use the app's client secret and private key from ${displayPath(existingDevVarsPath()!)}?`))) {
       secrets.GITHUB_CLIENT_SECRET = local.GITHUB_CLIENT_SECRET;
       privateKey = gh.toPkcs8(local.GITHUB_APP_PRIVATE_KEY);
       secrets.GITHUB_APP_PRIVATE_KEY = privateKey;
@@ -472,11 +472,18 @@ function devVarsPath(): string {
   return join(dirname(args.wranglerPath), env ? `.dev.vars.${env}` : ".dev.vars");
 }
 
+/** The local-development secrets file to read: `.dev.vars.<env>`, falling back to `.dev.vars` like Wrangler does. */
+function existingDevVarsPath(): string | undefined {
+  const plain = join(dirname(args.wranglerPath), ".dev.vars");
+  return [devVarsPath(), plain].find((p) => existsSync(p));
+}
+
 /** Reads the local-development secrets file written by setup (KEY=value, values may be "quoted" with \\n escapes). */
 function readDevVars(): Record<string, string> {
-  if (!existsSync(devVarsPath())) return {};
+  const path = existingDevVarsPath();
+  if (!path) return {};
   const out: Record<string, string> = {};
-  for (const line of readText(devVarsPath()).split("\n")) {
+  for (const line of readText(path).split("\n")) {
     const m = /^([A-Z0-9_]+)=(.*)$/.exec(line.trim());
     if (!m) continue;
     let value = m[2]!;
