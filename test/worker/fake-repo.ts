@@ -117,6 +117,25 @@ export class FakeRepo {
     if (body.variables.ref) {
       const repository: Record<string, unknown> = { ref: { target: { oid: this.head } } };
       const tree = this.treeAt(this.branch)!;
+      // Last commit that changed each path (history queries).
+      const target = repository.ref as { target: Record<string, unknown> };
+      for (const [k, path] of Object.entries(body.variables)) {
+        if (!/^h\d+$/.test(k)) continue;
+        let found: string | null = null;
+        for (let c = this.head; c; ) {
+          const commit = this.commits.get(c)!;
+          const parent = commit.parents[0];
+          const before = parent ? this.trees.get(this.commits.get(parent)!.tree)!.get(path) : undefined;
+          if (this.trees.get(commit.tree)!.get(path) !== before) {
+            found = c;
+            break;
+          }
+          c = parent ?? "";
+        }
+        target.target[k] = {
+          nodes: found ? [{ committedDate: "2026-10-15T12:00:00Z", author: { name: "The Octocat", user: { login: "octocat", databaseId: 583231 } } }] : [],
+        };
+      }
       for (const [k, v] of Object.entries(body.variables)) {
         if (!/^p\d+$/.test(k)) continue;
         const sha = tree.get(v.split(":").slice(1).join(":"));

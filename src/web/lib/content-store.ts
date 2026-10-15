@@ -8,8 +8,7 @@
 // Removed on logout (clearLocalData).
 
 import { api, NetworkError } from "./api";
-import { buildIndex, type ChangedFile, changedPaths, type ContentIndex, type ContentItem, itemFromFile } from "./content-index";
-import type { SiteSettings } from "./site-types";
+import { buildIndex, type ChangedFile, changedPaths, type ContentIndex, type ContentItem, INDEX_VERSION, type IndexSettings, itemFromFile } from "./content-index";
 
 const DB = "alasin-content";
 const STORE = "index";
@@ -17,7 +16,6 @@ const STORE = "index";
 const COMPARE_LIMIT = 300;
 const BATCH = 100;
 
-type Folders = SiteSettings["folders"];
 
 function open(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -34,7 +32,8 @@ export async function cachedContent(uid: number): Promise<ContentIndex | undefin
     const db = await open();
     return await new Promise<ContentIndex | undefined>((resolve, reject) => {
       const req = db.transaction(STORE).objectStore(STORE).get(uid);
-      req.onsuccess = () => resolve(req.result as ContentIndex | undefined);
+      // A copy kept by an older version lacks newer fields: read again.
+      req.onsuccess = () => resolve((req.result as ContentIndex | undefined)?.version === INDEX_VERSION ? (req.result as ContentIndex) : undefined);
       req.onerror = () => reject(req.error);
     }).finally(() => db.close());
   } catch {
@@ -56,12 +55,12 @@ async function store(uid: number, index: ContentIndex): Promise<void> {
   }
 }
 
-async function readAll(folders: Folders): Promise<ContentIndex> {
-  return buildIndex(await api<unknown>("/api/content"), folders);
+async function readAll(site: IndexSettings): Promise<ContentIndex> {
+  return buildIndex(await api<unknown>("/api/content"), site);
 }
 
 /** The cached list with only the changed files read again; null if that isn't possible. */
-async function readChanges(current: ContentIndex, head: string, folders: Folders): Promise<ContentIndex | null> {
+async function readChanges(current: ContentIndex, head: string, site: IndexSettings): Promise<ContentIndex | null> {
   let compare: { files?: ChangedFile[] };
   try {
     compare = await api<{ files?: ChangedFile[] }>(`/api/content/changes?base=${current.commit}`);
@@ -71,7 +70,7 @@ async function readChanges(current: ContentIndex, head: string, folders: Folders
   }
   const files = compare.files ?? [];
   if (files.length >= COMPARE_LIMIT) return null;
-  const { remove, read } = changedPaths(files, folders);
+  const { remove, read } = changedPaths(files, site.folders);
   const items = new Map<string, ContentItem>(current.items.map((i) => [i.path, i]));
   for (const p of [...remove, ...read]) items.delete(p);
   for (let i = 0; i < read.length; i += BATCH) {
@@ -83,11 +82,11 @@ async function readChanges(current: ContentIndex, head: string, folders: Folders
     paths.forEach((path, k) => {
       const blob = res.data?.repository?.[`p${k}`];
       if (!blob?.oid || typeof blob.text !== "string") return;
-      const it = itemFromFile(path, blob.oid, blob.text, folders);
+      const it = itemFromFile(path, blob.oid, blob.text, site);
       if (it) items.set(path, it);
     });
   }
-  return { commit: head, items: [...items.values()] };
+  return { version: INDEX_VERSION, commit: head, items: [...items.values()] };
 }
 
 export interface LoadedContent extends ContentIndex {
@@ -99,16 +98,16 @@ export interface LoadedContent extends ContentIndex {
  * The current list. Starts from `current` (or the cached copy) and reads only
  * what changed; `force` reads everything again.
  */
-export async function updateContent(uid: number, folders: Folders, opts: { current?: ContentIndex; force?: boolean } = {}): Promise<LoadedContent> {
-  const saved = opts.current ?? (await cachedContent(uid));
+export async function updateContent(uid: number, site: IndexSettings, opts: { current?: ContentIndex; force?: boolean } = {}): Promise<LoadedContent> {
+  const saved = opts.current?.version === INDEX_VERSION ? opts.current : await cachedContent(uid);
   try {
     let index: ContentIndex | null = null;
     if (saved && !opts.force) {
       const { commit } = await api<{ commit: string }>("/api/content/head");
       if (commit === saved.commit) return { ...saved, stale: false };
-      index = await readChanges(saved, commit, folders);
+      index = await readChanges(saved, commit, site);
     }
-    index ??= await readAll(folders);
+    index ??= await readAll(site);
     await store(uid, index);
     return { ...index, stale: false };
   } catch (err) {

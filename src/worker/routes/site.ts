@@ -79,7 +79,9 @@ site.get("/", async (c) => {
     frontMatterFormat: config.site.front_matter_format,
     coverField: config.site.cover_field,
     authorField: config.site.author_field ?? null,
-    author: user?.author ?? null,
+    author: user ? (user.author ?? user.login) : null,
+    // Who the author field values mean, to show authors in the lists.
+    users: config.users.allow.map((u) => ({ login: u.login, id: u.id, names: [u.author ?? u.login, u.login, ...(u.aliases ?? [])] })),
     categories,
     gallery: { shortcode: config.editor.gallery_shortcode, paired: config.editor.gallery_paired },
     media: { publicUrl: config.media.public_url, contentPrefix: config.media.content_prefix },

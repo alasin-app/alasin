@@ -1701,3 +1701,17 @@ img {
   color: var(--accent);
 }
 
+.row-byline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  font-size: var(--footnote);
+}
+
+.avatar-tiny {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+}
+

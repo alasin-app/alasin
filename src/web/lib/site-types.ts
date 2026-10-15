@@ -8,6 +8,8 @@ export interface SiteSettings {
   coverField: string;
   authorField: string | null;
   author: string | null;
+  /** The allowed users and the author field values that mean each of them. */
+  users: { login: string; id: number; names: string[] }[];
   categories: Category[];
   gallery: { shortcode: string; paired: boolean };
   /** How Markdown refers to published images, to show them in the editor. */
