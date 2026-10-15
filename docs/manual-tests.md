@@ -67,7 +67,7 @@ Devices: Chrome on macOS (desktop), Chrome on iPhone (WebKit, like all iOS brows
 | 2.13 | Live formatting | Headings, bold, italic, links, lists and quotes show formatted; their Markdown markers appear only where the cursor is |
 | 2.14 | Line breaks | In rich text, Enter starts a new line that also shows as its own line on the site, Enter twice a new paragraph; no Shift+Enter needed. Select pasted lines (e.g. a poem) and tap Quote: lines stay lines, stanzas stay apart; tap Quote again to remove it |
 | 2.15 | Images and galleries | Images show inline with ✕ to remove; a gallery is a card whose photos can be reordered (drag or ‹ ›) and removed |
-| 2.16 | Markdown mode | *Markdown* shows the whole file incl. front matter; editing there and switching back keeps every change; nothing changes by just switching |
+| 2.16 | Markdown mode | The Markdown button (right end of the toolbar) shows the whole file incl. front matter; editing there and switching back keeps every change; nothing changes by just switching |
 | 2.17 | Shortcodes | Other shortcodes (e.g. `youtube`) show as protected blocks and stay exactly as written |
 
 ### Test runs

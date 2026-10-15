@@ -5,7 +5,7 @@
 // repository. If the draft changed on GitHub meanwhile, the user chooses
 // which version to keep — nothing is overwritten silently.
 
-import { Bold, Check, ChevronLeft, Heading2, ImageOff, ImagePlus, Italic, Link, List, Quote, RotateCw, X } from "lucide-preact";
+import { Bold, Check, ChevronLeft, FileCode, Heading2, ImageOff, ImagePlus, Italic, Link, List, Quote, RotateCw, X } from "lucide-preact";
 import { PhotoError, photosMarkdown, processPhoto, uploadPhoto } from "../lib/photos";
 import type { MarkdownEditor } from "../editor/markdown-editor";
 import { BodyEditor } from "./BodyEditor";
@@ -415,13 +415,6 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
           aria-label={t("editor.title")}
         />
 
-        <div class="segmented editor-mode" role="radiogroup" aria-label={t("editor.mode")}>
-          {(["rich", "markdown"] as const).map((m) => (
-            <button type="button" role="radio" aria-checked={mode === m} class={mode === m ? "selected" : ""} onClick={() => switchMode(m)}>
-              {m === "rich" ? t("editor.modeRich") : t("editor.modeMarkdown")}
-            </button>
-          ))}
-        </div>
         {markdownError && mode === "markdown" && (
           <p class="banner banner-error editor-banner" role="alert">
             {t("editor.invalidFrontMatter")}
@@ -527,6 +520,16 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
           </button>
           <button type="button" onClick={() => fileRef.current?.click()} aria-label={t("photos.add")}>
             <ImagePlus size={20} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            class="toolbar-end"
+            aria-pressed={mode === "markdown"}
+            onClick={() => switchMode(mode === "rich" ? "markdown" : "rich")}
+            aria-label={t("editor.editMarkdown")}
+            title={t("editor.editMarkdown")}
+          >
+            <FileCode size={20} aria-hidden="true" />
           </button>
           <input
             ref={fileRef}
