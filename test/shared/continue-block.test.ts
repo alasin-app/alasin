@@ -20,9 +20,10 @@ describe("Enter continues lists and quotes", () => {
     expect(enter("> quoted")?.text).toBe("> quoted\n> ");
   });
 
-  it("ends the list on an empty item", () => {
-    expect(enter("- one\n- ")).toEqual({ text: "- one\n", cursor: 6 });
-    expect(enter("> a\n> ")).toEqual({ text: "> a\n", cursor: 4 });
+  it("ends the list or quote on an empty item, with a blank line after it", () => {
+    expect(enter("- one\n- ")).toEqual({ text: "- one\n\n", cursor: 7 });
+    expect(enter("> a\n> ")).toEqual({ text: "> a\n\n", cursor: 5 });
+    expect(enter("- one\n- \nlater", 8)).toEqual({ text: "- one\n\nlater", cursor: 6 });
   });
 
   it("splits an item when Enter is pressed in the middle", () => {

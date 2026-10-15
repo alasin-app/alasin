@@ -97,6 +97,8 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
   const fileRef = useRef<HTMLInputElement>(null);
   /** Last caret position in the text, for inserting photos after focus moved to the toolbar. */
   const caret = useRef<number | null>(null);
+  /** Whether the Enter being handled was pressed with Shift. */
+  const shiftEnter = useRef(false);
   const uploading = uploads.some((u) => u.state === "processing" || u.state === "uploading");
   const [draftImages, setDraftImages] = useState<{ file: string; url: string; thumb: string }[] | null>(null);
 
@@ -561,8 +563,18 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
             addPhotos(files);
           }}
           onKeyDown={(e) => {
-            const el = e.currentTarget;
-            if (e.key !== "Enter" || e.shiftKey || e.isComposing || el.selectionStart !== el.selectionEnd) return;
+            // Shift+Enter gives a plain new line.
+            if (e.key === "Enter") shiftEnter.current = e.shiftKey;
+          }}
+          onBeforeInput={(e) => {
+            // The new-line input event (not the key press): reliable with iOS keyboards,
+            // which report Enter as part of an ongoing composition while predicting text.
+            const ev = e as unknown as InputEvent;
+            if (ev.inputType !== "insertLineBreak" && ev.inputType !== "insertParagraph") return;
+            const el = e.currentTarget as HTMLTextAreaElement;
+            const shift = shiftEnter.current;
+            shiftEnter.current = false;
+            if (shift || el.selectionStart !== el.selectionEnd) return;
             const r = continueBlock(el.value, el.selectionStart);
             if (!r) return;
             e.preventDefault();
