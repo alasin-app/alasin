@@ -14,7 +14,7 @@ Alasin (Finnish for "anvil") is a web app for writing and publishing pages and p
 
 ## Requirements
 
-- A Hugo site in a GitHub repository, deployed by Cloudflare
+- A Hugo site in a GitHub repository (private recommended), deployed by Cloudflare
 - A Cloudflare account with R2 enabled, and the site's images in an R2 bucket
 - Node.js LTS (22 or newer) and npm. Wrangler, Cloudflare's CLI, comes with the project.
 
@@ -32,7 +32,7 @@ Starting from a state where everything in [PREREQUISITES.md](PREREQUISITES.md) i
    npm install
    ```
 
-2. Log in to Cloudflare: `npx wrangler login` (details in [PREREQUISITES.md §3](PREREQUISITES.md#3-wrangler-connection)).
+2. Log in to Cloudflare: `npx wrangler login`. Approve access in the browser window that opens; when the terminal prints `Successfully logged in.`, close the browser tab (details in [PREREQUISITES.md §3](PREREQUISITES.md#3-wrangler-connection)).
 
 3. Run the setup:
 
@@ -40,7 +40,18 @@ Starting from a state where everything in [PREREQUISITES.md](PREREQUISITES.md) i
    npm run setup
    ```
 
-   It creates `alasin.toml` and `wrangler.toml` from the commented examples, asks for your site's details, looks up the GitHub IDs of the people allowed to log in, creates the private `DRAFTS` bucket and the KV namespace, creates the GitHub App in your browser (one click, then install it on the site repository), and stores all secrets as Worker secrets. It is safe to re-run.
+   It asks for the values in the [PREREQUISITES.md checklist](PREREQUISITES.md#5-checklist), then:
+
+   - creates `alasin.toml` and `wrangler.toml` from the commented examples;
+   - looks up the GitHub IDs of the people allowed to log in;
+   - creates the private `DRAFTS` R2 bucket for images of unpublished drafts, in the same jurisdiction as your media bucket, and the KV namespace for sessions;
+   - creates the **GitHub App** used to log in and to commit as each user. Your browser opens:
+     1. on a short local page, click **Continue to GitHub**;
+     2. on GitHub, check the app name and click **Create GitHub App**;
+     3. on the install page that opens next, choose **Only select repositories**, pick the site repository, click **Install**, and return to the terminal;
+   - stores the GitHub App's credentials and newly generated encryption keys as Worker secrets.
+
+   It's safe to re-run: finished steps are skipped. If the GitHub App can't be created this way, see [Creating the GitHub App manually](#creating-the-github-app-manually).
 
 4. Deploy:
 
@@ -49,6 +60,27 @@ Starting from a state where everything in [PREREQUISITES.md](PREREQUISITES.md) i
    ```
 
 5. Open the app URL, log in with GitHub, and check that your name and avatar appear in the account sheet (tap your avatar).
+
+### Creating the GitHub App manually
+
+Alasin logs users in with a **GitHub App** installed only on the site repository: it's used for login, for commits made with each user's own short-lived token, and for the daily cleanup's read-only token. Unlike an OAuth App, it can be limited to one repository and to exactly the permissions Alasin needs.
+
+`npm run setup` normally creates it. If that isn't possible, create it under **Settings → Developer settings → GitHub Apps → New GitHub App** (for an organisation: the organisation's **Settings → Developer settings**):
+
+- **GitHub App name:** anything unique, e.g. "Alasin my-site".
+- **Homepage URL:** the app URL, e.g. `https://alasin.example.com`.
+- **Callback URL:** `https://<app hostname>/auth/callback`. It must match `[app] url` in `alasin.toml` exactly. Add `http://localhost:8787/auth/callback` too if you'll develop locally.
+- **Expire user authorization tokens:** on.
+- **Request user authorization (OAuth) during installation:** off.
+- **Webhook:** uncheck **Active**.
+- **Repository permissions:** **Contents: Read and write**, **Metadata: Read-only**. Nothing else.
+- **Where can this GitHub App be installed?** **Only on this account**.
+
+Create it, then:
+
+1. **Install App** → **Only select repositories** → the site repository → **Install**.
+2. On the app's page, note the **App ID** and **Client ID**, click **Generate a new client secret**, and under **Private keys** click **Generate a private key** (a `.pem` file downloads).
+3. Run `npm run setup` and answer **no** when it offers to create the app. It asks for these values, converts the key and stores everything as Worker secrets. Secrets never go in TOML files or git.
 
 ### Keeping a deployment's configuration in its own repository
 
@@ -136,12 +168,11 @@ The site's existing public image bucket (`MEDIA` binding). Alasin never overwrit
 
 ### `[drafts]`
 
-Unpublished drafts. Draft images always go to the private `DRAFTS` bucket.
+Unpublished drafts: their text is committed to the site repository, their images go to R2.
 
 | Option | Type | Default | Example | Description |
 | --- | --- | --- | --- | --- |
-| `storage` | one of "r2", "repo" | `"r2"` | `"r2"` | Where unpublished draft text is kept. Both are server-side, so drafts follow the user between devices. `r2`: in the private `DRAFTS` bucket, never in git until published. `repo`: committed to `repo_dir` in the site repository, outside Hugo's content, with version history; anyone who can read the repository can read drafts, so use it with private repositories. |
-| `repo_dir` | string | `"drafts"` | `"drafts"` | With `storage = "repo"`: directory for draft files, e.g. `drafts`. Must be outside Hugo's content directory so drafts are never built. |
+| `dir` | string | `"drafts"` | `"drafts"` | Directory in the site repository where draft posts and pages are committed until they are published. Must be outside Hugo's content directory, so drafts are never built. Draft images go to the `DRAFTS` R2 bucket, never into git. |
 
 ### `[images]`
 
@@ -231,7 +262,7 @@ npm run deploy
 - **Sessions:** an encrypted, `HttpOnly`, `Secure`, `SameSite=Lax` `__Host-` cookie that refers to a server-side session in KV. Idle and absolute timeouts; logout deletes the session server-side.
 - **Tokens:** GitHub tokens never reach the browser. They are stored encrypted (AES-GCM) in KV and refreshed before expiry.
 - **Browser:** a strict Content-Security-Policy (no inline or third-party scripts), CSRF protection on every state-changing request, HSTS and other security headers. No analytics or trackers.
-- **Data:** the app never overwrites or deletes images in your public bucket; draft images live in a separate private bucket.
+- **Data:** drafts are committed to a `drafts/` folder of the site repository (keep it private). Images never go into git: draft images are in a private R2 bucket, published images in your public bucket, where the app never overwrites or deletes anything.
 - **Logs** contain request IDs, routes, status codes and GitHub user IDs only.
 
 **Rotating secrets** (per deployment; add `-- --env dev` for the dev app):

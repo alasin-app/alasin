@@ -14,6 +14,7 @@ import { ConfigError, selectEnvironment } from "../../src/shared/config/schema";
 import { parseArgs, repoRoot } from "../lib/args";
 import { displayPath, loadAlasinConfig } from "../lib/config";
 import { appendSection, setValue, type TomlValue } from "../lib/toml-edit";
+import { normalizeUrl, urlProblem } from "../lib/urls";
 import { checkBindings, generateWranglerConfig, REQUIRED_SECRETS } from "../lib/wrangler-config";
 import * as cf from "./cloudflare";
 import * as gh from "./github";
@@ -134,16 +135,10 @@ simple = { limit = 30, period = 60 }
 
 // ── validators ───────────────────────────────────────────────────────────────
 
-const validUrl = (requireOrigin: boolean) => (v: string) => {
-  try {
-    const u = new URL(v);
-    if (u.protocol !== "https:") return "use an https:// URL";
-    if (requireOrigin && u.pathname !== "/") return "only the origin, without a path (e.g. https://alasin.example.com)";
-    return null;
-  } catch {
-    return "not a valid URL";
-  }
-};
+/** Asks for an https URL; a bare hostname gets https://. */
+async function askUrl(question: string, originOnly: boolean): Promise<string> {
+  return normalizeUrl(await ask(question, { validate: (v) => urlProblem(v, { originOnly }) }));
+}
 const validName = (v: string) => (/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(v) ? null : "letters, digits, '.', '_' and '-' only");
 const validBucket = (v: string) => (/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/.test(v) ? null : "3–63 lower-case letters, digits and '-'");
 
@@ -198,7 +193,7 @@ async function askSiteValues() {
   if (isUnset(get(e, "app.url"))) {
     info("The app's public address: a hostname on a zone in this Cloudflare account (e.g. alasin.example.com),");
     info("or the Worker's workers.dev address.");
-    setAlasin("app", "url", (await ask("App URL", { validate: validUrl(true) })).replace(/\/$/, ""));
+    setAlasin("app", "url", new URL(await askUrl("App address (hostname or URL)", true)).origin);
   }
   ok(`App URL: ${String(get(effective(), "app.url"))}`);
 
@@ -214,13 +209,14 @@ async function askSiteValues() {
   const repo = String(get(effective(), "github.repo"));
   const vis = await gh.repoVisibility(owner, repo);
   if (vis.status === "public") {
-    ok(`Repository ${owner}/${repo} (public)`);
-    if (get(effective(), "drafts.storage") === "repo") {
-      warn("drafts.storage = \"repo\" on a public repository makes draft text readable by anyone on GitHub.");
-      warn("Consider [drafts] storage = \"r2\" (drafts in the private DRAFTS bucket) or making the repository private.");
+    warn(`Repository ${owner}/${repo} is public.`);
+    warn(`Alasin commits drafts to its ${String(get(effective(), "drafts.dir") ?? "drafts")}/ folder, so anyone could read them on GitHub.`);
+    info("Recommended: make it private (Settings → General → Danger Zone → Change repository visibility).");
+    if (!(await confirm("Continue with a public repository?", false))) {
+      throw new Error(`Make ${owner}/${repo} private, then run setup again.`);
     }
   } else {
-    info(`Repository ${owner}/${repo} isn't publicly visible — fine if it's private; it's checked again once the GitHub App is installed.`);
+    ok(`Repository ${owner}/${repo} is private, as recommended (the GitHub App step confirms it exists)`);
   }
   if (!get(alasinRaw(), env ? `env.${env}.github.branch` : "github.branch")) {
     const branch = await ask("Branch Alasin commits to", { default: env === "dev" ? "dev" : (vis.defaultBranch ?? "main"), validate: validName });
@@ -229,7 +225,7 @@ async function askSiteValues() {
   ok(`Branch: ${String(get(effective(), "github.branch"))}`);
 
   if (isUnset(get(e, "site.url"))) {
-    setAlasin("site", "url", await ask(`Public URL of the site built from that branch`, { validate: validUrl(false) }));
+    setAlasin("site", "url", await askUrl("Public address of the site built from that branch", false));
   }
   ok(`Site URL: ${String(get(effective(), "site.url"))}`);
 
@@ -286,7 +282,7 @@ async function setupBuckets() {
     setAlasin(
       "media",
       "public_url",
-      (await ask("Public URL of the MEDIA bucket (custom domain)", { validate: validUrl(false) })).replace(/\/?$/, "/"),
+      (await askUrl("Public address of the MEDIA bucket (its custom domain)", false)).replace(/\/?$/, "/"),
     );
   }
   ok(`Media URL: ${String(get(effective(), "media.public_url"))}`);
@@ -383,7 +379,7 @@ async function setupGitHubApp(): Promise<Record<string, string>> {
       info(installUrl);
       gh.openBrowser(installUrl);
     } else {
-      info(`Manual setup: see ${PREREQ} §5. Callback URL(s): ${callbacks.join(", ")}`);
+      info(`Create the app as described in README.md, "Creating the GitHub App manually". Callback URL(s): ${callbacks.join(", ")}`);
       setAlasin("github", "app_id", Number(await ask("App ID", { validate: (v) => (/^\d+$/.test(v) ? null : "a number") })));
       setAlasin("github", "client_id", await ask("Client ID", { validate: validName }));
       secrets.GITHUB_CLIENT_SECRET = await ask("Client secret");
