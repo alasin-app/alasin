@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: MIT
+#
+# Continuous deployment (optional):
+#   - the dev environment on every push to the dev branch;
+#   - production on each published release (tag vX.Y.Z on main).
+#
+# Enabled only when the repository variable ALASIN_DEPLOY is "true". Each
+# deployment uses a protected GitHub environment ("dev", "production") with:
+#   CLOUDFLARE_API_TOKEN   token with the permissions listed in PREREQUISITES.md §3
+#   CLOUDFLARE_ACCOUNT_ID
+#   ALASIN_TOML            the deployment's alasin.toml (whole file)
+#   WRANGLER_TOML          the deployment's wrangler.toml (whole file)
+# Deployment configuration never lives in this repository.
+name: Deploy
+
+on:
+  push:
+    branches: [dev]
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: deploy
+    if: vars.ALASIN_DEPLOY == 'true'
+    runs-on: ubuntu-latest
+    environment: ${{ github.event_name == 'release' && 'production' || 'dev' }}
+    concurrency:
+      group: deploy-${{ github.event_name == 'release' && 'production' || 'dev' }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.sha }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Write deployment configuration
+        env:
+          ALASIN_TOML: ${{ secrets.ALASIN_TOML }}
+          WRANGLER_TOML: ${{ secrets.WRANGLER_TOML }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/deployment"
+          printf '%s\n' "$ALASIN_TOML" > "$RUNNER_TEMP/deployment/alasin.toml"
+          printf '%s\n' "$WRANGLER_TOML" > "$RUNNER_TEMP/deployment/wrangler.toml"
+      - name: Deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          WRANGLER_SEND_METRICS: "false"
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            npm run deploy -- --config "$RUNNER_TEMP/deployment/alasin.toml"
+          else
+            npm run deploy -- --env dev --config "$RUNNER_TEMP/deployment/alasin.toml"
+          fi

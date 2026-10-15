@@ -1,0 +1,34 @@
+# SPDX-License-Identifier: MIT
+# PR titles become squash-commit messages and drive release-please, so they
+# must follow Conventional Commits (see CONTRIBUTING.md).
+name: PR title
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  pr-title:
+    name: pr-title
+    runs-on: ubuntu-latest
+    steps:
+      - uses: amannn/action-semantic-pull-request@48f256284bd46cdaab1048c3721360e808335d50 # v6.1.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            perf
+            docs
+            chore
+            ci
+            test
+            refactor
+            style
+            build
+            revert
+          requireScope: false
