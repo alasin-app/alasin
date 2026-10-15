@@ -1,0 +1,330 @@
+# alasin.example.toml — configuration of one Alasin deployment
+#
+# Copy this file and edit the copy:
+#
+#     cp alasin.example.toml alasin.toml
+#
+# `npm run setup` creates the copy for you, asks for every required value it
+# can't work out itself, and keeps these comments. The real alasin.toml is
+# gitignored. To keep a deployment's configuration in its own (private)
+# repository instead, point the commands at it:
+#
+#     ALASIN_CONFIG=../my-site-alasin/alasin.toml npm run deploy
+#     npm run deploy -- --config ../my-site-alasin/alasin.toml
+#
+# Every value below is an example using reserved names (example.com, octocat).
+# Options marked "required" have no default. Everything else can be left out.
+#
+# Secrets never go in this file. They are Worker secrets, set by
+# `npm run setup` or by hand with `npx wrangler secret put <NAME>`:
+#   SESSION_KEY, TOKEN_KEY, GITHUB_CLIENT_SECRET, GITHUB_APP_PRIVATE_KEY
+#
+# A second deployment (e.g. a dev app next to production) overrides only what
+# differs in an [env.<name>] table at the end of the file; see [env.dev].
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# [app] — this Alasin deployment itself.
+# ─────────────────────────────────────────────────────────────────────────────
+[app]
+
+# The one canonical origin of this deployment (https, no path). Required.
+# - The GitHub App's callback URL must be exactly "<url>/auth/callback".
+# - Requests to any other hostname (e.g. the workers.dev one) are redirected here.
+# - State-changing requests must come from this origin (CSRF check).
+# Type: string (URL). Example: "https://alasin.example.com"
+url = "https://alasin.example.com"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# [site] — the Hugo site and how its content is laid out.
+# ─────────────────────────────────────────────────────────────────────────────
+[site]
+
+# Public URL of the site built from [github].branch, for "View on site". Required.
+# Type: string (URL). Example: "https://www.example.com"
+url = "https://www.example.com"
+
+# Directory of posts in the site repository. Type: string. Default: "content/posts".
+posts_dir = "content/posts"
+
+# Directory of pages in the site repository. Type: string. Default: "content/pages".
+pages_dir = "content/pages"
+
+# File name of new posts, relative to posts_dir. Placeholders: {slug}, {yyyy},
+# {mm}, {dd} (from the post date). Must end in ".md".
+# Type: string. Default: "{slug}.md". Example: "{yyyy}/{mm}/{slug}.md"
+post_filename = "{slug}.md"
+
+# File name of new pages, relative to pages_dir. Placeholder: {slug}.
+# Type: string. Default: "{slug}.md".
+page_filename = "{slug}.md"
+
+# Front matter format for NEW files: "yaml" (---) or "toml" (+++). Existing
+# files always keep their own format. Type: string. Default: "yaml".
+front_matter_format = "yaml"
+
+# IANA time zone for the date of new posts; usually Hugo's `timeZone`.
+# Type: string. Default: "UTC". Example: "Europe/Helsinki"
+timezone = "UTC"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# [github] — the site repository and the GitHub App used to log in.
+# ─────────────────────────────────────────────────────────────────────────────
+[github]
+
+# Owner (user or organisation) of the site repository. Required.
+# Type: string. Example: "octocat"
+owner = "octocat"
+
+# Name of the site repository. Required. Type: string. Example: "my-hugo-site"
+repo = "my-hugo-site"
+
+# Branch Alasin reads and commits to. Type: string. Default: "main".
+# A dev deployment usually sets "dev" in [env.dev].
+branch = "main"
+
+# ID of the GitHub App. Required; filled in by `npm run setup`.
+# Type: integer. Example: 123456
+app_id = 123456
+
+# Client ID of the GitHub App. Required; filled in by `npm run setup`.
+# (The client SECRET is the Worker secret GITHUB_CLIENT_SECRET, never here.)
+# Type: string. Example: "Iv23liAbCdEfGhIjKlMn"
+client_id = "Iv23liAbCdEfGhIjKlMn"
+
+# Installation ID of the app on the site repository, used by the daily cleanup
+# of abandoned draft images. Optional; filled in by `npm run setup`.
+# Type: integer. Example: 12345678
+# installation_id = 12345678
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# [users] — who may log in.
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# WARNING: everyone listed here can publish to the site. Access is checked by
+# the numeric GitHub user ID (usernames can change and be re-registered); the
+# login is only for readability. `npm run setup` looks up the IDs for you.
+# Each user also needs write access to the site repository on GitHub.
+# Removing a user takes effect on their next request after deploying.
+[users]
+
+# Type: array of { login = string, id = integer }. Required, at least one.
+allow = [
+  { login = "octocat", id = 583231 },
+]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# [media] — the site's existing PUBLIC image bucket (binding MEDIA in wrangler.toml).
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Alasin only adds new objects here. It never overwrites or deletes anything.
+[media]
+
+# Public base URL of the bucket, ending in "/". Its origin is allowed in the
+# Content-Security-Policy so published images show in the editor. Required.
+# Type: string (URL). Example: "https://media.example.com/"
+public_url = "https://media.example.com/"
+
+# R2 key of published images. Placeholders: {yyyy}, {mm}, {dd} (from the post
+# date), {name} (generated, lower case, unique), {ext}.
+# WARNING: must match the layout already used in the bucket; Alasin never
+# restructures an existing bucket. Type: string. Default: "{yyyy}/{mm}/{dd}/{name}.{ext}".
+path_pattern = "{yyyy}/{mm}/{dd}/{name}.{ext}"
+
+# How Markdown refers to a published image: this prefix followed by the R2 key.
+# Use the site's own convention — e.g. "/img/" if a Hugo render hook maps it to
+# the media domain, or the full public_url to link the bucket directly.
+# Type: string. Default: "/img/". Example: "https://media.example.com/"
+content_prefix = "/img/"
+
+# Cache-Control header set on images copied to the bucket.
+# Type: string. Default: "public, max-age=604800".
+cache_control = "public, max-age=604800"
+
+# Top-level prefixes of the bucket the media browser may list ("" = whole bucket).
+# Type: array of strings. Default: [""]. Example: ["2025/", "2026/"]
+browse_prefixes = [""]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# [drafts] — unpublished drafts.
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Draft IMAGES always go to the private DRAFTS bucket. This decides where draft TEXT lives.
+[drafts]
+
+# "private": draft text stays in the browser and the private DRAFTS bucket and
+#            never enters git until you publish. Safe for public repositories.
+# "repo":    draft text is committed to the site repository with `draft: true`.
+#            WARNING: anyone can read it on GitHub if the repository is public.
+# Type: string. Default: "private".
+storage = "private"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# [images] — automatic resizing in the browser.
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Prefer keeping sizes in ONE file in the site repository that both the site's
+# tooling and Alasin read (site_config_file). The values below are fallbacks.
+[images]
+
+# Image types users may upload. SVG is never accepted; HEIC is converted in the
+# browser. Type: array of strings from "image/jpeg", "image/png", "image/webp",
+# "image/gif". Default: all four.
+accepted_types = ["image/jpeg", "image/png", "image/webp", "image/gif"]
+
+# Maximum size of one uploaded file, in MB. Type: number. Default: 25.
+max_upload_mb = 25
+
+# TOML file in the site repository holding the image settings, e.g. Hugo
+# params. Values found there override widths / quality / max_size below.
+# Type: string (repository path). Optional. Example: "config/_default/params.toml"
+# site_config_file = "config/_default/params.toml"
+
+# Keys to read from site_config_file. Type: string.
+# Defaults: "imageWidths", "imageQuality", "imageMaxSize".
+widths_key = "imageWidths"
+quality_key = "imageQuality"
+max_size_key = "imageMaxSize"
+
+# Widths of the resized variants, in pixels; only widths smaller than the
+# original are made. Type: array of integers. Default: [480, 960, 1600].
+widths = [480, 960, 1600]
+
+# Format of the variants: "webp" or "jpeg". Type: string. Default: "webp".
+variant_format = "webp"
+
+# File name of each variant, next to the main image. Placeholders: {name},
+# {width}, {ext}. Type: string. Default: "{name}-{width}.{ext}".
+variant_name = "{name}-{width}.{ext}"
+
+# Variant quality, 1–100. Type: number. Default: 80.
+quality = 80
+
+# Longest side of the main image, in pixels. Type: integer. Default: 2560.
+max_size = 2560
+
+# JPEG quality of the main image, 1–100. Type: number. Default: 85.
+main_quality = 85
+
+# Keep EXIF metadata (camera, date taken) in the main image. GPS location is
+# ALWAYS removed, and the Worker rejects files that still contain it.
+# Type: boolean. Default: false.
+keep_exif = false
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# [editor] — editing behaviour.
+# ─────────────────────────────────────────────────────────────────────────────
+[editor]
+
+# How often an open editor renews its lock, in seconds. Type: integer (10–600). Default: 60.
+lock_heartbeat_seconds = 60
+
+# How long a lock lasts without renewal (closed tab, lost connection), in
+# seconds. Must be longer than lock_heartbeat_seconds.
+# Type: integer (30–3600). Default: 180.
+lock_expiry_seconds = 180
+
+# Name of the site's gallery shortcode. Type: string. Default: "gallery".
+gallery_shortcode = "gallery"
+
+# true if the gallery wraps Markdown images:
+#   {{< gallery >}} ![](/img/a.jpg) ![](/img/b.jpg) {{< /gallery >}}
+# Type: boolean. Default: true.
+gallery_paired = true
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# [categories] — where the list of categories lives.
+# ─────────────────────────────────────────────────────────────────────────────
+[categories]
+
+# "term-pages":   one directory per category, <path>/<slug>/_index.md
+# "data-file":    a TOML or YAML file listing them, at <path>
+# "front-matter": no list; only values already used in posts
+# Type: string. Default: "term-pages".
+storage = "term-pages"
+
+# Directory of term pages, or path of the data file. Type: string. Default: "content/categories".
+path = "content/categories"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# [preview] — preview styling.
+# ─────────────────────────────────────────────────────────────────────────────
+[preview]
+
+# Stylesheet of the site's theme, used to style the preview. Its origin is
+# allowed by the Content-Security-Policy. Type: string (URL). Optional.
+# css_url = "https://www.example.com/css/main.css"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# [ui] — what users see.
+# ─────────────────────────────────────────────────────────────────────────────
+[ui]
+
+# App name on the login screen, home screen icon and title bar.
+# Type: string (1–40 characters). Default: "Alasin".
+name = "Alasin"
+
+# Accent colour of buttons and links, and the tint of the app icon.
+# Type: string "#rrggbb". Default: "#007AFF" (iOS system blue).
+accent_color = "#007AFF"
+
+# Badge shown everywhere in a NON-production deployment so nobody publishes
+# from the wrong one. Leave unset in production.
+# Type: string (up to 12 characters). Optional. Example: "DEV"
+# environment_label = "DEV"
+
+# Default UI language: "en" or "fi". Users can change it in the account sheet.
+# Type: string. Default: "en".
+default_language = "en"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# [security] — sessions.
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Rate limits are Worker bindings and live in wrangler.toml ([[ratelimits]]).
+[security]
+
+# Log out after this many days without activity. Must not exceed session_max_days.
+# Type: number. Default: 7.
+session_idle_days = 7
+
+# Log out this many days after login, regardless of activity. Type: number. Default: 30.
+session_max_days = 30
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# [env.<name>] — a second deployment, e.g. a dev app next to production.
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Used with `npm run setup -- --env dev` and `npm run deploy -- --env dev`.
+# Only list what differs; tables are merged into the values above, and arrays
+# replace them. The environment also needs an [env.dev] table in wrangler.toml
+# with its own Worker name, DRAFTS bucket, KV namespace and rate limits, and
+# its own secrets. Delete this table if you run only one deployment.
+#
+# [env.dev.app]
+# url = "https://alasin-dev.example.com"
+#
+# [env.dev.site]
+# url = "https://dev.my-hugo-site.example.com"
+#
+# [env.dev.github]
+# branch = "dev"
+# # One GitHub App per deployment is recommended, so its secrets rotate independently.
+# app_id = 654321
+# client_id = "Iv23liZyXwVuTsRqPoNm"
+#
+# [env.dev.ui]
+# environment_label = "DEV"
+# accent_color = "#FF9500"
