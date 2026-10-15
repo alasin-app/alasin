@@ -16,7 +16,7 @@ afterEach(() => {
 });
 
 type Site = {
-  categories: { slug: string; title: string }[];
+  categories: { slug: string; title: string; parent?: string }[];
   images: { widths: number[]; quality: number; maxSize: number };
   author: string | null;
   authorField: string | null;
@@ -28,9 +28,11 @@ describe("site settings", () => {
     await gh.repo.write("content/categories/travel/_index.md", '---\ntitle: "Travel"\nslug: "travel"\n---\n');
     await gh.repo.write("content/categories/radio/_index.md", '---\ntitle: "Amateur radio"\n---\n');
     await gh.repo.write("content/categories/untitled/_index.md", "---\nslug: untitled\n---\n");
+    await gh.repo.write("content/categories/qrp/_index.md", '---\ntitle: "QRP"\nparent: "radio"\n---\n');
     const site = (await (await call("/api/site", { cookie })).json()) as Site;
     expect(site.categories).toEqual([
       { slug: "radio", title: "Amateur radio" },
+      { slug: "qrp", title: "QRP", parent: "radio" },
       { slug: "travel", title: "Travel" },
       { slug: "untitled", title: "untitled" },
     ]);

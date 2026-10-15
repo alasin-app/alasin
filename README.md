@@ -234,6 +234,7 @@ Categories.
 | --- | --- | --- | --- | --- |
 | `storage` | one of "term-pages", "data-file", "front-matter" | `"term-pages"` | `"term-pages"` | Where the category list lives: `term-pages` (`<dir>/<slug>/_index.md`), `data-file` (a TOML/YAML file listing them) or `front-matter` (only the values used in posts). |
 | `path` | string | `"content/categories"` | `"content/categories"` | Directory of term pages, or path of the data file. |
+| `parent_field` | string | `"parent"` | `"parent"` | Field naming a category's parent category (by slug), in its term page's front matter or its data file entry. Categories without it are top-level. |
 
 ### `[preview]`
 

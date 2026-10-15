@@ -15,6 +15,7 @@ import { useVisibleTop } from "../lib/visual-viewport";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { fromLocalInput, slugify, toLocalInput } from "../../shared/frontmatter";
 import { youtubeId, youtubeShortcode } from "../../shared/youtube";
+import { categoryTree } from "../../shared/categories";
 import { api, ApiError, type Me, NetworkError } from "../lib/api";
 import { type DraftDoc, type DraftForm, newDraft, parseDraft, serializeDraft } from "../lib/draft-model";
 import { t, useLanguage } from "../lib/i18n";
@@ -429,7 +430,8 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
         : savedAt
           ? t("editor.savedAt", { time: savedAt.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }) })
           : t("editor.savedOnGitHub");
-  const categoryTitle = (slug: string) => state.site.categories.find((c) => c.slug === slug)?.title ?? slug;
+  const categories = categoryTree(state.site.categories);
+  const categoryNode = (slug: string) => categories.find((c) => c.slug === slug);
 
   return (
     <div class="editor">
@@ -548,7 +550,13 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
               <button type="button" class="row row-button-left" onClick={() => setCategoriesOpen(true)}>
                 <span class="row-label">{t("editor.categories")}</span>
                 <span class="row-value chips">
-                  {f.categories.length ? f.categories.map((c) => <span class="chip">{categoryTitle(c)}</span>) : t("editor.none")}
+                  {f.categories.length
+                    ? f.categories.map((c) => (
+                        <span class="chip" title={categoryNode(c)?.path.join(" › ")}>
+                          {categoryNode(c)?.title ?? c}
+                        </span>
+                      ))
+                    : t("editor.none")}
                 </span>
               </button>
             </li>
@@ -778,12 +786,15 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
           <p class="secondary sheet-note">{t("editor.noCategories")}</p>
         ) : (
           <ul class="grouped-list">
-            {state.site.categories.map((c) => {
+            {categories.map((c) => {
               const checked = f.categories.includes(c.slug);
               return (
                 <li>
-                  <label class="row row-check">
-                    <span class="row-label">{c.title}</span>
+                  {/* Nested categories are indented under their parent. */}
+                  <label class="row row-check" style={{ "--depth": c.depth }}>
+                    <span class="row-label" title={c.path.join(" › ")}>
+                      {c.title}
+                    </span>
                     <input
                       type="checkbox"
                       checked={checked}
