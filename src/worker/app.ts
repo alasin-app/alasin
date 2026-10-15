@@ -12,6 +12,7 @@ import { auth } from "./routes/auth";
 import type { Session } from "./session";
 import { SessionExpiredError } from "./session";
 import { KeyConfigError } from "./lib/crypto";
+import { GitHubError } from "./lib/github";
 import { iconPng, iconSvg, PNG_SIZES } from "./icons";
 import { webManifest, withUiSettings } from "./shell";
 
@@ -112,6 +113,10 @@ export function createApp() {
 
   app.onError((err, c) => {
     if (err instanceof SessionExpiredError) return c.json({ error: "unauthenticated", message: err.message }, 401);
+    if (err instanceof GitHubError && (err.status === 403 || err.status === 404)) {
+      logError({ rid: c.get("requestId"), route: c.req.routePath, event: "github_denied" }, err);
+      return c.json({ error: "github", message: "GitHub refused the request. Check that you have write access to the site repository." }, 502);
+    }
     logError({ rid: c.get("requestId"), route: c.req.routePath, event: err instanceof KeyConfigError ? "secret_invalid" : "unhandled" }, err);
     return c.json({ error: "internal", message: "Something went wrong. Please try again." }, 500);
   });

@@ -5,6 +5,7 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../app";
 import { requireSession } from "../session";
+import { drafts } from "./drafts";
 
 export const api = new Hono<AppEnv>();
 
@@ -42,5 +43,7 @@ api.get("/avatar/:id{[0-9]{1,12}}", async (c) => {
   if (body.byteLength > AVATAR_MAX_BYTES) return c.body(null, 404);
   return c.body(body, 200, { "Content-Type": type, "Cache-Control": "private, max-age=86400" });
 });
+
+api.route("/drafts", drafts);
 
 api.all("*", (c) => c.json({ error: "not_found", message: "No such API route." }, 404));
