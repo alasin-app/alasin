@@ -15,11 +15,12 @@
 //   GET  /api/content/head           {commit}: the branch's head, to check a cached index
 //   GET  /api/content/changes?base=  files changed since a commit (GitHub's compare, unparsed)
 //   POST /api/content/files {paths}  the text of some files (GraphQL, unparsed), up to 100
+//   POST /api/content/history {paths}  each file's last commit: who and when (GraphQL, unparsed), up to 50
 //
 // With the last two, a cached index is brought up to date by reading only
 // what changed, instead of every file again.
 
-import { Hono } from "hono";
+import { type Context, Hono } from "hono";
 import { z } from "zod";
 import type { AlasinConfig } from "../../shared/config/schema";
 import type { AppEnv } from "../app";
@@ -69,11 +70,15 @@ async function graphql(token: string, body: unknown): Promise<Response> {
   return res;
 }
 
+/** GitHub's response as it is: the browser reads it. */
+const forward = (res: Response) =>
+  new Response(res.body, { headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "private, no-store" } });
+
 export const content = new Hono<AppEnv>();
 
 content.get("/", async (c) => {
   const res = await graphql(await getUserToken(c), contentQuery(c.get("config")));
-  return new Response(res.body, { headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "private, no-store" } });
+  return forward(res);
 });
 
 content.get("/head", async (c) => {
@@ -108,35 +113,54 @@ content.get("/changes", async (c) => {
   // 404: the commit is gone (e.g. history rewritten); the browser reads everything again.
   if (res.status === 404) return c.json({ error: "not_found", message: "Unknown commit." }, 404);
   if (!res.ok) throw new GitHubError(`compare returned ${res.status}`, res.status);
-  return new Response(res.body, { headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "private, no-store" } });
+  return forward(res);
 });
 
-const filesBody = z.strictObject({
-  paths: z
-    .array(z.string().min(1).max(512).refine((p) => !p.startsWith("/") && !p.split("/").includes("..")))
-    .min(1)
-    .max(100),
-});
+const pathsBody = (max: number) =>
+  z.strictObject({
+    paths: z
+      .array(z.string().min(1).max(512).refine((p) => !p.startsWith("/") && !p.split("/").includes("..")))
+      .min(1)
+      .max(max),
+  });
+
+/** The paths of the request body, if valid and all inside the folders Alasin reads. */
+async function contentPaths(c: Context<AppEnv>, max: number): Promise<string[] | null> {
+  const parsed = pathsBody(max).safeParse(await c.req.json().catch(() => undefined));
+  if (!parsed.success) return null;
+  const config = c.get("config");
+  const dirs = [config.site.posts_dir, config.site.pages_dir, config.drafts.dir, config.archive.dir, config.bin.dir];
+  return parsed.data.paths.every((p) => dirs.some((d) => p.startsWith(`${d}/`))) ? parsed.data.paths : null;
+}
 
 content.post("/files", async (c) => {
-  const parsed = filesBody.safeParse(await c.req.json().catch(() => undefined));
-  if (!parsed.success) return c.json({ error: "invalid", message: "Invalid request." }, 400);
-  const config = c.get("config");
-  const { github } = config;
-  // Only files in the folders Alasin reads.
-  const dirs = [config.site.posts_dir, config.site.pages_dir, config.drafts.dir, config.archive.dir, config.bin.dir];
-  if (!parsed.data.paths.every((p) => dirs.some((d) => p.startsWith(`${d}/`)))) {
-    return c.json({ error: "invalid", message: "Invalid path." }, 400);
-  }
+  const paths = await contentPaths(c, 100);
+  if (!paths) return c.json({ error: "invalid", message: "Invalid request." }, 400);
+  const { github } = c.get("config");
   const variables: Record<string, string> = { owner: github.owner, name: github.repo, ref: `refs/heads/${github.branch}` };
-  parsed.data.paths.forEach((p, i) => (variables[`p${i}`] = `${github.branch}:${p}`));
-  const query = `query($owner: String!, $name: String!, $ref: String!, ${parsed.data.paths.map((_, i) => `$p${i}: String!`).join(", ")}) {
+  paths.forEach((p, i) => (variables[`p${i}`] = `${github.branch}:${p}`));
+  const query = `query($owner: String!, $name: String!, $ref: String!, ${paths.map((_, i) => `$p${i}: String!`).join(", ")}) {
   repository(owner: $owner, name: $name) {
     ref(qualifiedName: $ref) { target { oid } }
-${parsed.data.paths.map((_, i) => `    p${i}: object(expression: $p${i}) { ... on Blob { oid text isBinary isTruncated } }`).join("\n")}
+${paths.map((_, i) => `    p${i}: object(expression: $p${i}) { ... on Blob { oid text isBinary isTruncated } }`).join("\n")}
   }
 }`;
-  const res = await graphql(await getUserToken(c), { query, variables });
-  return new Response(res.body, { headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "private, no-store" } });
+  return forward(await graphql(await getUserToken(c), { query, variables }));
 });
 
+content.post("/history", async (c) => {
+  const paths = await contentPaths(c, 50);
+  if (!paths) return c.json({ error: "invalid", message: "Invalid request." }, 400);
+  const { github } = c.get("config");
+  const variables: Record<string, string> = { owner: github.owner, name: github.repo, ref: `refs/heads/${github.branch}` };
+  paths.forEach((p, i) => (variables[`h${i}`] = p));
+  const fields = "nodes { committedDate author { name user { login databaseId } } }";
+  const query = `query($owner: String!, $name: String!, $ref: String!, ${paths.map((_, i) => `$h${i}: String!`).join(", ")}) {
+  repository(owner: $owner, name: $name) {
+    ref(qualifiedName: $ref) { target { ... on Commit {
+${paths.map((_, i) => `      h${i}: history(first: 1, path: $h${i}) { ${fields} }`).join("\n")}
+    } } }
+  }
+}`;
+  return forward(await graphql(await getUserToken(c), { query, variables }));
+});

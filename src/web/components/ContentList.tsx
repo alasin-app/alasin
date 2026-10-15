@@ -13,6 +13,7 @@ import { getLanguage, t, useLanguage } from "../lib/i18n";
 import { hrefFor, linkHandler, type Route } from "../lib/router";
 import { createSearch, snippet } from "../lib/search";
 import type { SiteSettings } from "../lib/site";
+import { type LastUpdate, useLastUpdated } from "../lib/last-updated";
 import { useContent } from "../lib/use-content";
 import { Sheet } from "./Sheet";
 
@@ -32,7 +33,28 @@ function Highlighted(props: { text: string; query: string }) {
   return <span class="row-snippet">{parts.map((p) => (p.match ? <mark>{p.text}</mark> : p.text))}</span>;
 }
 
-export function ContentRow(props: { item: ContentItem; site: SiteSettings; query?: string; showKind?: boolean; note?: string }) {
+/** The allowed user an author field value means (their login, author value or an alias). */
+export function authorUser(value: string, site: SiteSettings): SiteSettings["users"][number] | undefined {
+  const v = value.toLowerCase();
+  return v ? site.users.find((u) => u.names.some((n) => n.toLowerCase() === v)) : undefined;
+}
+
+function Byline(props: { item: ContentItem; site: SiteSettings; updated?: LastUpdate }) {
+  const { item, updated } = props;
+  const user = authorUser(item.author, props.site);
+  const by = updated ? (updated.login ?? updated.name) : "";
+  const when = updated ? new Date(updated.date).toLocaleDateString(getLanguage(), { day: "numeric", month: "short", year: "numeric" }) : "";
+  if (!item.author && !updated) return null;
+  return (
+    <span class="row-byline">
+      {user && <img class="avatar-tiny" src={`/api/avatar/${user.id}?s=40`} alt="" width={16} height={16} />}
+      {item.author && <span>{item.author}</span>}
+      {updated && <span class="secondary">{t("content.updatedBy", { name: by, date: when })}</span>}
+    </span>
+  );
+}
+
+export function ContentRow(props: { item: ContentItem; site: SiteSettings; query?: string; showKind?: boolean; note?: string; updated?: LastUpdate }) {
   const { item } = props;
   const route = routeFor(item);
   const title = (slug: string) => props.site.categories.find((c) => c.slug === slug)?.title ?? slug;
@@ -43,6 +65,7 @@ export function ContentRow(props: { item: ContentItem; site: SiteSettings; query
       <span class="row-label">
         {item.title}
         <span class="row-subtitle">{[kind, date, ...item.categories.map(title), props.note].filter(Boolean).join(" · ")}</span>
+        <Byline item={item} site={props.site} updated={props.updated} />
         {props.query && <Highlighted text={item.text} query={props.query} />}
       </span>
       {item.state === "draft" && <span class="badge badge-draft">{t("drafts.badge")}</span>}
@@ -112,6 +135,28 @@ export function ContentList(props: { me: Me; kind: ItemKind }) {
     return props.kind === "post" ? list.sort((a, b) => time(b) - time(a)) : list.sort((a, b) => a.title.localeCompare(b.title));
   }, [ofKind, filter, categories, query, search, site]);
 
+  const searching = query.trim() !== "";
+  // Posts by year and month, newest first; while searching, in order of relevance without groups.
+  const groups = useMemo(() => {
+    const out: { year: string; months: { label: string; items: ContentItem[] }[] }[] = [];
+    if (props.kind !== "post" || searching) return out;
+    for (const item of shown) {
+      const d = Number.isNaN(item.time) ? null : new Date(item.time);
+      const year = d ? String(d.getFullYear()) : t("content.noDate");
+      const month = d ? d.toLocaleDateString(getLanguage(), { month: "long" }) : "";
+      let g = out.at(-1);
+      if (g?.year !== year) out.push((g = { year, months: [] }));
+      let m = g.months.at(-1);
+      if (m?.label !== month) g.months.push((m = { label: month, items: [] }));
+      m.items.push(item);
+    }
+    return out;
+  }, [shown, searching]);
+  const isOpen = (year: string) => openYears.has(year) || categories.length > 0 || filter !== "all";
+  // Who last changed the rows on screen.
+  const visible = props.kind === "post" && !searching ? groups.filter((g) => isOpen(g.year)).flatMap((g) => g.months.flatMap((m) => m.items)) : shown.slice(0, 100);
+  const updated = useLastUpdated(visible);
+
   if (!site || !content) return <ContentPlaceholder error={error} refresh={refresh} />;
 
   const tree = categoryTree(site.categories);
@@ -121,23 +166,6 @@ export function ContentList(props: { me: Me; kind: ItemKind }) {
       : categories.length === 1
         ? (tree.find((c) => c.slug === categories[0])?.title ?? categories[0]!)
         : t("content.categoriesCount", { n: String(categories.length) });
-  const searching = query.trim() !== "";
-
-  // Posts by year and month, newest first; while searching, in order of relevance without groups.
-  const groups: { year: string; months: { label: string; items: ContentItem[] }[] }[] = [];
-  if (props.kind === "post" && !searching) {
-    for (const item of shown) {
-      const d = Number.isNaN(item.time) ? null : new Date(item.time);
-      const year = d ? String(d.getFullYear()) : t("content.noDate");
-      const month = d ? d.toLocaleDateString(getLanguage(), { month: "long" }) : "";
-      let g = groups.at(-1);
-      if (g?.year !== year) groups.push((g = { year, months: [] }));
-      let m = g.months.at(-1);
-      if (m?.label !== month) g.months.push((m = { label: month, items: [] }));
-      m.items.push(item);
-    }
-  }
-
   const filters: [Filter, string][] = [
     ["all", t("content.filterAll")],
     ["draft", t("content.filterDrafts")],
@@ -201,7 +229,7 @@ export function ContentList(props: { me: Me; kind: ItemKind }) {
         </div>
       ) : props.kind === "post" && !searching ? (
         groups.map((g) => {
-          const open = openYears.has(g.year) || categories.length > 0 || filter !== "all";
+          const open = isOpen(g.year);
           const count = g.months.reduce((n, m) => n + m.items.length, 0);
           return (
             <section class="year-group">
@@ -216,7 +244,7 @@ export function ContentList(props: { me: Me; kind: ItemKind }) {
                     {m.label && <h3 class="list-section-header">{m.label}</h3>}
                     <ul class="grouped-list">
                       {m.items.map((item) => (
-                        <ContentRow item={item} site={site} />
+                        <ContentRow item={item} site={site} updated={updated.get(item.path)} />
                       ))}
                     </ul>
                   </>
@@ -227,7 +255,7 @@ export function ContentList(props: { me: Me; kind: ItemKind }) {
       ) : (
         <ul class="grouped-list">
           {shown.map((item) => (
-            <ContentRow item={item} site={site} query={query} />
+            <ContentRow item={item} site={site} query={query} updated={updated.get(item.path)} />
           ))}
         </ul>
       )}

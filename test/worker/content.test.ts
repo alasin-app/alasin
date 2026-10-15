@@ -16,6 +16,7 @@ afterEach(() => {
 });
 
 const folders = { posts: "content/posts", pages: "content/pages", drafts: "drafts", archive: "archive", bin: "bin" };
+const site = { folders, authorField: "author" };
 
 describe("content", () => {
   it("returns the content folders in one response the browser can index", async () => {
@@ -25,7 +26,7 @@ describe("content", () => {
     const res = await call("/api/content", { cookie });
     expect(res.status).toBe(200);
     expect(res.headers.get("Cache-Control")).toBe("private, no-store");
-    const index = buildIndex(await res.json(), folders);
+    const index = buildIndex(await res.json(), site);
     expect(index.commit).toBe(gh.repo.head);
     expect(index.items.map((i) => i.path)).toEqual(["content/posts/2026/a.md", "content/pages/about.md"]);
   });
@@ -63,5 +64,17 @@ describe("content changes", () => {
     expect(res.status).toBe(400);
     expect((await call("/api/content/files", mutating(cookie, { paths: ["content/posts/../../x.md"] }))).status).toBe(400);
     expect((await call("/api/content/changes?base=nope", { cookie })).status).toBe(400);
+  });
+});
+
+describe("content history", () => {
+  it("gives each file's last change and who made it", async () => {
+    await gh.repo.write("content/posts/a.md", '---\ntitle: "A"\n---\n');
+    await gh.repo.write("content/posts/b.md", '---\ntitle: "B"\n---\n');
+    const res = await call("/api/content/history", mutating(cookie, { paths: ["content/posts/a.md", "content/posts/none.md"] }));
+    const data = (await res.json()) as { data: { repository: { ref: { target: Record<string, { nodes: { author: { user: { login: string } } }[] }> } } } };
+    expect(data.data.repository.ref.target.h0!.nodes[0]!.author.user.login).toBe("octocat");
+    expect(data.data.repository.ref.target.h1!.nodes).toEqual([]);
+    expect((await call("/api/content/history", mutating(cookie, { paths: Array.from({ length: 51 }, (_, i) => `content/posts/${i}.md`) }))).status).toBe(400);
   });
 });

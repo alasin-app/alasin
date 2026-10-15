@@ -2,10 +2,11 @@ import { describe, expect, it } from "vitest";
 import { buildIndex, changedPaths, plainText } from "../../src/web/lib/content-index";
 
 const folders = { posts: "content/posts", pages: "content/pages", drafts: "drafts", archive: "archive", bin: "bin" };
+const site = { folders, authorField: "author" };
 
 const file = (name: string, text: string, oid = "a".repeat(40)) => ({ name, type: "blob", object: { oid, text, isBinary: false, isTruncated: false } });
 const dir = (name: string, entries: unknown[]) => ({ name, type: "tree", object: { entries } });
-const post = (title: string, extra = "") => `---\ntitle: "${title}"\ndate: 2025-06-15T10:00:00+03:00\ncategories: ["travel"]\ntags: [a, b]\n${extra}---\n\nHello **world** with a [link](https://x) and ![alt text](/img/a.jpg).\n\n{{< youtube abc >}}\n`;
+const post = (title: string, extra = "") => `---\ntitle: "${title}"\ndate: 2025-06-15T10:00:00+03:00\ncategories: ["travel"]\ntags: [a, b]\nauthor: "Jane"\n${extra}---\n\nHello **world** with a [link](https://x) and ![alt text](/img/a.jpg).\n\n{{< youtube abc >}}\n`;
 
 const response = {
   data: {
@@ -21,7 +22,7 @@ const response = {
 };
 
 describe("content index", () => {
-  const index = buildIndex(response, folders);
+  const index = buildIndex(response, site);
   const byTitle = (t: string) => index.items.find((i) => i.title === t)!;
 
   it("lists posts and pages with their state from where they are", () => {
@@ -39,7 +40,7 @@ describe("content index", () => {
   });
 
   it("keeps paths, front matter fields and where Bin items came from", () => {
-    expect(byTitle("Trip")).toMatchObject({ path: "content/posts/2025/trip.md", categories: ["travel"], tags: ["a", "b"], date: "2025-06-15T10:00:00+03:00" });
+    expect(byTitle("Trip")).toMatchObject({ path: "content/posts/2025/trip.md", categories: ["travel"], tags: ["a", "b"], date: "2025-06-15T10:00:00+03:00", author: "Jane" });
     expect(byTitle("Trip").time).toBe(Date.parse("2025-06-15T07:00:00Z"));
     expect(byTitle("New one").draftId).toBe("01JA2B3C4D5E6F7G8H9JKMNPQR");
     expect(byTitle("Old").path).toBe("archive/content/posts/2020/old.md");
@@ -53,7 +54,7 @@ describe("content index", () => {
   });
 
   it("reports GitHub errors", () => {
-    expect(() => buildIndex({ errors: [{ message: "Bad credentials" }] }, folders)).toThrow("Bad credentials");
+    expect(() => buildIndex({ errors: [{ message: "Bad credentials" }] }, site)).toThrow("Bad credentials");
   });
 
   it("works out which files to read again after changes", () => {

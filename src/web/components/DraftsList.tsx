@@ -10,6 +10,7 @@ import { parseDraft } from "../lib/draft-model";
 import { getLanguage, t, useLanguage } from "../lib/i18n";
 import { type LocalDraft, listLocalDrafts } from "../lib/local-drafts";
 import { hrefFor, linkHandler } from "../lib/router";
+import { useLastUpdated } from "../lib/last-updated";
 import { useContent } from "../lib/use-content";
 import { ContentPlaceholder, ContentRow } from "./ContentList";
 
@@ -17,13 +18,14 @@ export function DraftsList(props: { me: Me }) {
   useLanguage();
   const { site, content, error, refresh } = useContent(props.me);
   const [local, setLocal] = useState<LocalDraft[]>([]);
+  const drafts = (content?.items ?? []).filter((i) => i.state === "draft");
+  const updated = useLastUpdated(drafts);
   useEffect(() => {
     void listLocalDrafts(props.me.user.id).then(setLocal);
   }, []);
 
   if (!site || !content) return <ContentPlaceholder error={error} refresh={refresh} />;
 
-  const drafts = content.items.filter((i) => i.state === "draft");
   const saved = new Set(drafts.map((d) => d.draftId).filter(Boolean));
   // Drafts on this device only, or with changes not saved yet.
   const unsaved = new Set(local.filter((l) => l.content !== l.savedContent).map((l) => l.id));
@@ -70,7 +72,7 @@ export function DraftsList(props: { me: Me }) {
       {drafts.length > 0 && (
         <ul class="grouped-list">
           {drafts.map((item) => (
-            <ContentRow item={item} site={site} showKind note={item.draftId && unsaved.has(item.draftId) ? t("drafts.unsaved") : undefined} />
+            <ContentRow item={item} site={site} showKind note={item.draftId && unsaved.has(item.draftId) ? t("drafts.unsaved") : undefined} updated={updated.get(item.path)} />
           ))}
         </ul>
       )}

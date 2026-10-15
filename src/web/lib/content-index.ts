@@ -34,13 +34,19 @@ export interface ContentItem {
   slug: string;
   categories: string[];
   tags: string[];
+  /** The author field's value, "" if none. */
+  author: string;
   /** Draft ID of drafts saved by Alasin. */
   draftId?: string;
   /** The text without front matter, Markdown, shortcodes and HTML, for searching. */
   text: string;
 }
 
+/** Changes when the index gains fields, so older kept copies are read again. */
+export const INDEX_VERSION = 2;
+
 export interface ContentIndex {
+  version?: number;
   /** Head commit of the branch the index was read from. */
   commit: string;
   items: ContentItem[];
@@ -48,6 +54,8 @@ export interface ContentIndex {
 
 type Entry = { name: string; type: string; object: { oid?: string; text?: string | null; isBinary?: boolean; entries?: Entry[] } | null };
 type Folders = SiteSettings["folders"];
+/** What reading the files needs to know about the site. */
+export type IndexSettings = Pick<SiteSettings, "folders" | "authorField">;
 
 /** The files of a folder tree, with paths relative to it. */
 function files(entries: Entry[] | undefined, prefix = ""): { rel: string; sha: string; text: string }[] {
@@ -95,12 +103,13 @@ const str = (v: unknown) => (typeof v === "string" ? v : v instanceof Date ? v.t
 const list = (v: unknown) => (Array.isArray(v) ? v.map(String) : typeof v === "string" && v ? [v] : []);
 
 /** The list entry for one file, or null if it isn't a post or page. */
-export function itemFromFile(path: string, sha: string, text: string, folders: Folders): ContentItem | null {
+export function itemFromFile(path: string, sha: string, text: string, site: IndexSettings): ContentItem | null {
   if (/(^|\/)_index\.md$/.test(path) || !path.endsWith(".md")) return null;
-  return item(path, sha, text, folders, path.startsWith(`${folders.bin}/`));
+  return item(path, sha, text, site, path.startsWith(`${site.folders.bin}/`));
 }
 
-function item(path: string, sha: string, text: string, folders: Folders, bin: boolean): ContentItem | null {
+function item(path: string, sha: string, text: string, site: IndexSettings, bin: boolean): ContentItem | null {
+  const { folders } = site;
   const split = splitFrontMatter(text);
   let fields: Map<string, unknown> = new Map();
   try {
@@ -127,13 +136,15 @@ function item(path: string, sha: string, text: string, folders: Folders, bin: bo
     slug: str(fields.get("slug")),
     categories: list(fields.get("categories")),
     tags: list(fields.get("tags")),
+    author: site.authorField ? str(fields.get(site.authorField)).trim() : "",
     ...(typeof draftId === "string" ? { draftId } : {}),
     text: plainText(split ? split.body : text),
   };
 }
 
 /** The index from the body of GET /api/content. */
-export function buildIndex(response: unknown, folders: Folders): ContentIndex {
+export function buildIndex(response: unknown, site: IndexSettings): ContentIndex {
+  const { folders } = site;
   const r = response as { data?: { repository?: Record<string, { entries?: Entry[] } | { target?: { oid?: string } } | null> | null }; errors?: { message: string }[] };
   const repo = r.data?.repository;
   const commit = (repo?.ref as { target?: { oid?: string } } | null | undefined)?.target?.oid;
@@ -147,11 +158,11 @@ export function buildIndex(response: unknown, folders: Folders): ContentIndex {
       if (seen.has(path)) continue;
       seen.add(path);
       // Section list pages (_index.md) aren't posts or pages of their own.
-      const it = itemFromFile(path, f.sha, f.text, folders);
+      const it = itemFromFile(path, f.sha, f.text, site);
       if (it) items.push(it);
     }
   }
-  return { commit, items };
+  return { version: INDEX_VERSION, commit, items };
 }
 
 /** A file changed between two commits, as GitHub's compare lists it. */

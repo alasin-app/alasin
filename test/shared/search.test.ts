@@ -3,7 +3,7 @@ import type { ContentItem } from "../../src/web/lib/content-index";
 import { createSearch, fold, snippet } from "../../src/web/lib/search";
 
 const item = (path: string, title: string, text: string, tags: string[] = []): ContentItem => ({
-  path, sha: "", kind: "post", state: "published", title, date: "", time: NaN, slug: "", categories: [], tags, text,
+  path, sha: "", kind: "post", state: "published", title, date: "", time: NaN, slug: "", categories: [], tags, author: "", text,
 });
 
 const items = [

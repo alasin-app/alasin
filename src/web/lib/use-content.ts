@@ -15,7 +15,7 @@ let running: Promise<LoadedContent> | undefined;
 const listeners = new Set<() => void>();
 
 function update(me: Me, site: SiteSettings, force: boolean): Promise<LoadedContent> {
-  running ??= updateContent(me.user.id, site.folders, { current: latest, force })
+  running ??= updateContent(me.user.id, site, { current: latest, force })
     .then((c) => {
       latest = c;
       return c;
