@@ -5,7 +5,7 @@
 // repository. If the draft changed on GitHub meanwhile, the user chooses
 // which version to keep — nothing is overwritten silently.
 
-import { Bold, Check, ChevronLeft, FileCode, Heading2, ImageOff, ImagePlus, Italic, Link, List, Quote, RotateCw, X } from "lucide-preact";
+import { Bold, Check, ChevronLeft, FileCode, Heading2, ImageOff, ImagePlus, Italic, Link, List, Quote, RotateCw, TvMinimalPlay, X } from "lucide-preact";
 import { PhotoError, photosMarkdown, processPhoto, uploadPhoto } from "../lib/photos";
 import type { MarkdownEditor } from "../editor/markdown-editor";
 import { BodyEditor } from "./BodyEditor";
@@ -14,6 +14,7 @@ import { removeEmptyItems } from "../lib/markdown-cleanup";
 import { useVisibleTop } from "../lib/visual-viewport";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { fromLocalInput, slugify, toLocalInput } from "../../shared/frontmatter";
+import { youtubeId, youtubeShortcode } from "../../shared/youtube";
 import { api, ApiError, type Me, NetworkError } from "../lib/api";
 import { type DraftDoc, type DraftForm, newDraft, parseDraft, serializeDraft } from "../lib/draft-model";
 import { t, useLanguage } from "../lib/i18n";
@@ -82,6 +83,9 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
   const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [conflict, setConflict] = useState(false);
   const [coverOpen, setCoverOpen] = useState(false);
+  const [videoOpen, setVideoOpen] = useState(false);
+  const [videoLink, setVideoLink] = useState("");
+  const [videoError, setVideoError] = useState(false);
   const [uploads, setUploads] = useState<Upload[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<MarkdownEditor | null>(null);
@@ -94,6 +98,27 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
 
   const uploading = uploads.some((u) => u.state === "processing" || u.state === "uploading");
   const [draftImages, setDraftImages] = useState<{ file: string; url: string; thumb: string }[] | null>(null);
+
+  const openVideo = () => {
+    setVideoLink("");
+    setVideoError(false);
+    setVideoOpen(true);
+  };
+
+  useEffect(() => {
+    // After the sheet has focused its first button: start in the link field.
+    if (videoOpen) document.getElementById("video-link")?.focus();
+  }, [videoOpen]);
+
+  const addVideo = () => {
+    const video = youtubeId(videoLink);
+    if (!video) {
+      setVideoError(true);
+      return;
+    }
+    editorRef.current?.insertBlock(youtubeShortcode(video));
+    setVideoOpen(false);
+  };
 
   const openCover = () => {
     setCoverOpen(true);
@@ -524,6 +549,9 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
           <button type="button" onClick={() => fileRef.current?.click()} aria-label={t("photos.add")}>
             <ImagePlus size={20} aria-hidden="true" />
           </button>
+          <button type="button" onClick={openVideo} aria-label={t("editor.video")}>
+            <TvMinimalPlay size={20} aria-hidden="true" />
+          </button>
           <button
             type="button"
             class="toolbar-end"
@@ -636,6 +664,44 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
             </div>
           </>
         )}
+      </Sheet>
+
+      <Sheet open={videoOpen} onClose={() => setVideoOpen(false)} title={t("editor.video")} doneLabel={t("common.cancel")}>
+        <form
+          class="video-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            addVideo();
+          }}
+        >
+          <label class="secondary" for="video-link">
+            {t("editor.videoHint")}
+          </label>
+          <input
+            id="video-link"
+            type="url"
+            inputMode="url"
+            autocapitalize="off"
+            autocomplete="off"
+            spellcheck={false}
+            placeholder="https://youtu.be/…"
+            value={videoLink}
+            aria-invalid={videoError}
+            aria-describedby={videoError ? "video-error" : undefined}
+            onInput={(e) => {
+              setVideoLink((e.target as HTMLInputElement).value);
+              setVideoError(false);
+            }}
+          />
+          {videoError && (
+            <p id="video-error" class="error" role="alert">
+              {t("editor.videoInvalid")}
+            </p>
+          )}
+          <button type="submit" class="btn btn-filled" disabled={!videoLink.trim()}>
+            {t("editor.videoAdd")}
+          </button>
+        </form>
       </Sheet>
 
       <Sheet open={categoriesOpen} onClose={() => setCategoriesOpen(false)} title={t("editor.categories")} doneLabel={t("account.done")}>

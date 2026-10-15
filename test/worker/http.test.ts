@@ -19,7 +19,7 @@ function expectSecurityHeaders(res: Response) {
   expect(csp).not.toContain("unsafe-inline");
   // WebAssembly may be compiled; JavaScript eval may not.
   expect(csp).not.toMatch(/'unsafe-eval'/);
-  expect(csp).toContain("img-src 'self' blob: data: https://media.example.com");
+  expect(csp).toContain("img-src 'self' blob: data: https://media.example.com https://i.ytimg.com");
   expect(csp).toContain("connect-src 'self'");
   expect(csp).toContain("object-src 'none'");
   expect(csp).toContain("base-uri 'none'");
