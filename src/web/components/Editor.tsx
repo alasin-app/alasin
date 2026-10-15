@@ -8,6 +8,7 @@
 import { Bold, Check, ChevronLeft, Heading2, ImageOff, ImagePlus, Italic, Link, List, Quote, RotateCw, X } from "lucide-preact";
 import { PhotoError, photosMarkdown, processPhoto, uploadPhoto } from "../lib/photos";
 import { continueBlock } from "../lib/continue-block";
+import { removeEmptyItems } from "../lib/markdown-cleanup";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { fromLocalInput, slugify, toLocalInput } from "../../shared/frontmatter";
 import { api, ApiError, type Me, NetworkError } from "../lib/api";
@@ -246,6 +247,10 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
     }
     setStatus("saving");
     setMessage(null);
+    // Tidy up list items and quote lines left empty while writing.
+    const body = removeEmptyItems(state.doc.form.body);
+    const doc = body === state.doc.form.body ? state.doc : { ...state.doc, form: { ...state.doc.form, body } };
+    const toSave = serializeDraft(doc, state.site);
     let sha = state.sha;
     try {
       if (opts.overwrite) {
@@ -253,10 +258,22 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
       }
       const res = await api<{ sha: string }>(`/api/drafts/${type}/${id}`, {
         method: "PUT",
-        body: { content, sha, title: state.doc.form.title },
+        body: { content: toSave, sha, title: state.doc.form.title },
       });
-      setState((s) => (s ? { ...s, sha: res.sha, savedContent: content, notice: null, remote: undefined } : s));
-      await putLocalDraft({ uid: me.user.id, type, id, content, baseSha: res.sha, savedContent: content });
+      setState((s) =>
+        s
+          ? {
+              ...s,
+              // Show the tidied text, unless more was typed while saving.
+              doc: s.doc.form.body === state.doc.form.body ? { ...s.doc, form: { ...s.doc.form, body } } : s.doc,
+              sha: res.sha,
+              savedContent: toSave,
+              notice: null,
+              remote: undefined,
+            }
+          : s,
+      );
+      await putLocalDraft({ uid: me.user.id, type, id, content: toSave, baseSha: res.sha, savedContent: toSave });
       setConflict(false);
       setStatus("saved");
       setSavedAt(new Date());
