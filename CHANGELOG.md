@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.1](https://github.com/oh2th/alasin/compare/v0.10.0...v0.10.1) (2026-10-15)
+
+
+### Bug Fixes
+
+* setup updates alasin.toml files from older versions ([#20](https://github.com/oh2th/alasin/issues/20)) ([b5eb6c8](https://github.com/oh2th/alasin/commit/b5eb6c8dfa6440fdcf479945ce9992024e15d23c))
+
 ## [0.10.0](https://github.com/oh2th/alasin/compare/v0.9.0...v0.10.0) (2026-10-15)
 
 
