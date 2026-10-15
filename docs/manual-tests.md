@@ -64,3 +64,8 @@ Devices: Chrome on macOS (desktop), Chrome on iPhone (WebKit, like all iOS brows
 | 2.10 | Cover picker | Cover image → choose another photo of the draft, or *No cover image* |
 | 2.11 | No GPS | Download a draft image (`/api/draft-media/…`) and check it has no location metadata |
 | 2.12 | Drafts bucket | The drafts bucket has `<draftId>/<name>.jpg` and `<name>-<width>.webp` files; the public media bucket is unchanged |
+| 2.13 | Live formatting | Headings, bold, italic, links, lists and quotes show formatted; their Markdown markers appear only where the cursor is |
+| 2.14 | Line breaks | Shift+Enter ends a line without a new paragraph (↵ shown); in a quote it continues the quote |
+| 2.15 | Images and galleries | Images show inline with ✕ to remove; a gallery is a card whose photos can be reordered (drag or ‹ ›) and removed |
+| 2.16 | Markdown mode | *Markdown* shows the whole file incl. front matter; editing there and switching back keeps every change; nothing changes by just switching |
+| 2.17 | Shortcodes | Other shortcodes (e.g. `youtube`) show as protected blocks and stay exactly as written |

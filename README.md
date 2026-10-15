@@ -11,7 +11,8 @@ Alasin (Finnish for "anvil") is a web app for writing and publishing pages and p
 - Runs on the Cloudflare Workers Free plan: one Worker with static assets, R2 for images, KV for sessions, a Durable Object for edit locks
 - Uses your site's existing conventions (content folders, image bucket layout, gallery shortcode, image sizes) through configuration
 - Drafts of posts and pages, saved in the site repository; photos resized in the browser (with WebP sizes, GPS removed) and uploaded to a private R2 bucket; galleries with the site's own shortcode
-- Coming next: rich-text editor, publishing, edit locks
+- A live-formatting editor on the Markdown itself (formatted text, inline images, gallery cards, line breaks shown) with a switch to the raw Markdown; posts change only where you edit them
+- Coming next: publishing, editing existing posts, edit locks
 
 ## Requirements
 

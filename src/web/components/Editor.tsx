@@ -7,7 +7,8 @@
 
 import { Bold, Check, ChevronLeft, Heading2, ImageOff, ImagePlus, Italic, Link, List, Quote, RotateCw, X } from "lucide-preact";
 import { PhotoError, photosMarkdown, processPhoto, uploadPhoto } from "../lib/photos";
-import { continueBlock } from "../lib/continue-block";
+import type { MarkdownEditor } from "../editor/markdown-editor";
+import { BodyEditor } from "./BodyEditor";
 import { removeEmptyItems } from "../lib/markdown-cleanup";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { fromLocalInput, slugify, toLocalInput } from "../../shared/frontmatter";
@@ -67,21 +68,6 @@ async function load(me: Me, type: DraftKind, id: string): Promise<Loaded> {
   return { site, doc: newDraft(id, site), sha: null, savedContent: null, notice: null };
 }
 
-function wrap(el: HTMLTextAreaElement, before: string, after = before, placeholder = "") {
-  const { selectionStart: s, selectionEnd: e, value } = el;
-  const selected = value.slice(s, e) || placeholder;
-  const next = value.slice(0, s) + before + selected + after + value.slice(e);
-  return { next, cursor: [s + before.length, s + before.length + selected.length] as const };
-}
-
-function prefixLines(el: HTMLTextAreaElement, prefix: string) {
-  const { selectionStart: s, selectionEnd: e, value } = el;
-  const start = value.lastIndexOf("\n", s - 1) + 1;
-  const lines = value.slice(start, e).split("\n").map((l) => (l.startsWith(prefix) ? l : prefix + l));
-  const replaced = lines.join("\n");
-  return { next: value.slice(0, start) + replaced + value.slice(e), cursor: [start, start + replaced.length] as const };
-}
-
 export function Editor(props: { me: Me; type: DraftKind; id: string }) {
   useLanguage();
   const { me, type, id } = props;
@@ -96,10 +82,12 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
   const [coverOpen, setCoverOpen] = useState(false);
   const [uploads, setUploads] = useState<Upload[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
-  /** Last caret position in the text, for inserting photos after focus moved to the toolbar. */
-  const caret = useRef<number | null>(null);
-  /** Whether the Enter being handled was pressed with Shift. */
-  const shiftEnter = useRef(false);
+  const editorRef = useRef<MarkdownEditor | null>(null);
+  const [mode, setMode] = useState<"rich" | "markdown">("rich");
+  /** The whole file as text while in Markdown mode. */
+  const [markdownText, setMarkdownText] = useState("");
+  const [markdownError, setMarkdownError] = useState(false);
+
   const uploading = uploads.some((u) => u.state === "processing" || u.state === "uploading");
   const [draftImages, setDraftImages] = useState<{ file: string; url: string; thumb: string }[] | null>(null);
 
@@ -111,7 +99,6 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
       () => setDraftImages([]),
     );
   };
-  const textRef = useRef<HTMLTextAreaElement>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -207,13 +194,8 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
       list.map((u) => placeholder(u.token)),
       state.site.gallery,
     );
-    const el = textRef.current;
-    updateForm((f) => {
-      const at = Math.min(el && document.activeElement === el ? el.selectionStart : (caret.current ?? f.body.length), f.body.length);
-      const before = f.body.slice(0, at).replace(/\s+$/, "");
-      const after = f.body.slice(at).replace(/^\s+/, "");
-      return { body: `${before}${before ? "\n\n" : ""}${md}\n\n${after}` };
-    });
+    if (editorRef.current) editorRef.current.insertBlock(md);
+    else updateForm((f) => ({ body: `${f.body.replace(/\s+$/, "")}\n\n${md}\n` }));
     setUploads((u) => [...u, ...list]);
     // Two photos at a time.
     const queue = [...list];
@@ -248,7 +230,8 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
     setStatus("saving");
     setMessage(null);
     // Tidy up list items and quote lines left empty while writing.
-    const body = removeEmptyItems(state.doc.form.body);
+    // (Markdown mode is raw: nothing is changed there.)
+    const body = mode === "rich" ? removeEmptyItems(state.doc.form.body) : state.doc.form.body;
     const doc = body === state.doc.form.body ? state.doc : { ...state.doc, form: { ...state.doc.form, body } };
     const toSave = serializeDraft(doc, state.site);
     let sha = state.sha;
@@ -312,21 +295,32 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
   });
 
   const format = (action: "bold" | "italic" | "heading" | "link" | "list" | "quote") => {
-    const el = textRef.current;
-    if (!el) return;
-    const r =
-      action === "bold"
-        ? wrap(el, "**", "**", t("editor.sampleText"))
-        : action === "italic"
-          ? wrap(el, "_", "_", t("editor.sampleText"))
-          : action === "link"
-            ? wrap(el, "[", "](https://)", t("editor.sampleText"))
-            : prefixLines(el, action === "heading" ? "## " : action === "list" ? "- " : "> ");
-    setForm({ body: r.next });
-    requestAnimationFrame(() => {
-      el.focus();
-      el.setSelectionRange(r.cursor[0], r.cursor[1]);
-    });
+    const ed = editorRef.current;
+    if (!ed) return;
+    if (action === "bold") ed.wrap("**", "**", t("editor.sampleText"));
+    else if (action === "italic") ed.wrap("_", "_", t("editor.sampleText"));
+    else if (action === "link") ed.wrap("[", "](https://)", t("editor.sampleText"));
+    else ed.prefix(action === "heading" ? "## " : action === "list" ? "- " : "> ");
+  };
+
+  /** Markdown mode edits the whole file; a valid file updates the form as you type. */
+  const onMarkdownChange = (text: string) => {
+    setMarkdownText(text);
+    const doc = state ? parseDraft(text, state.site) : null;
+    setMarkdownError(!doc);
+    if (doc) setState((s) => (s ? { ...s, doc } : s));
+  };
+
+  const switchMode = (next: "rich" | "markdown") => {
+    if (next === mode || !state) return;
+    if (next === "markdown") {
+      setMarkdownText(content);
+      setMarkdownError(false);
+    } else if (markdownError) {
+      setMessage(t("editor.invalidFrontMatter"));
+      return;
+    }
+    setMode(next);
   };
 
   const back = () => navigate({ name: "drafts" });
@@ -377,7 +371,7 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
           {statusText}
         </div>
         <div class="nav-trailing">
-          <button type="button" class="btn btn-filled btn-small" onClick={() => void save()} disabled={status === "saving" || uploading || !unsaved}>
+          <button type="button" class="btn btn-filled btn-small" onClick={() => void save()} disabled={status === "saving" || uploading || markdownError || !unsaved}>
             {t("editor.saveDraft")}
           </button>
         </div>
@@ -417,6 +411,20 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
           aria-label={t("editor.title")}
         />
 
+        <div class="segmented editor-mode" role="radiogroup" aria-label={t("editor.mode")}>
+          {(["rich", "markdown"] as const).map((m) => (
+            <button type="button" role="radio" aria-checked={mode === m} class={mode === m ? "selected" : ""} onClick={() => switchMode(m)}>
+              {m === "rich" ? t("editor.modeRich") : t("editor.modeMarkdown")}
+            </button>
+          ))}
+        </div>
+        {markdownError && mode === "markdown" && (
+          <p class="banner banner-error editor-banner" role="alert">
+            {t("editor.invalidFrontMatter")}
+          </p>
+        )}
+
+        {mode === "rich" && (<>
         <button type="button" class="details-toggle" aria-expanded={detailsOpen} onClick={() => setDetailsOpen(!detailsOpen)}>
           {t("editor.details")}
         </button>
@@ -492,6 +500,8 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
           </ul>
         )}
 
+        </>)}
+
         <div class="toolbar" role="toolbar" aria-label={t("editor.formatting")}>
           <button type="button" onClick={() => format("bold")} aria-label={t("editor.bold")}>
             <Bold size={20} aria-hidden="true" />
@@ -556,49 +566,13 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
             ))}
           </ul>
         )}
-        <textarea
-          ref={textRef}
-          class="body-input"
-          placeholder={t("editor.bodyPlaceholder")}
-          value={f.body}
-          onInput={(e) => {
-            caret.current = (e.target as HTMLTextAreaElement).selectionStart;
-            setForm({ body: (e.target as HTMLTextAreaElement).value });
-          }}
-          onSelect={(e) => (caret.current = (e.target as HTMLTextAreaElement).selectionStart)}
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => {
-            const files = [...(e.dataTransfer?.files ?? [])].filter((f) => f.type.startsWith("image/") || /\.hei[cf]$/i.test(f.name));
-            if (!files.length) return;
-            e.preventDefault();
-            addPhotos(files);
-          }}
-          onPaste={(e) => {
-            const files = [...(e.clipboardData?.files ?? [])].filter((f) => f.type.startsWith("image/"));
-            if (!files.length) return;
-            e.preventDefault();
-            addPhotos(files);
-          }}
-          onKeyDown={(e) => {
-            // Shift+Enter gives a plain new line.
-            if (e.key === "Enter") shiftEnter.current = e.shiftKey;
-          }}
-          onBeforeInput={(e) => {
-            // The new-line input event (not the key press): reliable with iOS keyboards,
-            // which report Enter as part of an ongoing composition while predicting text.
-            const ev = e as unknown as InputEvent;
-            if (ev.inputType !== "insertLineBreak" && ev.inputType !== "insertParagraph") return;
-            const el = e.currentTarget as HTMLTextAreaElement;
-            const shift = shiftEnter.current;
-            shiftEnter.current = false;
-            if (shift || el.selectionStart !== el.selectionEnd) return;
-            const r = continueBlock(el.value, el.selectionStart);
-            if (!r) return;
-            e.preventDefault();
-            setForm({ body: r.text });
-            requestAnimationFrame(() => el.setSelectionRange(r.cursor, r.cursor));
-          }}
-          aria-label={t("editor.text")}
+        <BodyEditor
+          value={mode === "rich" ? f.body : markdownText}
+          rich={mode === "rich"}
+          site={state.site}
+          onChange={(text) => (mode === "rich" ? setForm({ body: text }) : onMarkdownChange(text))}
+          onReady={(ed) => (editorRef.current = ed)}
+          onFiles={addPhotos}
         />
       </div>
 

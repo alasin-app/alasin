@@ -61,6 +61,20 @@ describe("security headers", () => {
     expect((await call("/assets/app.js")).status).toBe(200);
   });
 
+  it("gives each app page a one-time style nonce, never for scripts", async () => {
+    const a = await call("/");
+    const b = await call("/");
+    const nonceOf = (csp: string) => /style-src 'self' 'nonce-([A-Za-z0-9_-]{22})'/.exec(csp)?.[1];
+    const na = nonceOf(a.headers.get("Content-Security-Policy")!);
+    expect(na).toBeTruthy();
+    expect(nonceOf(b.headers.get("Content-Security-Policy")!)).not.toBe(na);
+    expect(a.headers.get("Content-Security-Policy")).toMatch(/script-src 'self' 'wasm-unsafe-eval';/);
+    expect(await a.text()).toContain(`<meta name="alasin:style-nonce" content="${na}">`);
+    // API responses get no nonce.
+    const api = await call("/api/me");
+    expect(api.headers.get("Content-Security-Policy")).not.toContain("nonce-");
+  });
+
   it("never lets the app page be stored", async () => {
     const res = await call("/drafts/post/01JA2B3C4D5E6F7G8H9JKMNPQR");
     expect(res.headers.get("Content-Type")).toContain("text/html");

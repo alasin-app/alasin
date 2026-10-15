@@ -14,7 +14,7 @@ import {
   stringifyFields,
   utcIso,
 } from "../../shared/frontmatter";
-import type { SiteSettings } from "./site";
+import type { SiteSettings } from "./site-types";
 
 export interface DraftForm {
   title: string;
@@ -32,6 +32,17 @@ export interface DraftDoc {
   /** All front matter fields as read, in order (to keep unknown ones). */
   fields: Fields;
   form: DraftForm;
+  /**
+   * The front matter text as read, kept as is while no form field changes,
+   * so opening and saving (or switching to Markdown and back) changes nothing.
+   */
+  raw?: { frontMatter: string; formFields: string; leading: string };
+}
+
+/** The form fields that live in front matter, for detecting changes. */
+function formFields(f: DraftForm): string {
+  const { body: _body, ...rest } = f;
+  return JSON.stringify(rest);
 }
 
 const str = (v: unknown) => (typeof v === "string" ? v : v == null ? "" : String(v));
@@ -54,24 +65,25 @@ export function parseDraft(text: string, site: SiteSettings): DraftDoc | null {
   const split = splitFrontMatter(text);
   if (!split) return null;
   const fields = parseFields(split.format, split.raw);
-  return {
-    format: split.format,
-    fields,
-    form: {
+  const leading = /^\r?\n/.exec(split.body)?.[0] ?? "";
+  const form: DraftForm = {
       title: str(fields.get("title")),
       date: str(fields.get("date")),
       slug: str(fields.get("slug")),
       categories: list(fields.get("categories")),
       tags: list(fields.get("tags")),
-      cover: str(fields.get(site.coverField)),
-      body: split.body.replace(/^\r?\n/, ""),
-    },
+    cover: str(fields.get(site.coverField)),
+    body: split.body.slice(leading.length),
   };
+  return { format: split.format, fields, form, raw: { frontMatter: split.raw, formFields: formFields(form), leading } };
 }
 
 /** The file text to commit. */
 export function serializeDraft(doc: DraftDoc, site: SiteSettings): string {
   const f = doc.form;
+  const body = f.body === "" || f.body.endsWith("\n") ? f.body : `${f.body}\n`;
+  // Unchanged form: the front matter text exactly as it was.
+  if (doc.raw && doc.raw.formFields === formFields(f)) return joinFile(doc.format, doc.raw.frontMatter, doc.raw.leading + body);
   const fields = new Map(doc.fields);
   applyChanges(fields, [
     ["title", f.title.trim()],
@@ -84,5 +96,5 @@ export function serializeDraft(doc: DraftDoc, site: SiteSettings): string {
   ]);
   // draftId last for new files, unchanged position otherwise.
   if (!fields.has("draftId")) throw new Error("draft without draftId");
-  return joinFile(doc.format, stringifyFields(doc.format, fields), `\n${f.body.replace(/\s+$/, "")}\n`);
+  return joinFile(doc.format, stringifyFields(doc.format, fields), `\n${body}`);
 }
