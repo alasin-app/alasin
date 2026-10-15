@@ -44,7 +44,7 @@ Starting from a state where everything in [PREREQUISITES.md](PREREQUISITES.md) i
 
    - creates `alasin.toml` and `wrangler.toml` from the commented examples;
    - looks up the GitHub IDs of the people allowed to log in;
-   - creates the private `DRAFTS` R2 bucket for images of unpublished drafts, in the same jurisdiction as your media bucket, and the KV namespace for sessions;
+   - creates the private `DRAFTS` R2 bucket for images of unpublished drafts (suggested name: your media bucket's name + `-drafts`; every deployment needs its own), in the same jurisdiction as your media bucket, and the KV namespace for sessions;
    - creates the **GitHub App** used to log in and to commit as each user. Your browser opens:
      1. on a short local page, click **Continue to GitHub**;
      2. on GitHub, check the app name and click **Create GitHub App**;
@@ -52,6 +52,8 @@ Starting from a state where everything in [PREREQUISITES.md](PREREQUISITES.md) i
    - stores the GitHub App's credentials and newly generated encryption keys as Worker secrets.
 
    It's safe to re-run: finished steps are skipped. If the GitHub App can't be created this way, see [Creating the GitHub App manually](#creating-the-github-app-manually).
+
+   Optionally, give the GitHub App a logo: on its settings page under **Display information → Upload a logo**, use [`icons/alasin-logo-512.png`](icons/alasin-logo-512.png), or [`icons/alasin-logo-512-dev.png`](icons/alasin-logo-512-dev.png) for a dev deployment.
 
 4. Deploy:
 

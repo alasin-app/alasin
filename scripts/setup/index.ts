@@ -343,13 +343,17 @@ async function setupBuckets() {
   const drafts = buckets.find((b) => b.binding === "DRAFTS") ?? {};
   let draftsName = drafts.bucket_name as string | undefined;
   if (isUnset(draftsName)) {
-    draftsName = await ask("Name for the private DRAFTS bucket", { default: `${workerName()}-drafts`, validate: validBucket });
+    draftsName = await ask("Name for the private DRAFTS bucket", { default: `${mediaName}-drafts${env ? `-${env}` : ""}`, validate: validBucket });
     setWrangler("bucket_name", draftsName, { table: "r2_buckets", where: { key: "binding", value: "DRAFTS" } });
     if (jurisdiction) setWrangler("jurisdiction", jurisdiction, { table: "r2_buckets", where: { key: "binding", value: "DRAFTS" } });
   }
   const draftsJ = (wranglerTarget().r2_buckets as Table[]).find((b) => b.binding === "DRAFTS")!.jurisdiction as string | undefined;
   if (draftsName === mediaName && draftsJ === jurisdiction) throw new Error("DRAFTS must be a different bucket from MEDIA.");
-  if (cf.bucketExists(draftsName!, draftsJ)) ok(`DRAFTS: ${draftsName} (exists)`);
+  if (cf.bucketExists(draftsName!, draftsJ)) {
+    ok(`DRAFTS: ${draftsName} (exists)`);
+    // Each deployment's daily cleanup removes draft images whose draft isn't on its own branch.
+    warn("Use this bucket for this deployment only: deployments sharing a drafts bucket would delete each other's draft images.");
+  }
   else {
     const r = cf.createBucket(draftsName!, draftsJ);
     if (!r.ok) throw new Error(`Couldn't create bucket ${draftsName}:\n${r.output}`);
@@ -402,18 +406,11 @@ async function setupGitHubApp(): Promise<Record<string, string>> {
     ok(`GitHub App ${String(get(e, "github.app_id"))} and its secrets are set`);
   } else if (haveApp) {
     info(`GitHub App ${String(get(e, "github.app_id"))} is configured, but its secrets aren't stored on Worker ${workerName()}.`);
-    const local = readDevVars();
-    if (local.GITHUB_CLIENT_SECRET && local.GITHUB_APP_PRIVATE_KEY && (await confirm(`Use the app's client secret and private key from ${displayPath(existingDevVarsPath()!)}?`))) {
-      secrets.GITHUB_CLIENT_SECRET = local.GITHUB_CLIENT_SECRET;
-      privateKey = gh.toPkcs8(local.GITHUB_APP_PRIVATE_KEY);
-      secrets.GITHUB_APP_PRIVATE_KEY = privateKey;
-    } else {
-      info("Generate a client secret and a private key on the app's settings page on GitHub.");
-      secrets.GITHUB_CLIENT_SECRET = await ask("Client secret");
-      const keyPath = await ask("Path to the private key (.pem)", { validate: (v) => (existsSync(v) ? null : "file not found") });
-      privateKey = gh.toPkcs8(readText(keyPath));
-      secrets.GITHUB_APP_PRIVATE_KEY = privateKey;
-    }
+    info("Generate a client secret and a private key on the app's settings page on GitHub.");
+    secrets.GITHUB_CLIENT_SECRET = await ask("Client secret");
+    const keyPath = await ask("Path to the private key (.pem)", { validate: (v) => (existsSync(v) ? null : "file not found") });
+    privateKey = gh.toPkcs8(readText(keyPath));
+    secrets.GITHUB_APP_PRIVATE_KEY = privateKey;
   } else {
     const callbacks = [`${appUrl}/auth/callback`];
     const local = await confirm("Also allow logins from local development (http://localhost:8787)?", false);
@@ -470,27 +467,6 @@ async function setupGitHubApp(): Promise<Record<string, string>> {
 
 function devVarsPath(): string {
   return join(dirname(args.wranglerPath), env ? `.dev.vars.${env}` : ".dev.vars");
-}
-
-/** The local-development secrets file to read: `.dev.vars.<env>`, falling back to `.dev.vars` like Wrangler does. */
-function existingDevVarsPath(): string | undefined {
-  const plain = join(dirname(args.wranglerPath), ".dev.vars");
-  return [devVarsPath(), plain].find((p) => existsSync(p));
-}
-
-/** Reads the local-development secrets file written by setup (KEY=value, values may be "quoted" with \\n escapes). */
-function readDevVars(): Record<string, string> {
-  const path = existingDevVarsPath();
-  if (!path) return {};
-  const out: Record<string, string> = {};
-  for (const line of readText(path).split("\n")) {
-    const m = /^([A-Z0-9_]+)=(.*)$/.exec(line.trim());
-    if (!m) continue;
-    let value = m[2]!;
-    if (value.startsWith('"') && value.endsWith('"')) value = value.slice(1, -1).replace(/\\n/g, "\n");
-    out[m[1]!] = value;
-  }
-  return out;
 }
 
 const newKey = () => randomBytes(32).toString("base64");
