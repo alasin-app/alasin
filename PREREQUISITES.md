@@ -23,7 +23,7 @@ Each step is marked **Manual** (you do it) or **Setup** (`npm run setup` does it
 Any Cloudflare account works; the **Workers Free plan** is enough for a small site. The limits that matter:
 
 | | Free plan |
-|---|---|
+| --- | --- |
 | Worker requests | 100,000 per day |
 | CPU time | 10 ms per request (Alasin does image resizing and search indexing in the browser for this reason) |
 | KV | 100,000 reads and 1,000 writes per day (sessions are written about once an hour per user) |

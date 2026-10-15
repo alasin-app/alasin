@@ -16,7 +16,7 @@ npm run typecheck
 ## Branches
 
 | Branch | Purpose | Gets changes from | Deploys to |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `feat/…`, `fix/…`, `chore/…`, `docs/…` | one change each | — | nothing (CI only) |
 | `dev` | integration (default branch) | squash-merged PRs from work branches | the dev environment, on every push |
 | `main` | released code | PRs from `dev`, the release PR, hotfixes | production, on each published release |
@@ -32,7 +32,7 @@ npm run typecheck
 Titles follow [Conventional Commits](https://www.conventionalcommits.org/), checked by CI. The type decides the next version:
 
 | Type | Example | Release |
-|---|---|---|
+| --- | --- | --- |
 | `feat:` | `feat: insert a gallery when several photos are picked` | minor (0.9.0 → 0.10.0) |
 | `fix:` | `fix: keep front matter order when saving` | patch (0.9.0 → 0.9.1) |
 | `perf:` | `perf: build the search index in a web worker` | patch |
