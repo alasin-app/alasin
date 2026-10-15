@@ -77,7 +77,7 @@ Devices: Chrome on macOS (desktop), Chrome on iPhone (WebKit, like all iOS brows
 | # | Result | Notes |
 | --- | --- | --- |
 | 2.1 | ✅ | Draft committed to `drafts/posts/` on the site branch. |
-| 2.2 | ⏳ | |
+| 2.2 | ✅ | |
 | 2.3 | ⏳ | |
 | 2.4 | ⏳ | |
 | 2.5 | ⏳ | |
