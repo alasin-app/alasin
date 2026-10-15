@@ -12,6 +12,8 @@ export interface SiteSettings {
   gallery: { shortcode: string; paired: boolean };
   /** How Markdown refers to published images, to show them in the editor. */
   media: { publicUrl: string; contentPrefix: string };
+  /** Folders of the site repository, as configured. */
+  folders: { posts: string; pages: string; drafts: string; archive: string; bin: string };
   images: {
     widths: number[];
     quality: number;
