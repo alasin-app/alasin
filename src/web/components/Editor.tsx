@@ -9,15 +9,13 @@ import { Bold, Check, ChevronLeft, FileCode, Heading2, ImageOff, ImagePlus, Ital
 import { PhotoError, photosMarkdown, processPhoto, uploadPhoto } from "../lib/photos";
 import type { MarkdownEditor } from "../editor/markdown-editor";
 import { BodyEditor } from "./BodyEditor";
-import { dropDanglingBreaks } from "../lib/line-breaks";
-import { removeEmptyItems } from "../lib/markdown-cleanup";
 import { useVisibleTop } from "../lib/visual-viewport";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { fromLocalInput, slugify, toLocalInput } from "../../shared/frontmatter";
 import { youtubeId, youtubeShortcode } from "../../shared/youtube";
 import { categoryTree } from "../../shared/categories";
 import { api, ApiError, type Me, NetworkError } from "../lib/api";
-import { type DraftDoc, type DraftForm, newDraft, parseDraft, serializeDraft } from "../lib/draft-model";
+import { type DraftDoc, type DraftForm, newDraft, parseDraft, prepareSave, serializeDraft } from "../lib/draft-model";
 import { t, useLanguage } from "../lib/i18n";
 import { deleteLocalDraft, getLocalDraft, putLocalDraft } from "../lib/local-drafts";
 import { type DraftKind, navigate } from "../lib/router";
@@ -263,11 +261,7 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
     }
     setStatus("saving");
     setMessage(null);
-    // Tidy up list items and quote lines left empty while writing.
-    // (Markdown mode is raw: nothing is changed there.)
-    const body = mode === "rich" ? dropDanglingBreaks(removeEmptyItems(state.doc.form.body)) : state.doc.form.body;
-    const doc = body === state.doc.form.body ? state.doc : { ...state.doc, form: { ...state.doc.form, body } };
-    const toSave = serializeDraft(doc, state.site);
+    const { content: toSave, body } = prepareSave(state.doc, state.site, { rich: mode === "rich", saved: state.savedContent });
     let sha = state.sha;
     try {
       if (opts.overwrite) {
