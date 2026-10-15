@@ -1,3 +1,19 @@
 # Private, deployment-specific information (reference site notes, real
 # configs, denylist). Never commit anything from here.
 .local/
+
+# Real deployment configuration and local secrets (copy from the *.example.* files)
+alasin.toml
+wrangler.toml
+.dev.vars
+.dev.vars.*
+*.local.*
+
+# Build output and tooling
+node_modules/
+dist/
+.alasin/
+.wrangler/
+coverage/
+*.log
+.DS_Store

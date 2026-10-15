@@ -1,0 +1,50 @@
+{
+  "name": "alasin",
+  "version": "0.0.0",
+  "private": true,
+  "description": "A mobile-first editor for Hugo sites stored in GitHub, hosted on Cloudflare, with images in R2.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "prepare": "node scripts/install-hooks.mjs",
+    "build": "tsx scripts/alasin.ts build",
+    "dev": "tsx scripts/alasin.ts dev",
+    "deploy": "tsx scripts/alasin.ts deploy",
+    "setup": "tsx scripts/setup/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint . && tsx scripts/config-docs.ts --check && node scripts/denylist-check.mjs --tracked",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p scripts/tsconfig.json && tsc --noEmit -p src/web/tsconfig.json",
+    "docs:config": "tsx scripts/config-docs.ts"
+  },
+  "dependencies": {
+    "hono": "4.13.13",
+    "lucide-preact": "1.57.0",
+    "preact": "11.0.1",
+    "smol-toml": "1.9.1",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "1.4.2",
+    "@cloudflare/workers-types": "5.20261015.1",
+    "@eslint/js": "9.39.5",
+    "@preact/preset-vite": "2.10.6",
+    "@types/node": "24.19.2",
+    "eslint": "9.39.5",
+    "globals": "17.13.0",
+    "tsx": "4.23.15",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.71.2",
+    "vite": "8.3.4",
+    "vitest": "4.1.11",
+    "wrangler": "4.151.0"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "workerd@1.20261012.1": true,
+    "fsevents@2.3.3": true
+  }
+}

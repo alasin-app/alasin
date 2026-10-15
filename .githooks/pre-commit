@@ -1,0 +1,4 @@
+#!/bin/sh
+# SPDX-License-Identifier: MIT
+# Blocks staged files that contain terms from .local/denylist or live under .local/.
+exec node "$(git rev-parse --show-toplevel)/scripts/denylist-check.mjs" --staged

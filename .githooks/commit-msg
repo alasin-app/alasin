@@ -1,0 +1,4 @@
+#!/bin/sh
+# SPDX-License-Identifier: MIT
+# Blocks commit messages that contain terms from .local/denylist.
+exec node "$(git rev-parse --show-toplevel)/scripts/denylist-check.mjs" --message "$1"
