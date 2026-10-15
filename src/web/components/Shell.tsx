@@ -87,7 +87,9 @@ export function Shell(props: { me: Me; onLogout: () => void }) {
     <div class={`shell${route.name === "editor" ? " editing" : ""}${collapsed ? " sidebar-collapsed" : ""}`}>
       <aside class="sidebar" aria-label={settings.appName}>
         <div class="sidebar-header">
-          {!collapsed && (
+          {collapsed ? (
+            <EnvBadge />
+          ) : (
             <span class="sidebar-app">
               {settings.appName} <EnvBadge />
             </span>
