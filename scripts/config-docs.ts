@@ -28,7 +28,7 @@ const START = "<!-- config-reference:start -->";
 const END = "<!-- config-reference:end -->";
 
 function typeOf(s: JsonSchema): string {
-  if (s.enum) return s.enum.map((v) => JSON.stringify(v)).join(" | ");
+  if (s.enum) return `one of ${s.enum.map((v) => JSON.stringify(v)).join(", ")}`;
   if (s.type === "array") return `array of ${s.items ? typeOf(s.items) : "values"}`;
   if (s.type === "object" && s.properties) return `{ ${Object.keys(s.properties).join(", ")} }`;
   if (s.format === "uri") return "string (URL)";
@@ -36,7 +36,7 @@ function typeOf(s: JsonSchema): string {
 }
 
 function inline(v: unknown): string {
-  if (v === undefined) return "";
+  if (v === undefined) return "—";
   const text = typeof v === "string" ? JSON.stringify(v) : JSON.stringify(v).replace(/,/g, ", ").replace(/:/g, " = ");
   return `\`${text.replace(/\|/g, "\\|")}\``;
 }
@@ -50,8 +50,8 @@ export function renderReference(): string {
   const example = parse(readFileSync(join(repoRoot, "alasin.example.toml"), "utf8")) as Record<string, Record<string, unknown>>;
   const out: string[] = [];
   for (const [table, ts] of Object.entries(schema.properties ?? {})) {
-    out.push(`#### \`[${table}]\``, "", ts.description ?? "", "");
-    out.push("| Option | Type | Default | Example | Description |", "|---|---|---|---|---|");
+    out.push(`### \`[${table}]\``, "", ts.description ?? "", "");
+    out.push("| Option | Type | Default | Example | Description |", "| --- | --- | --- | --- | --- |");
     for (const [key, s] of Object.entries(ts.properties ?? {})) {
       const required = (ts.required ?? []).includes(key) && s.default === undefined;
       const def = required ? "**required**" : s.default !== undefined ? inline(s.default) : "—";
