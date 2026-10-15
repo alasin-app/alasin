@@ -387,7 +387,11 @@ function setupDomain() {
     setWrangler("routes", [{ pattern: host, custom_domain: true }]);
     ok(`Custom domain ${host} added; Wrangler creates the DNS record and certificate on deploy`);
   }
-  info(dim("Requests to the workers.dev address are redirected to it."));
+  // One address per deployment: with a custom domain, the workers.dev address is turned off.
+  if (wranglerTarget().workers_dev !== false) {
+    setWrangler("workers_dev", false);
+    ok("workers.dev address turned off; the app is reached only through its custom domain");
+  }
 }
 
 async function setupGitHubApp(): Promise<Record<string, string>> {
