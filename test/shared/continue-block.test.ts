@@ -16,13 +16,19 @@ describe("Enter continues lists and quotes", () => {
     expect(enter("9) nine")?.text).toBe("9) nine\n10) ");
   });
 
-  it("continues quotes", () => {
-    expect(enter("> quoted")?.text).toBe("> quoted\n> ");
+  it("starts a new paragraph inside a quote", () => {
+    expect(enter("> quoted")).toEqual({ text: "> quoted\n>\n> ", cursor: 13 });
+  });
+
+  it("ends a quote without leaving its paragraph separator behind", () => {
+    expect(enter("> a\n>\n> ")).toEqual({ text: "> a\n\n", cursor: 5 });
+    expect(enter("> a\n>\n> \nmore", 8)).toEqual({ text: "> a\n\nmore", cursor: 4 });
   });
 
   it("ends the list or quote on an empty item, with a blank line after it", () => {
     expect(enter("- one\n- ")).toEqual({ text: "- one\n\n", cursor: 7 });
     expect(enter("> a\n> ")).toEqual({ text: "> a\n\n", cursor: 5 });
+    expect(enter("> a\n>\n> b")?.text).toBe("> a\n>\n> b\n>\n> ");
     expect(enter("- one\n- \nlater", 8)).toEqual({ text: "- one\n\nlater", cursor: 6 });
   });
 
