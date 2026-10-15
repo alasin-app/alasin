@@ -79,3 +79,51 @@ describe("alasin.toml migration", () => {
     expect(text).toBe(currentExample);
   });
 });
+
+describe("adding sections new in alasin.example.toml", () => {
+  /** The example without the given sections (banner, comments and values). */
+  function without(names: string[]): string {
+    let text = currentExample;
+    for (const name of names) {
+      const start = text.indexOf(`# ─────────────────────────────────────────────────────────────────────────────\n# [${name}]`);
+      const next = text.indexOf("# ─────────────────────────────────────────────────────────────────────────────\n# [", start + 10);
+      text = text.slice(0, start) + text.slice(next);
+    }
+    return text;
+  }
+  const config = (text: string) => parseConfig(selectEnvironment(parse(text) as Record<string, unknown>, undefined));
+
+  it("restores missing sections exactly as the example has them, in place", () => {
+    const old = without(["archive", "bin"]);
+    const { text, changes } = migrateAlasinToml(old, currentExample);
+    expect(changes).toEqual([
+      "added [archive] from alasin.example.toml (defaults; no change in behaviour)",
+      "added [bin] from alasin.example.toml (defaults; no change in behaviour)",
+    ]);
+    expect(text).toBe(currentExample);
+  });
+
+  it("adds a missing last section before the [env.*] tables and keeps them", () => {
+    const old = `${without(["security"]).trimEnd()}\n\n[env.dev.app]\nurl = "https://dev.example.com"\n`;
+    const { text } = migrateAlasinToml(old, currentExample);
+    expect(text.indexOf("\n[security]\n")).toBeGreaterThan(text.indexOf("\n[ui]\n"));
+    expect(text.indexOf("\n[security]\n")).toBeLessThan(text.indexOf("\n[env.dev.app]\n"));
+    expect(text.endsWith('[env.dev.app]\nurl = "https://dev.example.com"\n')).toBe(true);
+    // Also before the commented [env.<name>] introduction.
+    expect(text.indexOf("\n[security]\n")).toBeLessThan(text.indexOf("# [env.<name>] —"));
+    expect(text.match(/# \[env\.<name>\] —/g)).toHaveLength(1);
+  });
+
+  it("never changes what the configuration means: every optional section's example values are its defaults", () => {
+    const optional = ["drafts", "archive", "bin", "images", "editor", "categories", "preview", "ui", "security"];
+    const old = without(optional);
+    const { text, changes } = migrateAlasinToml(old, currentExample);
+    expect(changes).toHaveLength(optional.length);
+    expect(config(text)).toEqual(config(old));
+  });
+
+  it("leaves a complete file alone", () => {
+    expect(migrateAlasinToml(currentExample, currentExample)).toEqual({ text: currentExample, changes: [] });
+  });
+});
+
