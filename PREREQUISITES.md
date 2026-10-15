@@ -104,7 +104,9 @@ then `export CLOUDFLARE_API_TOKEN=<token>` (and `CLOUDFLARE_ACCOUNT_ID`).
 ## 4. GitHub — Manual
 
 - **The site repository:** note its owner and name (`owner/name`) and the branch Cloudflare builds the live site from (usually `main`). The site should already build and deploy on Cloudflare.
-- **Public or private?** If the repository is public, anything committed is public, including drafts committed with `draft: true`. Alasin's default (`[drafts] storage = "private"`) keeps draft text out of git until you publish; see `alasin.example.toml`.
+- **Keep the site repository private — recommended, always.** Cloudflare builds private repositories just as well as public ones, and a private repository keeps drafts, history and anything committed by mistake out of public view. It also lets Alasin keep draft text in the repository with version history (`[drafts] storage = "repo"`). To check or change it: the repository's **Settings → General → Danger Zone → Change repository visibility**.
+
+  If the repository has to stay public, keep the default `[drafts] storage = "r2"`, which keeps draft text out of git until you publish; see `alasin.example.toml`.
 - **Every author needs their own GitHub account with write access** to the site repository (as a collaborator, or through an organisation team). Alasin commits with each person's own token, so commits show who wrote what.
 - Note everyone's **GitHub username**. Setup turns them into numeric user IDs for the allowlist.
 
