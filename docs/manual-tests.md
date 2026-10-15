@@ -115,3 +115,15 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 3.3 | Unsaved changes | Change the text, then *Publish* without saving: the change is saved first and is in the published file |
 | 3.4 | Address taken | Publish a draft whose address (slug) is already used by a post: refused with a message, the draft stays; change the slug and publish again |
 | 3.5 | Nothing overwritten | Compare the media bucket with the listing from the start: only new files were added; a photo whose name was taken got `-2` |
+
+### Test runs
+
+#### 2026-10-15 — dev deployment
+
+| # | Result | Notes |
+| --- | --- | --- |
+| 3.1 | ✅ | |
+| 3.2 | ✅ | |
+| 3.3 | ✅ | |
+| 3.4 | ✅ | |
+| 3.5 | ✅ | Media bucket listing compared before and after: only new files. |
