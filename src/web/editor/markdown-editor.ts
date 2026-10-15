@@ -142,6 +142,18 @@ class BulletWidget extends WidgetType {
   }
 }
 
+class RuleWidget extends WidgetType {
+  override eq() {
+    return true;
+  }
+  toDOM() {
+    const s = document.createElement("span");
+    s.className = "cm-md-rule";
+    s.setAttribute("role", "separator");
+    return s;
+  }
+}
+
 class BreakWidget extends WidgetType {
   constructor(readonly label: string) {
     super();
@@ -378,6 +390,7 @@ const hide = Decoration.replace({});
 /** Inline formatting from the Markdown syntax tree, for the visible part of the document. */
 function inlineDecorations(opts: EditorOptions) {
   const bullet = Decoration.replace({ widget: new BulletWidget() });
+  const rule = Decoration.replace({ widget: new RuleWidget() });
   const lineBreakWidget = Decoration.replace({ widget: new BreakWidget(opts.labels.lineBreak) });
   const mark = (cls: string) => Decoration.mark({ class: cls });
   const lineDeco = (cls: string) => Decoration.line({ class: cls });
@@ -448,7 +461,12 @@ function inlineDecorations(opts: EditorOptions) {
             if (len > 0) items.push({ from: node.from, to: node.from + len, deco: lineBreakWidget });
             return;
           }
-          if (n === "HorizontalRule") items.push({ from: state.doc.lineAt(node.from).from, to: state.doc.lineAt(node.from).from, deco: lineDeco("cm-md-hr") });
+          if (n === "HorizontalRule") {
+            items.push({ from: state.doc.lineAt(node.from).from, to: state.doc.lineAt(node.from).from, deco: lineDeco("cm-md-hr") });
+            // A line across, unless the cursor is on it.
+            if (!touches(node.from, node.to)) items.push({ from: node.from, to: node.to, deco: rule });
+            return;
+          }
           if (n === "FencedCode") {
             for (let pos = node.from; pos <= node.to; ) {
               const l = state.doc.lineAt(pos);
