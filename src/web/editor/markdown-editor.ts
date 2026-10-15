@@ -116,6 +116,23 @@ export function prefixLines(view: EditorView, prefix: string) {
   view.focus();
 }
 
+/** Makes the selected lines headings of `level` (2–6), or normal text with 0. */
+export function setHeading(view: EditorView, level: number) {
+  const sel = view.state.selection.main;
+  const first = view.state.doc.lineAt(sel.from);
+  const last = view.state.doc.lineAt(sel.to);
+  const changes = [];
+  for (let n = first.number; n <= last.number; n++) {
+    const line = view.state.doc.line(n);
+    if (!line.text.trim() && first.number !== last.number) continue;
+    const existing = /^#{1,6}[ \t]+/.exec(line.text);
+    const insert = level > 0 ? `${"#".repeat(level)} ` : "";
+    changes.push({ from: line.from, to: line.from + (existing ? existing[0].length : 0), insert });
+  }
+  view.dispatch({ changes, userEvent: "input" });
+  view.focus();
+}
+
 /** Inserts text at the cursor (or the end), as its own block separated by blank lines. */
 export function insertBlock(view: EditorView, text: string, at?: number) {
   const doc = view.state.doc;
@@ -518,8 +535,10 @@ export interface MarkdownEditor {
   setRich: (rich: boolean) => void;
   /** Wraps the selection (or a sample word) in markers, e.g. ** for bold. */
   wrap: (before: string, after: string, sample: string) => void;
-  /** Adds a prefix to the selected lines, e.g. "## " or "- ". */
+  /** Adds a prefix to the selected lines, e.g. "- ". */
   prefix: (prefix: string) => void;
+  /** Heading level 2–5 for the selected lines, or 0 for normal text. */
+  heading: (level: number) => void;
   /** Inserts a block of text at the cursor, separated by blank lines. */
   insertBlock: (text: string) => void;
   destroy: () => void;
@@ -539,6 +558,8 @@ export function createMarkdownEditor(opts: EditorOptions): MarkdownEditor {
           { key: "Shift-Enter", run: lineBreak },
           { key: "Mod-b", run: (v) => (wrapSelection(v, "**", "**", ""), true) },
           { key: "Mod-i", run: (v) => (wrapSelection(v, "_", "_", ""), true) },
+          // Heading levels as in Google Docs; H1 is the page title, so 2–5.
+          ...[0, 2, 3, 4, 5].map((level) => ({ key: `Mod-Alt-${level}`, run: (v: EditorView) => (setHeading(v, level), true) })),
           ...historyKeymap,
           ...defaultKeymap,
         ]),
@@ -564,6 +585,7 @@ export function createMarkdownEditor(opts: EditorOptions): MarkdownEditor {
     },
     wrap: (before, after, sample) => wrapSelection(view, before, after, sample),
     prefix: (p) => prefixLines(view, p),
+    heading: (level) => setHeading(view, level),
     insertBlock: (text) => insertBlock(view, text),
     destroy() {
       view.destroy();
