@@ -33,6 +33,10 @@ compatibility_date = "2026-10-01"
 # it is harmless to leave on; set false once the custom domain works.
 workers_dev = true
 
+# Preview URLs (extra hostnames per version) are turned off by `npm run deploy`,
+# because Alasin serves one canonical address. Set `preview_urls = true` here
+# only if you need them.
+
 # Custom domain for the app (a zone in the same Cloudflare account). Wrangler
 # creates the DNS record and certificate on deploy. Must match [app].url.
 # routes = [{ pattern = "alasin.example.com", custom_domain = true }]
