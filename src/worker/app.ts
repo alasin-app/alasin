@@ -11,7 +11,7 @@ import { api } from "./routes/api";
 import { auth } from "./routes/auth";
 import type { Session } from "./session";
 import { SessionExpiredError } from "./session";
-import { KeyConfigError } from "./lib/crypto";
+import { KeyConfigError, randomToken } from "./lib/crypto";
 import { GitHubError } from "./lib/github";
 import { iconPng, iconSvg, PNG_SIZES } from "./icons";
 import { webManifest, withUiSettings } from "./shell";
@@ -22,6 +22,8 @@ export interface AppEnv {
     config: AlasinConfig;
     session: Session;
     requestId: string;
+    /** One-time nonce for runtime `<style>` elements on an app page. */
+    styleNonce?: string;
   };
 }
 
@@ -67,7 +69,7 @@ export function createApp() {
     }
 
     await next();
-    c.res = withSecurityHeaders(c.res, config, canonical.protocol === "https:");
+    c.res = withSecurityHeaders(c.res, config, canonical.protocol === "https:", c.get("styleNonce"));
     log({
       rid,
       method: c.req.method,
@@ -113,7 +115,10 @@ export function createApp() {
     if (c.req.path.startsWith("/assets/") && (res.headers.get("Content-Type") ?? "").startsWith("text/html")) {
       return c.text("Not found", 404, { "Cache-Control": "no-store" });
     }
-    return withUiSettings(res, c.get("config"));
+    if (!(res.headers.get("Content-Type") ?? "").startsWith("text/html")) return res;
+    const nonce = randomToken(16);
+    c.set("styleNonce", nonce);
+    return withUiSettings(res, c.get("config"), nonce);
   });
 
   app.onError((err, c) => {

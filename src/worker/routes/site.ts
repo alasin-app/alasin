@@ -76,6 +76,7 @@ site.get("/", async (c) => {
     author: user?.author ?? null,
     categories,
     gallery: { shortcode: config.editor.gallery_shortcode, paired: config.editor.gallery_paired },
+    media: { publicUrl: config.media.public_url, contentPrefix: config.media.content_prefix },
     images: {
       ...images,
       mainQuality: img.main_quality,

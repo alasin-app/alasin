@@ -5,7 +5,7 @@
 // main image and its variants with progress and retries.
 
 import type { ImageErrorCode, ImageJob, ImageResult, ProcessedImage } from "./image-types";
-import type { SiteSettings } from "./site";
+import type { SiteSettings } from "./site-types";
 
 let worker: Worker | undefined;
 let nextJob = 1;
