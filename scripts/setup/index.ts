@@ -14,6 +14,7 @@ import { ConfigError, selectEnvironment } from "../../src/shared/config/schema";
 import { parseArgs, repoRoot } from "../lib/args";
 import { displayPath, loadAlasinConfig } from "../lib/config";
 import { appendSection, setValue, type TomlValue } from "../lib/toml-edit";
+import { normalizeUrl, urlProblem } from "../lib/urls";
 import { checkBindings, generateWranglerConfig, REQUIRED_SECRETS } from "../lib/wrangler-config";
 import * as cf from "./cloudflare";
 import * as gh from "./github";
@@ -134,16 +135,10 @@ simple = { limit = 30, period = 60 }
 
 // ── validators ───────────────────────────────────────────────────────────────
 
-const validUrl = (requireOrigin: boolean) => (v: string) => {
-  try {
-    const u = new URL(v);
-    if (u.protocol !== "https:") return "use an https:// URL";
-    if (requireOrigin && u.pathname !== "/") return "only the origin, without a path (e.g. https://alasin.example.com)";
-    return null;
-  } catch {
-    return "not a valid URL";
-  }
-};
+/** Asks for an https URL; a bare hostname gets https://. */
+async function askUrl(question: string, originOnly: boolean): Promise<string> {
+  return normalizeUrl(await ask(question, { validate: (v) => urlProblem(v, { originOnly }) }));
+}
 const validName = (v: string) => (/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(v) ? null : "letters, digits, '.', '_' and '-' only");
 const validBucket = (v: string) => (/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/.test(v) ? null : "3–63 lower-case letters, digits and '-'");
 
@@ -198,7 +193,7 @@ async function askSiteValues() {
   if (isUnset(get(e, "app.url"))) {
     info("The app's public address: a hostname on a zone in this Cloudflare account (e.g. alasin.example.com),");
     info("or the Worker's workers.dev address.");
-    setAlasin("app", "url", (await ask("App URL", { validate: validUrl(true) })).replace(/\/$/, ""));
+    setAlasin("app", "url", new URL(await askUrl("App address (hostname or URL)", true)).origin);
   }
   ok(`App URL: ${String(get(effective(), "app.url"))}`);
 
@@ -230,7 +225,7 @@ async function askSiteValues() {
   ok(`Branch: ${String(get(effective(), "github.branch"))}`);
 
   if (isUnset(get(e, "site.url"))) {
-    setAlasin("site", "url", await ask(`Public URL of the site built from that branch`, { validate: validUrl(false) }));
+    setAlasin("site", "url", await askUrl("Public address of the site built from that branch", false));
   }
   ok(`Site URL: ${String(get(effective(), "site.url"))}`);
 
@@ -287,7 +282,7 @@ async function setupBuckets() {
     setAlasin(
       "media",
       "public_url",
-      (await ask("Public URL of the MEDIA bucket (custom domain)", { validate: validUrl(false) })).replace(/\/?$/, "/"),
+      (await askUrl("Public address of the MEDIA bucket (its custom domain)", false)).replace(/\/?$/, "/"),
     );
   }
   ok(`Media URL: ${String(get(effective(), "media.public_url"))}`);
