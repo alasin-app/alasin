@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 //
-// npm run setup [-- --env <name>] [--config <alasin.toml>] [--wrangler-config <wrangler.toml>] [--rotate-keys]
+// npm run setup [-- --env <name>] [--config <alasin.toml>] [--wrangler-config <wrangler.toml>] [--rotate-keys] [--rotate-github]
 //
 // Interactive and safe to re-run: every step checks the current state first
 // and only asks for, creates or changes what is missing. Re-running for one
@@ -16,6 +16,7 @@ import { displayPath, loadAlasinConfig } from "../lib/config";
 import { appendSection, setValue, type TomlValue } from "../lib/toml-edit";
 import { normalizeUrl, urlProblem } from "../lib/urls";
 import { migrateAlasinToml } from "../lib/migrate";
+import { today } from "../../src/shared/housekeeping";
 import { checkBindings, generateWranglerConfig, REQUIRED_SECRETS } from "../lib/wrangler-config";
 import * as cf from "./cloudflare";
 import * as gh from "./github";
@@ -406,10 +407,16 @@ async function setupGitHubApp(): Promise<Record<string, string>> {
   const haveSecrets = existing?.has("GITHUB_CLIENT_SECRET") && existing.has("GITHUB_APP_PRIVATE_KEY");
   let privateKey: string | undefined;
 
-  if (haveApp && haveSecrets) {
+  const rotateGithub = args.flags.has("rotate-github");
+  if (rotateGithub && !haveApp) throw new Error("--rotate-github needs a configured GitHub App; run setup without it first.");
+  if (haveApp && haveSecrets && !rotateGithub) {
     ok(`GitHub App ${String(get(e, "github.app_id"))} and its secrets are set`);
   } else if (haveApp) {
-    info(`GitHub App ${String(get(e, "github.app_id"))} is configured, but its secrets aren't stored on Worker ${workerName()}.`);
+    info(
+      rotateGithub
+        ? `Rotating the secrets of GitHub App ${String(get(e, "github.app_id"))}.`
+        : `GitHub App ${String(get(e, "github.app_id"))} is configured, but its secrets aren't stored on Worker ${workerName()}.`,
+    );
     info("Generate a client secret and a private key on the app's settings page on GitHub.");
     secrets.GITHUB_CLIENT_SECRET = await ask("Client secret");
     const keyPath = await ask("Path to the private key (.pem)", { validate: (v) => (existsSync(v) ? null : "file not found") });
@@ -475,6 +482,29 @@ function devVarsPath(): string {
 
 const newKey = () => randomBytes(32).toString("base64");
 
+/**
+ * Records in alasin.toml when secrets were rotated, for the reminders in
+ * `npm run deploy` and the app. Secrets that already existed without a
+ * recorded date get today as a starting point.
+ */
+function recordRotation(existingBefore: Set<string>, stored: Record<string, string>) {
+  const day = today();
+  const groups = [
+    { key: "session_keys_rotated", names: ["SESSION_KEY", "TOKEN_KEY"], label: "session keys" },
+    { key: "github_secrets_rotated", names: ["GITHUB_CLIENT_SECRET", "GITHUB_APP_PRIVATE_KEY"], label: "GitHub App secrets" },
+  ];
+  for (const g of groups) {
+    const recorded = get(effective(), `security.${g.key}`) as string | undefined;
+    if (g.names.some((n) => n in stored)) {
+      setAlasin("security", g.key, day);
+      ok(`Recorded ${g.label} rotation: ${day}`);
+    } else if (!recorded && g.names.every((n) => existingBefore.has(n))) {
+      setAlasin("security", g.key, day);
+      info(dim(`No rotation date was recorded for the ${g.label}; today (${day}) is the starting point for reminders.`));
+    }
+  }
+}
+
 async function storeSecrets(fromApp: Record<string, string>) {
   step(`Worker secrets${envLabel}`);
   const existing = cf.listSecrets(args.wranglerPath, env) ?? new Set<string>();
@@ -487,6 +517,7 @@ async function storeSecrets(fromApp: Record<string, string>) {
     ok(`Stored ${Object.keys(secrets).join(", ")}`);
     if (args.flags.has("rotate-keys")) info("Session keys rotated: everyone has to log in again.");
   }
+  recordRotation(existing, secrets);
   const after = cf.listSecrets(args.wranglerPath, env) ?? new Set<string>();
   const missing = REQUIRED_SECRETS.filter((s) => !after.has(s));
   if (missing.length) warn(`Still missing: ${missing.join(", ")}. Run setup again or set them with \`npx wrangler secret put\`.`);
@@ -525,9 +556,9 @@ function finalCheck() {
 }
 
 async function main() {
-  const unexpected = args.rest.filter((a) => a !== "--rotate-keys");
+  const unexpected = args.rest.filter((a) => a !== "--rotate-keys" && a !== "--rotate-github");
   if (unexpected.length) {
-    throw new Error(`Unexpected argument(s): ${unexpected.join(" ")}. Options: --env <name>, --config <alasin.toml>, --wrangler-config <wrangler.toml>, --rotate-keys.`);
+    throw new Error(`Unexpected argument(s): ${unexpected.join(" ")}. Options: --env <name>, --config <alasin.toml>, --wrangler-config <wrangler.toml>, --rotate-keys, --rotate-github.`);
   }
   console.log(bold(`Alasin setup — environment: ${env ?? "default (production)"}`));
   console.log(dim(`alasin.toml:   ${displayPath(args.configPath)}\nwrangler.toml: ${displayPath(args.wranglerPath)}`));
