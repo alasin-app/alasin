@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.10.2](https://github.com/oh2th/alasin/compare/v0.10.1...v0.10.2) (2026-10-15)
+
+
+### Bug Fixes
+
+* setup confirms the Worker name, branch and badge of a deployment ([#25](https://github.com/oh2th/alasin/issues/25)) ([0af16a7](https://github.com/oh2th/alasin/commit/0af16a7843c182fbe6a2d776e3c6ec4c68db2af7))
+* stop when npm swallows the options of setup, build, dev or deploy ([#24](https://github.com/oh2th/alasin/issues/24)) ([47a2b8b](https://github.com/oh2th/alasin/commit/47a2b8bb60f2a1c5370b30e9017d2c4eb273e993))
+
 ## [0.10.1](https://github.com/oh2th/alasin/compare/v0.10.0...v0.10.1) (2026-10-15)
 
 
