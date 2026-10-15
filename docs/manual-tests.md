@@ -24,7 +24,7 @@ Result marks: ✅ passed · ❌ failed (with the fix) · ⏳ not run yet.
 | 1.10 | iOS layout | On iOS, window < 768 px (phones): tab bar (Home, Drafts, Media, More), large title, account sheet as a bottom sheet |
 | 1.11 | Dark mode | Device in dark mode: native-looking dark colours on both layouts |
 | 1.12 | iOS Safari | 1.4–1.10 in Safari on iOS, including *Add to Home Screen* (icon and standalone mode) |
-| 1.13 | Hide sidebar | Window ≥ 768 px: the button at the top of the sidebar shrinks it to icons (names as tooltips; environment badge moves to the title bar) and back; the choice is remembered on the device |
+| 1.13 | Hide sidebar | Window ≥ 768 px: the button at the bottom of the sidebar shrinks it to icons (names as tooltips; environment badge moves to the title bar) and back; the choice is remembered on the device |
 
 ### Test runs
 
