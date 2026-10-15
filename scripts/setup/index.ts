@@ -343,13 +343,17 @@ async function setupBuckets() {
   const drafts = buckets.find((b) => b.binding === "DRAFTS") ?? {};
   let draftsName = drafts.bucket_name as string | undefined;
   if (isUnset(draftsName)) {
-    draftsName = await ask("Name for the private DRAFTS bucket", { default: `${workerName()}-drafts`, validate: validBucket });
+    draftsName = await ask("Name for the private DRAFTS bucket", { default: `${mediaName}-drafts${env ? `-${env}` : ""}`, validate: validBucket });
     setWrangler("bucket_name", draftsName, { table: "r2_buckets", where: { key: "binding", value: "DRAFTS" } });
     if (jurisdiction) setWrangler("jurisdiction", jurisdiction, { table: "r2_buckets", where: { key: "binding", value: "DRAFTS" } });
   }
   const draftsJ = (wranglerTarget().r2_buckets as Table[]).find((b) => b.binding === "DRAFTS")!.jurisdiction as string | undefined;
   if (draftsName === mediaName && draftsJ === jurisdiction) throw new Error("DRAFTS must be a different bucket from MEDIA.");
-  if (cf.bucketExists(draftsName!, draftsJ)) ok(`DRAFTS: ${draftsName} (exists)`);
+  if (cf.bucketExists(draftsName!, draftsJ)) {
+    ok(`DRAFTS: ${draftsName} (exists)`);
+    // Each deployment's daily cleanup removes draft images whose draft isn't on its own branch.
+    warn("Use this bucket for this deployment only: deployments sharing a drafts bucket would delete each other's draft images.");
+  }
   else {
     const r = cf.createBucket(draftsName!, draftsJ);
     if (!r.ok) throw new Error(`Couldn't create bucket ${draftsName}:\n${r.output}`);
