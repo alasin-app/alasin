@@ -1117,7 +1117,9 @@ img {
 
 .toolbar {
   position: sticky;
-  top: calc(var(--bar-height) + env(safe-area-inset-top));
+  /* Below the navigation bar, or at the top of what is visible while the
+     on-screen keyboard has scrolled the page (see visual-viewport.ts). */
+  top: max(calc(var(--bar-height) + env(safe-area-inset-top)), var(--visible-top, 0px));
   z-index: 5;
   display: flex;
   gap: 2px;

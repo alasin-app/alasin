@@ -11,6 +11,7 @@ import type { MarkdownEditor } from "../editor/markdown-editor";
 import { BodyEditor } from "./BodyEditor";
 import { dropDanglingBreaks } from "../lib/line-breaks";
 import { removeEmptyItems } from "../lib/markdown-cleanup";
+import { useVisibleTop } from "../lib/visual-viewport";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { fromLocalInput, slugify, toLocalInput } from "../../shared/frontmatter";
 import { api, ApiError, type Me, NetworkError } from "../lib/api";
@@ -88,6 +89,8 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
   /** The whole file as text while in Markdown mode. */
   const [markdownText, setMarkdownText] = useState("");
   const [markdownError, setMarkdownError] = useState(false);
+
+  useVisibleTop();
 
   const uploading = uploads.some((u) => u.state === "processing" || u.state === "uploading");
   const [draftImages, setDraftImages] = useState<{ file: string; url: string; thumb: string }[] | null>(null);
