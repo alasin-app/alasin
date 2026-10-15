@@ -18,7 +18,7 @@ import { t, useLanguage } from "../lib/i18n";
 import { deleteLocalDraft, getLocalDraft, putLocalDraft } from "../lib/local-drafts";
 import { type DraftKind, navigate } from "../lib/router";
 import { loadSite, type SiteSettings } from "../lib/site";
-import { Sheet } from "./Sheet";
+import { ActionSheet, Sheet } from "./Sheet";
 
 interface Loaded {
   site: SiteSettings;
@@ -294,13 +294,15 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
     return () => document.removeEventListener("keydown", onKey);
   });
 
+  const [headingMenu, setHeadingMenu] = useState(false);
   const format = (action: "bold" | "italic" | "heading" | "link" | "list" | "quote") => {
     const ed = editorRef.current;
     if (!ed) return;
     if (action === "bold") ed.wrap("**", "**", t("editor.sampleText"));
     else if (action === "italic") ed.wrap("_", "_", t("editor.sampleText"));
     else if (action === "link") ed.wrap("[", "](https://)", t("editor.sampleText"));
-    else ed.prefix(action === "heading" ? "## " : action === "list" ? "- " : "> ");
+    else if (action === "heading") setHeadingMenu(true);
+    else ed.prefix(action === "list" ? "- " : "> ");
   };
 
   /** Markdown mode edits the whole file; a valid file updates the form as you type. */
@@ -575,6 +577,17 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
           onFiles={addPhotos}
         />
       </div>
+
+      <ActionSheet
+        open={headingMenu}
+        onClose={() => setHeadingMenu(false)}
+        title={t("editor.textStyle")}
+        actions={[
+          ...[2, 3, 4, 5].map((level) => ({ label: t("editor.headingLevel", { n: String(level) }), onSelect: () => editorRef.current?.heading(level) })),
+          { label: t("editor.normalText"), onSelect: () => editorRef.current?.heading(0) },
+        ]}
+        cancelLabel={t("common.cancel")}
+      />
 
       <Sheet open={coverOpen} onClose={() => setCoverOpen(false)} title={t("editor.cover")} doneLabel={t("account.done")}>
         {draftImages === null ? (
