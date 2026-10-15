@@ -78,8 +78,8 @@ Devices: Chrome on macOS (desktop), Chrome on iPhone (WebKit, like all iOS brows
 | --- | --- | --- |
 | 2.1 | ✅ | Draft committed to `drafts/posts/` on the site branch. |
 | 2.2 | ✅ | |
-| 2.3 | ⏳ | |
-| 2.4 | ⏳ | |
+| 2.3 | ✅ | |
+| 2.4 | ✅ | Asked which version to keep. |
 | 2.5 | ⏳ | |
 | 2.6 | ❌ → ✅ | Empty items stayed after ending a list (#52); empty markers now tidied on save (#53); quote lines continue line by line (#54, #59). |
 | 2.7 | ✅ | First photo became the cover. |
