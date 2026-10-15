@@ -45,3 +45,24 @@ export function shortcodeYoutubeId(line: string): string | null {
 export function youtubeThumbnail(id: string): string {
   return `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
 }
+
+/**
+ * A YouTube link pasted on a line of its own, as the shortcode (separated
+ * from neighbouring text by blank lines), or null to paste the text as is.
+ * A bare ID is not converted: it could be any 11-letter word.
+ */
+export function pastedVideo(text: string, before: string, after: string): string | null {
+  const link = text.trim();
+  if (/\s/.test(link) || youtubeId(link) === link) return null;
+  const video = youtubeId(link);
+  if (!video) return null;
+  const lineBefore = before.slice(before.lastIndexOf("\n") + 1);
+  const newline = after.indexOf("\n");
+  const lineAfter = newline < 0 ? after : after.slice(0, newline);
+  if (lineBefore.trim() || lineAfter.trim()) return null;
+  const head = before.slice(0, before.length - lineBefore.length);
+  const tail = newline < 0 ? "" : after.slice(newline);
+  const lead = head.trim() === "" || head.endsWith("\n\n") ? "" : "\n";
+  const trail = tail === "" || tail.startsWith("\n\n") ? "" : "\n";
+  return lead + youtubeShortcode(video) + trail;
+}
