@@ -135,7 +135,6 @@ The Hugo site and its content layout.
 | `cover_field` | string | `"image"` | `"image"` | Front matter field holding a post's cover image. |
 | `author_field` | string | — | — | Front matter field for the author's name (from `[users] allow` `author`). Leave unset if the site doesn't use one. |
 | `front_matter_format` | one of "yaml", "toml" | `"yaml"` | `"yaml"` | Front matter format for new files. Existing files keep the format they already use. |
-| `timezone` | string | `"UTC"` | `"UTC"` | IANA time zone used for the date of new posts, e.g. `Europe/Helsinki`. Usually matches Hugo's `timeZone`. |
 
 ### `[github]`
 

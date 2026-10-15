@@ -61,6 +61,18 @@ describe("alasin.toml migration", () => {
     expect(parse(text)).toEqual({ app: { url: "x" }, env: { dev: { drafts: { dir: "drafts" } } } });
   });
 
+  it("removes the old [site] timezone option", () => {
+    const old = currentExample.replace(
+      'front_matter_format = "yaml"\n',
+      'front_matter_format = "yaml"\n\n# IANA time zone for the date of new posts; usually Hugo\'s `timeZone`.\n# Type: string. Default: "UTC". Example: "Europe/Helsinki"\ntimezone = "Europe/Helsinki"\n',
+    );
+    expect(old).toContain("timezone =");
+    const { text, changes } = migrateAlasinToml(old);
+    expect(changes).toEqual(['[site]: removed "timezone" (dates are now stored in UTC and shown in each browser\'s time zone)']);
+    expect(text).toBe(currentExample);
+    expect(() => parseConfig(selectEnvironment(parse(text) as Record<string, unknown>, undefined))).not.toThrow();
+  });
+
   it("leaves a current file unchanged", () => {
     const { text, changes } = migrateAlasinToml(currentExample);
     expect(changes).toEqual([]);

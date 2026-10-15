@@ -2,7 +2,6 @@
 import { describe, expect, it } from "vitest";
 import {
   applyChanges,
-  formatDateInZone,
   joinFile,
   parseFields,
   slugify,
@@ -81,20 +80,15 @@ describe("front matter", () => {
     expect(slugify("!!!")).toBe("untitled");
   });
 
-  it("formats dates in the site's time zone with the offset", () => {
-    const d = new Date("2026-10-15T11:05:30Z");
-    expect(formatDateInZone(d, "Europe/Helsinki")).toBe("2026-10-15T14:05:30+03:00");
-    expect(formatDateInZone(new Date("2026-01-15T11:05:30Z"), "Europe/Helsinki")).toBe("2026-01-15T13:05:30+02:00");
-    expect(formatDateInZone(d, "UTC")).toBe("2026-10-15T11:05:30+00:00");
-    expect(formatDateInZone(d, "America/New_York")).toBe("2026-10-15T07:05:30-04:00");
+  it("stores dates in UTC and shows them in the browser's time zone", async () => {
+    const { fromLocalInput, toLocalInput, utcIso } = await import("../../src/shared/frontmatter");
+    expect(utcIso(new Date("2026-10-15T11:05:30.123Z"))).toBe("2026-10-15T11:05:30Z");
+    // The test runtime's local time zone is UTC.
+    expect(toLocalInput("2025-08-01T15:58:00+03:00")).toBe("2025-08-01T12:58");
+    expect(toLocalInput("2026-10-15T11:05:00Z")).toBe("2026-10-15T11:05");
+    expect(fromLocalInput("2026-10-15T11:05")).toBe("2026-10-15T11:05:00Z");
+    expect(toLocalInput("not a date")).toBe("");
+    expect(fromLocalInput("")).toBeNull();
   });
 });
 
-describe("zoned local times", () => {
-  it("turns a wall-clock time in the site's zone into a Hugo date", async () => {
-    const { zonedLocalToIso } = await import("../../src/shared/frontmatter");
-    expect(zonedLocalToIso("2026-10-15T14:05", "Europe/Helsinki")).toBe("2026-10-15T14:05:00+03:00");
-    expect(zonedLocalToIso("2026-01-15T09:00", "Europe/Helsinki")).toBe("2026-01-15T09:00:00+02:00");
-    expect(zonedLocalToIso("2026-10-15T14:05", "UTC")).toBe("2026-10-15T14:05:00+00:00");
-  });
-});

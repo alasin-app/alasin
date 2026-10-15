@@ -8,7 +8,7 @@
 import { Bold, Check, ChevronLeft, Heading2, ImageOff, Italic, Link, List, Quote } from "lucide-preact";
 import { continueBlock } from "../lib/continue-block";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
-import { slugify, zonedLocalToIso } from "../../shared/frontmatter";
+import { fromLocalInput, slugify, toLocalInput } from "../../shared/frontmatter";
 import { api, ApiError, type Me, NetworkError } from "../lib/api";
 import { type DraftDoc, type DraftForm, newDraft, parseDraft, serializeDraft } from "../lib/draft-model";
 import { t, useLanguage } from "../lib/i18n";
@@ -308,10 +308,11 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
                 id="f-date"
                 type="datetime-local"
                 class="row-input"
-                value={f.date.slice(0, 16)}
+                value={toLocalInput(f.date)}
                 onChange={(e) => {
                   const v = (e.target as HTMLInputElement).value;
-                  if (v) setForm({ date: zonedLocalToIso(v, state.site.timezone) });
+                  const date = fromLocalInput(v);
+                  if (date) setForm({ date });
                 }}
               />
             </li>

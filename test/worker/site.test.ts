@@ -20,7 +20,6 @@ type Site = {
   images: { widths: number[]; quality: number; maxSize: number };
   author: string | null;
   authorField: string | null;
-  timezone: string;
   gallery: { shortcode: string; paired: boolean };
 };
 
@@ -35,7 +34,6 @@ describe("site settings", () => {
       { slug: "travel", title: "Travel" },
       { slug: "untitled", title: "untitled" },
     ]);
-    expect(site.timezone).toBe("Europe/Helsinki");
     expect(site.gallery).toEqual({ shortcode: "gallery", paired: true });
   });
 
