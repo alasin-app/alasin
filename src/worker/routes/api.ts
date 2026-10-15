@@ -6,6 +6,7 @@ import { Hono } from "hono";
 import type { AppEnv } from "../app";
 import { requireSession } from "../session";
 import { drafts } from "./drafts";
+import { media } from "./media";
 
 export const api = new Hono<AppEnv>();
 
@@ -45,5 +46,6 @@ api.get("/avatar/:id{[0-9]{1,12}}", async (c) => {
 });
 
 api.route("/drafts", drafts);
+api.route("/draft-media", media);
 
 api.all("*", (c) => c.json({ error: "not_found", message: "No such API route." }, 404));
