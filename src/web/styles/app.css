@@ -1579,3 +1579,125 @@ img {
 .published-check {
   color: var(--green);
 }
+
+/* ---------- Post and page lists ---------- */
+
+.list-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0 var(--gutter-right) 16px var(--gutter);
+}
+
+.search-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.search-field {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 8px;
+  border-radius: 10px;
+  background: var(--fill-tertiary);
+  color: var(--secondary-label);
+}
+
+.search-field input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  color: var(--label);
+  font: inherit;
+  outline: none;
+}
+
+.search-field input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.search-clear {
+  display: inline-flex;
+  padding: 3px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--secondary-label);
+  color: var(--grouped-bg);
+  cursor: pointer;
+}
+
+.list-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 36px;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+.year-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: calc(100% - var(--gutter) - var(--gutter-right));
+  margin: 0 var(--gutter-right) 8px var(--gutter);
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: var(--label);
+  font: inherit;
+  font-size: var(--title3);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.year-header .secondary {
+  margin-left: auto;
+  font-size: var(--footnote);
+  font-weight: 400;
+}
+
+.list-section-header {
+  margin: 0 var(--gutter-right) 6px calc(var(--gutter) + 16px);
+  color: var(--secondary-label);
+  font-size: var(--footnote);
+  font-weight: 400;
+  text-transform: uppercase;
+}
+
+.row-snippet {
+  display: block;
+  margin-top: 2px;
+  color: var(--secondary-label);
+  font-size: var(--footnote);
+}
+
+.row-snippet mark {
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  color: var(--label);
+}
+
+.check-mark {
+  color: var(--accent);
+}
+

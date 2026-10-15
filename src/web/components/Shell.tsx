@@ -8,6 +8,7 @@ import type { Me } from "../lib/api";
 import { type MessageKey, t, useLanguage } from "../lib/i18n";
 import { type DraftKind, hrefFor, linkHandler, navigate, type Section, useRoute } from "../lib/router";
 import { ulid } from "../../shared/ulid";
+import { ContentList } from "./ContentList";
 import { DraftsList } from "./DraftsList";
 import { Editor } from "./Editor";
 import { settings } from "../lib/settings";
@@ -167,6 +168,8 @@ export function Shell(props: { me: Me; onLogout: () => void }) {
               </ul>
             ) : current === "drafts" ? (
               <DraftsList me={props.me} />
+            ) : current === "posts" || current === "pages" ? (
+              <ContentList key={current} me={props.me} kind={current === "posts" ? "post" : "page"} />
             ) : (
               <div class="empty-state">
                 <h2 class="headline">{t("empty.title")}</h2>
