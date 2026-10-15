@@ -54,6 +54,18 @@ describe("config schema", () => {
     expect(() => parseConfig({ ...testConfig, drafts: { dir: "../drafts" } })).toThrow();
   });
 
+  it("keeps archive and Bin outside the content directories and apart from drafts", () => {
+    const c = parseConfig(testConfig);
+    expect(c.archive.dir).toBe("archive");
+    expect(c.bin.dir).toBe("bin");
+    expect(() => parseConfig({ ...testConfig, archive: { dir: "content/posts/old" } })).toThrow(/posts_dir/);
+    expect(() => parseConfig({ ...testConfig, bin: { dir: "content/bin" } })).toThrow(/content directory/);
+    expect(() => parseConfig({ ...testConfig, bin: { dir: "drafts" } })).toThrow(/drafts\.dir/);
+    expect(() => parseConfig({ ...testConfig, bin: { dir: "archive/bin" } })).toThrow(/archive\.dir/);
+    expect(() => parseConfig({ ...testConfig, archive: { dir: "drafts/archive" } })).toThrow(/drafts\.dir/);
+    expect(parseConfig({ ...testConfig, archive: { dir: "old" }, bin: { dir: "trash" } }).bin.dir).toBe("trash");
+  });
+
   it("no longer accepts the removed drafts.storage option", () => {
     expect(() => parseConfig({ ...testConfig, drafts: { storage: "r2" } })).toThrow(/storage/);
   });

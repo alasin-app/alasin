@@ -178,6 +178,34 @@ browse_prefixes = [""]
 dir = "drafts"
 
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# [archive] — posts and pages taken off the site but kept.
+# ─────────────────────────────────────────────────────────────────────────────
+[archive]
+
+# Folder for archived posts and pages in the site repository. They keep their
+# path relative to the content directory and can be republished. Must be
+# outside Hugo's content directory and separate from [drafts] and [bin].
+# Type: string. Default: "archive".
+dir = "archive"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# [bin] — deleted items, recoverable until the Bin is emptied.
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Deleting a post, page or draft moves it here; nothing is removed until the
+# Bin is emptied. Images already published to MEDIA are never deleted.
+[bin]
+
+# Folder for the Bin in the site repository. Each item keeps the path it was
+# deleted from (e.g. bin/content/posts/…), so it can be recovered to exactly
+# that place. Must be outside Hugo's content directory and separate from
+# [drafts] and [archive]. Alasin deletes files only inside this folder.
+# Type: string. Default: "bin".
+dir = "bin"
+
 # ─────────────────────────────────────────────────────────────────────────────
 # [images] — automatic resizing in the browser.
 # ─────────────────────────────────────────────────────────────────────────────

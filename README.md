@@ -179,6 +179,22 @@ Unpublished drafts: their text is committed to the site repository, their images
 | --- | --- | --- | --- | --- |
 | `dir` | string | `"drafts"` | `"drafts"` | Directory in the site repository where draft posts and pages are committed until they are published. Must be outside Hugo's content directory, so drafts are never built. Draft images go to the `DRAFTS` R2 bucket, never into git. |
 
+### `[archive]`
+
+Archived posts and pages: off the site, kept in the site repository.
+
+| Option | Type | Default | Example | Description |
+| --- | --- | --- | --- | --- |
+| `dir` | string | `"archive"` | `"archive"` | Directory in the site repository for archived posts and pages: taken off the site but kept, and can be republished. Keeps their path relative to the content directory. Must be outside Hugo's content directory. |
+
+### `[bin]`
+
+The Bin: deleted posts, pages and drafts stay here, recoverable, until the Bin is emptied.
+
+| Option | Type | Default | Example | Description |
+| --- | --- | --- | --- | --- |
+| `dir` | string | `"bin"` | `"bin"` | Directory in the site repository for deleted items until the Bin is emptied. Each keeps the path it was deleted from, so it can be recovered to exactly that place. Must be outside Hugo's content directory. Alasin deletes files from the repository only inside this directory. |
+
 ### `[images]`
 
 Automatic resizing in the browser.
@@ -281,7 +297,7 @@ Secrets are rotated by hand, and Alasin reminds you when it's time. `npm run set
 - **Sessions:** an encrypted, `HttpOnly`, `Secure`, `SameSite=Lax` `__Host-` cookie that refers to a server-side session in KV. Idle and absolute timeouts; logout deletes the session server-side.
 - **Tokens:** GitHub tokens never reach the browser. They are stored encrypted (AES-GCM) in KV and refreshed before expiry.
 - **Browser:** a strict Content-Security-Policy (no inline or third-party scripts, no `eval`; WebAssembly is allowed only for the bundled WebP encoder, needed because iOS browsers can't encode WebP), CSRF protection on every state-changing request, HSTS and other security headers. No analytics or trackers.
-- **Data:** drafts are committed to a `drafts/` folder of the site repository (keep it private). Images never go into git: draft images are in a private R2 bucket, published images in your public bucket, where the app never overwrites or deletes anything.
+- **Data:** drafts, archived items and the Bin are folders of the site repository (`drafts/`, `archive/`, `bin/`; keep it private), and the app deletes files from the repository only when the Bin is emptied. Images never go into git: draft images are in a private R2 bucket, published images in your public bucket, where the app never overwrites or deletes anything.
 - **Logs** contain request IDs, routes, status codes and GitHub user IDs only.
 
 **Rotating secrets** (per deployment; add `-- --env dev` for the dev app):
