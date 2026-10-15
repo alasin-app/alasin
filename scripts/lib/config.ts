@@ -1,0 +1,29 @@
+// SPDX-License-Identifier: MIT
+import { existsSync, readFileSync } from "node:fs";
+import { relative } from "node:path";
+import { parse, TomlError } from "smol-toml";
+import { type AlasinConfig, ConfigError, parseConfig, selectEnvironment } from "../../src/shared/config/schema";
+
+export function displayPath(p: string): string {
+  const rel = relative(process.cwd(), p);
+  return rel.startsWith("..") ? p : rel || p;
+}
+
+export function readToml(path: string): Record<string, unknown> {
+  if (!existsSync(path)) throw new ConfigError(`${displayPath(path)} not found. Run \`npm run setup\` to create it.`, []);
+  try {
+    return parse(readFileSync(path, "utf8")) as Record<string, unknown>;
+  } catch (err) {
+    if (err instanceof TomlError) {
+      throw new ConfigError(`${displayPath(path)} is not valid TOML (line ${err.line}, column ${err.column}): ${err.message.split("\n")[0]}`, []);
+    }
+    throw err;
+  }
+}
+
+/** Reads, merges the environment and validates alasin.toml. */
+export function loadAlasinConfig(path: string, env: string | undefined): AlasinConfig {
+  const raw = readToml(path);
+  const label = env ? `${displayPath(path)} [env.${env}]` : displayPath(path);
+  return parseConfig(selectEnvironment(raw, env), label);
+}

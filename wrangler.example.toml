@@ -1,0 +1,139 @@
+# wrangler.example.toml — Cloudflare Worker configuration of one Alasin deployment
+#
+# Copy this file and edit the copy (or let `npm run setup` do it):
+#
+#     cp wrangler.example.toml wrangler.toml
+#
+# `npm run setup` creates the DRAFTS bucket and the KV namespace and writes
+# their names and IDs here. The real wrangler.toml is gitignored; keep it next
+# to your alasin.toml if that lives outside this repository.
+#
+# Always deploy with `npm run deploy` (not `npx wrangler deploy`): it validates
+# alasin.toml, builds the app and passes both to Wrangler. Don't set `main`,
+# `[assets]` or `[vars]` here; `npm run build|dev|deploy` adds them.
+#
+# Secrets are not set here. Set them per deployment with
+# `npx wrangler secret put <NAME> --config <this file> [--env dev]`:
+#   SESSION_KEY             32 random bytes, base64 (setup generates it)
+#   TOKEN_KEY               32 random bytes, base64 (setup generates it)
+#   GITHUB_CLIENT_SECRET    from the GitHub App
+#   GITHUB_APP_PRIVATE_KEY  the GitHub App's private key, PKCS#8 PEM (setup converts it)
+
+# Worker name; becomes <name>.<your-subdomain>.workers.dev. Type: string.
+name = "alasin"
+
+# Workers runtime version. Keep the value shipped with the Alasin version you run.
+compatibility_date = "2026-10-01"
+
+# Only needed if your Cloudflare login has access to several accounts.
+# Find it with `npx wrangler whoami`. Alternatively set CLOUDFLARE_ACCOUNT_ID.
+# account_id = "0123456789abcdef0123456789abcdef"
+
+# The workers.dev hostname. Alasin redirects it to [app].url in alasin.toml, so
+# it is harmless to leave on; set false once the custom domain works.
+workers_dev = true
+
+# Custom domain for the app (a zone in the same Cloudflare account). Wrangler
+# creates the DNS record and certificate on deploy. Must match [app].url.
+# routes = [{ pattern = "alasin.example.com", custom_domain = true }]
+
+# Worker logs (no tokens, cookies or post content are ever logged).
+[observability]
+enabled = true
+
+# The site's existing PUBLIC image bucket. Alasin never overwrites or deletes
+# objects in it. `jurisdiction` must match the bucket's (e.g. "eu"); leave it
+# out for buckets without one. Find both under R2 in the Cloudflare dashboard.
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "example-media"
+# jurisdiction = "eu"
+
+# PRIVATE bucket for images of unpublished drafts: no public access, no custom
+# domain. `npm run setup` creates it in the same jurisdiction as MEDIA.
+[[r2_buckets]]
+binding = "DRAFTS"
+bucket_name = "example-media-drafts"
+# jurisdiction = "eu"
+
+# Sessions, encrypted GitHub tokens and login state. Created by `npm run setup`.
+[[kv_namespaces]]
+binding = "KV"
+id = "00000000000000000000000000000000"
+
+# Edit locks (one editor at a time). SQLite-backed Durable Object; available on
+# the Workers Free plan. Don't rename: the migration below refers to the class.
+[[durable_objects.bindings]]
+name = "LOCKS"
+class_name = "EditLocks"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["EditLocks"]
+
+# Rate limits. `period` is 10 or 60 seconds; `namespace_id` is any number,
+# unique per limit within your account (use different ones per deployment).
+# Login and OAuth callback, per client IP:
+[[ratelimits]]
+name = "RL_AUTH"
+namespace_id = "1001"
+simple = { limit = 10, period = 60 }
+
+# Image uploads, per user:
+[[ratelimits]]
+name = "RL_UPLOAD"
+namespace_id = "1002"
+simple = { limit = 120, period = 60 }
+
+# Commits (save, publish, delete), per user:
+[[ratelimits]]
+name = "RL_COMMIT"
+namespace_id = "1003"
+simple = { limit = 30, period = 60 }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# [env.dev] — optional second deployment (a separate Worker).
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Wrangler doesn't inherit bindings into environments, so the dev app lists
+# them all again, with its own DRAFTS bucket, KV namespace and rate limits.
+# MEDIA can be shared with production (preview builds then show the images;
+# anything published from dev stays in the live bucket) or be a separate
+# bucket. Delete this section if you run only one deployment.
+#
+# [env.dev]
+# name = "alasin-dev"
+# workers_dev = true
+# # routes = [{ pattern = "alasin-dev.example.com", custom_domain = true }]
+#
+# [[env.dev.r2_buckets]]
+# binding = "MEDIA"
+# bucket_name = "example-media"
+#
+# [[env.dev.r2_buckets]]
+# binding = "DRAFTS"
+# bucket_name = "example-media-drafts-dev"
+#
+# [[env.dev.kv_namespaces]]
+# binding = "KV"
+# id = "11111111111111111111111111111111"
+#
+# [[env.dev.durable_objects.bindings]]
+# name = "LOCKS"
+# class_name = "EditLocks"
+#
+# [[env.dev.ratelimits]]
+# name = "RL_AUTH"
+# namespace_id = "2001"
+# simple = { limit = 10, period = 60 }
+#
+# [[env.dev.ratelimits]]
+# name = "RL_UPLOAD"
+# namespace_id = "2002"
+# simple = { limit = 120, period = 60 }
+#
+# [[env.dev.ratelimits]]
+# name = "RL_COMMIT"
+# namespace_id = "2003"
+# simple = { limit = 30, period = 60 }
