@@ -21,14 +21,15 @@ Result marks: ✅ passed · ❌ failed (with the fix) · ⏳ not run yet.
 | 1.7 | Account sheet | Avatar → name, `@login`, environment badge, *View site*, version, language switch (English/Suomi) |
 | 1.8 | Log out | *Log out* → confirmation action sheet → back on the login page; reloading stays logged out |
 | 1.9 | Desktop / iPad layout | Window ≥ 768 px: sidebar with all sections; badge and avatar only in the sidebar |
-| 1.10 | iPhone layout | Safari on iPhone: tab bar (Home, Drafts, Media, More), large title, account sheet as a bottom sheet |
+| 1.10 | iPhone layout | On iPhone: tab bar (Home, Drafts, Media, More), large title, account sheet as a bottom sheet |
+| 1.12 | iPhone Safari | 1.4–1.10 in Safari on iPhone, including *Add to Home Screen* (icon and standalone mode) |
 | 1.11 | Dark mode | Device in dark mode: native-looking dark colours on both layouts |
 
 ### Test runs
 
 #### 2026-10-15 — v0.10.2 / v0.10.3, dev deployment with a custom domain
 
-Devices: Chrome on macOS (desktop), Safari on iPhone.
+Devices: Chrome on macOS (desktop), Chrome on iPhone (WebKit, like all iOS browsers).
 
 | # | Result | Notes |
 | --- | --- | --- |
@@ -43,3 +44,4 @@ Devices: Chrome on macOS (desktop), Safari on iPhone.
 | 1.9 | ❌ → ✅ | Badge and avatar were repeated above the content in light mode; fixed in #34. |
 | 1.10 | ✅ | |
 | 1.11 | ⏳ | Checked on desktop screenshots during development only. |
+| 1.12 | ⏳ | Not yet run in Safari. |
