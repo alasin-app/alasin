@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "preact/hooks";
 import { api, ApiError, clearLocalData, type Me, NetworkError } from "../lib/api";
+import { resetContent } from "../lib/use-content";
 import { t, useLanguage } from "../lib/i18n";
 import { Login } from "./Login";
 import { Shell } from "./Shell";
@@ -38,6 +39,7 @@ export function App() {
       await api("/auth/logout", { method: "POST" });
     } finally {
       await clearLocalData();
+      resetContent();
       history.replaceState(null, "", "/");
       setState({ kind: "anonymous" });
     }

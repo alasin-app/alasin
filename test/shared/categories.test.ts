@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { categoryTree } from "../../src/shared/categories";
+import { categoryTree, withDescendants } from "../../src/shared/categories";
 
 const view = (list: ReturnType<typeof categoryTree>) => list.map((c) => `${"  ".repeat(c.depth)}${c.title}`);
 
@@ -27,5 +27,16 @@ describe("categoryTree", () => {
     ]);
     expect(tree.map((c) => c.depth)).toEqual([0, 0, 0, 0]);
     expect(tree).toHaveLength(4);
+  });
+
+  it("adds every category below the chosen ones", () => {
+    const list = [
+      { slug: "travel", title: "Travel" },
+      { slug: "holidays", title: "Holidays", parent: "travel" },
+      { slug: "s2015", title: "Summer 2015", parent: "holidays" },
+      { slug: "dogs", title: "Dogs" },
+    ];
+    expect([...withDescendants(list, ["travel"])].sort()).toEqual(["holidays", "s2015", "travel"]);
+    expect([...withDescendants(list, ["holidays", "dogs"])].sort()).toEqual(["dogs", "holidays", "s2015"]);
   });
 });

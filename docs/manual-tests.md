@@ -138,8 +138,10 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 4.2 | Posts list | *Posts*: every post, grouped by year and month, newest first; the current year open, other years open and close; drafts marked; categories by name |
 | 4.3 | Pages list | *Pages*: every page, by title |
 | 4.4 | Search | Type part of a word from a title or from the text, with or without ä/ö/å, or with a small typo: matching posts appear as you type, title matches first, with the matching words highlighted |
-| 4.5 | Filters | *Drafts* and *Archived* show only those; a category from the tree shows only its posts; filters and search combine |
+| 4.5 | Filters | *Drafts* and *Archived* show only those; choosing one or more categories from the tree shows the posts in any of them or in a category below them; filters and search combine |
 | 4.6 | Up to date | Edit a post on GitHub, then open the list again: the change is there (the list is read again only when the repository changed) |
+| 4.7 | Drafts section | *Drafts* lists drafts saved by Alasin, posts and pages marked `draft: true` in the content folders, and drafts only on this device |
+| 4.8 | Quick lists | Opening Posts, Pages or Drafts again shows the list at once; after a change on GitHub the list updates within seconds without reading everything again |
 
 ### Test runs
 
@@ -148,8 +150,10 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | # | Result | Notes |
 | --- | --- | --- |
 | 4.1 | ❌ → ✅ | At first two posts changed: saving tidied line breaks at the ends of paragraphs that the original posts have on purpose. Tidying now touches only lines changed since the last save, and a file without a final newline keeps it that way. All files now save unchanged. |
-| 4.2 | ⏳ | |
-| 4.3 | ⏳ | |
-| 4.4 | ⏳ | |
-| 4.5 | ⏳ | |
-| 4.6 | ⏳ | |
+| 4.2 | ✅ | The author should show too (author names from the old blog need mapping to GitHub users). Loading felt slow. |
+| 4.3 | ✅ | |
+| 4.4 | ✅ | |
+| 4.5 | ❌ → ⏳ | The category filter allowed only one category; now several, including the categories below them (#85). |
+| 4.6 | ✅ | |
+| 4.7 | ⏳ | |
+| 4.8 | ⏳ | |
