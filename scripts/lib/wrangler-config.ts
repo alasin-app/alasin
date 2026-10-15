@@ -75,6 +75,10 @@ export function generateWranglerConfig(opts: {
     vars: { ALASIN_CONFIG_JSON: JSON.stringify(opts.config) },
     define: { __ALASIN_VERSION__: JSON.stringify(packageVersion()) },
   };
+  // Preview URLs would be extra hostnames running this Worker with the same
+  // bindings and secrets; Alasin serves one canonical origin, so they're off
+  // unless wrangler.toml enables them explicitly.
+  const previewUrls = (table: Table) => ("preview_urls" in table ? {} : { preview_urls: false });
   const out: Table = {
     ...raw,
     main: join(repoRoot, "src/worker/index.ts"),
@@ -98,12 +102,12 @@ export function generateWranglerConfig(opts: {
     }
     target = envTable;
     workerName = String(envTable.name ?? `${String(raw.name)}-${opts.env}`);
-    out.env = { [opts.env]: { ...envTable, ...managed } };
+    out.env = { [opts.env]: { ...envTable, ...previewUrls(envTable), ...managed } };
   } else {
     target = raw;
     workerName = String(raw.name);
     delete out.env;
-    Object.assign(out, managed);
+    Object.assign(out, previewUrls(raw), managed);
   }
   const problems = checkBindings(target, opts.env ? `${label} [env.${opts.env}]` : label);
   if (problems.length) throw new ConfigError(`${label} is not complete:\n${problems.map((p) => `  - ${p}`).join("\n")}`, problems);
