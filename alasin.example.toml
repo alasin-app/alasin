@@ -116,11 +116,11 @@ client_id = "Iv23liAbCdEfGhIjKlMn"
 # Removing a user takes effect on their next request after deploying.
 [users]
 
-# `author` (optional): the user's full name as in their git commits, written to
-# new posts' author field (see [site] author_field) and used to show who last
-# changed a file; default: the name on their GitHub profile. `aliases`
-# (optional): other author values that mean this user, e.g. names used on an
-# older blog.
+# Each user's full name is taken from their GitHub profile: it's written to the
+# author field of their new posts (see [site] author_field) and used to show
+# who wrote or last changed a post. Optional: `author` if the name to use
+# differs from the profile name, and `aliases` for other author values that
+# mean this user, e.g. names used on an older blog.
 # Type: array of { login = string, id = integer, author = string, aliases = [string] }.
 # Required, at least one.
 # Example: { login = "octocat", id = 583231, author = "Mona Lisa Octocat", aliases = ["Mona"] }

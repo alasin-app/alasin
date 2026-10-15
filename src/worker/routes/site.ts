@@ -12,6 +12,7 @@ import { parse as parseYaml } from "yaml";
 import type { Category } from "../../shared/categories";
 import { parseFields, splitFrontMatter } from "../../shared/frontmatter";
 import type { AppEnv } from "../app";
+import { profileNames } from "../lib/profile-names";
 import { readFolderTexts, Repo } from "../lib/repo";
 import { getUserToken } from "../session";
 
@@ -74,17 +75,20 @@ site.get("/", async (c) => {
     }
   }
 
-  const user = config.users.allow.find((u) => u.id === c.get("session").uid);
+  const session = c.get("session");
+  const user = config.users.allow.find((u) => u.id === session.uid);
+  // Full names from GitHub profiles, for users without `author` in the configuration.
+  const names = await profileNames(c.env.KV, token, config.users.allow.filter((u) => !u.author).map((u) => u.id));
+  const fullName = (u: (typeof config.users.allow)[number]) => u.author ?? names.get(u.id) ?? (u.id === session.uid ? session.name : null);
   return c.json({
     frontMatterFormat: config.site.front_matter_format,
     coverField: config.site.cover_field,
     authorField: config.site.author_field ?? null,
-    author: user ? (user.author ?? c.get("session").name ?? user.login) : null,
+    author: user ? (fullName(user) ?? user.login) : null,
     // Which author field values and git author names mean each user, to show them in the lists.
     users: config.users.allow.map((u) => {
-      const own = u.id === c.get("session").uid ? c.get("session").name : null;
-      const names = [u.author, own, u.login, ...(u.aliases ?? [])].filter((n): n is string => !!n);
-      return { login: u.login, id: u.id, names: [...new Set(names)] };
+      const all = [fullName(u), u.login, ...(u.aliases ?? [])].filter((n): n is string => !!n);
+      return { login: u.login, id: u.id, names: [...new Set(all)] };
     }),
     categories,
     gallery: { shortcode: config.editor.gallery_shortcode, paired: config.editor.gallery_paired },

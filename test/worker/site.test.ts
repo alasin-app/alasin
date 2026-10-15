@@ -63,19 +63,29 @@ describe("site settings", () => {
     expect(site).toMatchObject({ author: "Octo", authorField: "author" });
   });
 
-  it("writes the GitHub profile name as author by default, and tells who author values mean", async () => {
+  it("takes full names from GitHub profiles, so users need only login and id", async () => {
+    const other = { login: "jane", id: 424242 };
+    gh.profiles.set(ALLOWED_USER.id, "Octo Cat");
+    gh.profiles.set(other.id, "Jane Doe");
     const config = parseConfig({
       ...testConfig,
       site: { ...testConfig.site, author_field: "author" },
-      users: { allow: [{ ...ALLOWED_USER, aliases: ["Mona", "M. Octo"] }] },
+      users: { allow: [{ ...ALLOWED_USER, aliases: ["Mona"] }, other, { login: "set", id: 777, author: "Set By Hand" }] },
     });
-    const site = (await (await call("/api/site", { cookie }, { ALASIN_CONFIG_JSON: JSON.stringify(config) })).json()) as Site & {
-      users: { login: string; id: number; names: string[] }[];
-    };
-    const me = (await (await call("/api/me", { cookie })).json()) as { user: { name: string | null } };
-    const fullName = me.user.name ?? ALLOWED_USER.login;
-    expect(site.author).toBe(fullName);
-    expect(site.users).toEqual([{ login: ALLOWED_USER.login, id: ALLOWED_USER.id, names: [...new Set([fullName, ALLOWED_USER.login, "Mona", "M. Octo"])] }]);
+    const get = async () =>
+      (await (await call("/api/site", { cookie }, { ALASIN_CONFIG_JSON: JSON.stringify(config) })).json()) as Site & {
+        users: { login: string; id: number; names: string[] }[];
+      };
+    const site = await get();
+    expect(site.author).toBe("Octo Cat");
+    expect(site.users).toEqual([
+      { login: ALLOWED_USER.login, id: ALLOWED_USER.id, names: ["Octo Cat", ALLOWED_USER.login, "Mona"] },
+      { login: "jane", id: 424242, names: ["Jane Doe", "jane"] },
+      { login: "set", id: 777, names: ["Set By Hand", "set"] },
+    ]);
+    // Kept for a day: no new lookups.
+    gh.profiles.set(other.id, "Changed");
+    expect((await get()).users[1]!.names[0]).toBe("Jane Doe");
   });
 
   it("requires a session", async () => {

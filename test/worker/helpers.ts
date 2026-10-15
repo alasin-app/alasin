@@ -62,6 +62,8 @@ export interface FakeGitHub {
   users: Map<string, { id: number; login: string; name: string | null }>;
   nextTokens: { access_token: string; expires_in?: number; refresh_token?: string; refresh_token_expires_in?: number }[];
   failRefresh: boolean;
+  /** Public profile names by user ID (GET /user/:id). */
+  profiles: Map<number, string | null>;
   /** The site repository (owner/name/branch from the test config). */
   repo: FakeRepo;
 }
@@ -74,6 +76,7 @@ export function fakeGitHub(): FakeGitHub {
     users: new Map(),
     nextTokens: [],
     failRefresh: false,
+    profiles: new Map(),
     repo: new FakeRepo("example-owner", "example-site", "main"),
   };
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -91,6 +94,11 @@ export function fakeGitHub(): FakeGitHub {
       const token = req.headers.get("Authorization")?.replace(/^Bearer /, "") ?? "";
       const user = gh.users.get(token);
       return user ? Response.json(user) : new Response("{}", { status: 401 });
+    }
+    const profile = /^\/user\/(\d+)$/.exec(url.pathname);
+    if (url.hostname === "api.github.com" && profile) {
+      const id = Number(profile[1]);
+      return gh.profiles.has(id) ? Response.json({ id, name: gh.profiles.get(id) }) : new Response("{}", { status: 404 });
     }
     if (url.pathname.startsWith("/applications/") && req.method === "DELETE") {
       gh.revoked.push(((await req.json()) as { access_token: string }).access_token);
