@@ -80,11 +80,11 @@ Devices: Chrome on macOS (desktop), Chrome on iPhone (WebKit, like all iOS brows
 | 2.2 | ✅ | |
 | 2.3 | ✅ | |
 | 2.4 | ✅ | Asked which version to keep. |
-| 2.5 | ⏳ | |
+| 2.5 | ✅ | Shown and edited in local time, stored in UTC. |
 | 2.6 | ❌ → ✅ | Empty items stayed after ending a list (#52); empty markers now tidied on save (#53); quote lines continue line by line (#54, #59). |
 | 2.7 | ✅ | First photo became the cover. |
 | 2.8 | ✅ | Four photos as a gallery. Gallery images stay separated by blank lines: sites whose image render hook uses `.IsBlock` need them for figures and lightbox links. |
-| 2.9 | ⏳ | Not yet tested on an iPhone. |
+| 2.9 | ✅ | On iOS: photos from the Photos library and taken with the camera. |
 | 2.10 | ⏳ | |
 | 2.11 | ⏳ | |
 | 2.12 | ✅ | Main JPEG and 480/960/1600 WebP variants under the draft's prefix in the drafts bucket. |
