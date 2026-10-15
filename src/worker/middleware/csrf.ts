@@ -21,7 +21,12 @@ export function csrf(): MiddlewareHandler<AppEnv> {
     const declaredEmpty = c.req.header("Content-Length") === "0";
     if (c.req.raw.body !== null && !declaredEmpty) {
       const type = (c.req.header("Content-Type") ?? "").split(";")[0]?.trim().toLowerCase();
-      if (type !== "application/json") return c.json({ error: "unsupported_media_type", message: "Expected a JSON body." }, 415);
+      // Image uploads send the file itself; everything else is JSON.
+      const imageUpload =
+        c.req.method === "PUT" && c.req.path.startsWith("/api/draft-media/") && /^image\/(jpeg|png|webp|gif)$/.test(type ?? "");
+      if (type !== "application/json" && !imageUpload) {
+        return c.json({ error: "unsupported_media_type", message: "Expected a JSON body." }, 415);
+      }
     }
     return next();
   };
