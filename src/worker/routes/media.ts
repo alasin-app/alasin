@@ -7,6 +7,7 @@
 //
 //   POST /api/draft-media/:id/names   {name}  → a free base name for an uploaded file
 //   PUT  /api/draft-media/:id/:file   image bytes (main image or a resized variant)
+//   GET  /api/draft-media/:id         the draft's images (main images with their smallest variant)
 //   GET  /api/draft-media/:id/:file   the image, to logged-in users only, never cached
 
 import { Hono } from "hono";
@@ -42,6 +43,31 @@ media.post("/:id/names", async (c) => {
   }
   const base = await uniqueBaseName(baseNameFromUpload(body.data.name), async (candidate) => taken.has(candidate));
   return c.json({ base });
+});
+
+media.get("/:id", async (c) => {
+  const id = draftId(c.req.param("id"));
+  if (!id) return c.json({ error: "not_found", message: "No such draft." }, 404);
+  const listed = await c.env.DRAFTS.list({ prefix: `${id}/`, limit: 1000 });
+  const files = listed.objects.map((o) => o.key.slice(id.length + 1)).filter((f) => FILE.test(f));
+  const stems = new Set(files.map((f) => f.replace(/\.[a-z]+$/, "")));
+  // "<stem>-<width>" is a variant only if "<stem>" itself exists.
+  const variantOf = (f: string) => {
+    const m = /^(.*)-(\d{2,5})\.[a-z]+$/.exec(f);
+    return m && stems.has(m[1]!) ? { stem: m[1]!, width: Number(m[2]) } : null;
+  };
+  const images = files
+    .filter((f) => !variantOf(f))
+    .map((file) => {
+      const stem = file.replace(/\.[a-z]+$/, "");
+      const variants = files
+        .map((f) => ({ f, v: variantOf(f) }))
+        .filter((x) => x.v?.stem === stem)
+        .sort((a, b) => a.v!.width - b.v!.width);
+      const url = (f: string) => `/api/draft-media/${id}/${f}`;
+      return { file, url: url(file), thumb: url(variants[0]?.f ?? file) };
+    });
+  return c.json({ images });
 });
 
 media.put("/:id/:file", async (c) => {
