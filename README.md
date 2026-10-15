@@ -140,7 +140,8 @@ Unpublished drafts. Draft images always go to the private `DRAFTS` bucket.
 
 | Option | Type | Default | Example | Description |
 |---|---|---|---|---|
-| `storage` | "private" \| "repo" | `"private"` | `"private"` | Where unpublished draft text is kept. `private`: in the browser and the private `DRAFTS` bucket until publish, never in git. `repo`: committed to the site repository with `draft: true`, which makes it public if the repository is public. |
+| `storage` | "r2" \| "repo" | `"r2"` | `"r2"` | Where unpublished draft text is kept. Both are server-side, so drafts follow the user between devices. `r2`: in the private `DRAFTS` bucket, never in git until published. `repo`: committed to `repo_dir` in the site repository, outside Hugo's content, with version history; anyone who can read the repository can read drafts, so use it with private repositories. |
+| `repo_dir` | string | `"drafts"` | `"drafts"` | With `storage = "repo"`: directory for draft files, e.g. `drafts`. Must be outside Hugo's content directory so drafts are never built. |
 
 #### `[images]`
 

@@ -216,7 +216,8 @@ async function askSiteValues() {
   if (vis.status === "public") {
     ok(`Repository ${owner}/${repo} (public)`);
     if (get(effective(), "drafts.storage") === "repo") {
-      warn("drafts.storage = \"repo\" on a public repository makes draft text public on GitHub.");
+      warn("drafts.storage = \"repo\" on a public repository makes draft text readable by anyone on GitHub.");
+      warn("Consider [drafts] storage = \"r2\" (drafts in the private DRAFTS bucket) or making the repository private.");
     }
   } else {
     info(`Repository ${owner}/${repo} isn't publicly visible — fine if it's private; it's checked again once the GitHub App is installed.`);

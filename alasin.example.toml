@@ -154,15 +154,25 @@ browse_prefixes = [""]
 # [drafts] — unpublished drafts.
 # ─────────────────────────────────────────────────────────────────────────────
 #
-# Draft IMAGES always go to the private DRAFTS bucket. This decides where draft TEXT lives.
+# Draft IMAGES always go to the private DRAFTS bucket. This decides where draft
+# TEXT lives. Both options are server-side, so a draft started on the phone can
+# be finished on the laptop.
 [drafts]
 
-# "private": draft text stays in the browser and the private DRAFTS bucket and
-#            never enters git until you publish. Safe for public repositories.
-# "repo":    draft text is committed to the site repository with `draft: true`.
-#            WARNING: anyone can read it on GitHub if the repository is public.
-# Type: string. Default: "private".
-storage = "private"
+# "r2":   draft text is kept in the private DRAFTS bucket and never enters git
+#         until you publish. Safe for public repositories.
+# "repo": draft text is committed to repo_dir in the site repository, with
+#         version history. WARNING: anyone who can read the repository can read
+#         the drafts — use it with a private repository.
+# Type: string. Default: "r2".
+storage = "r2"
+
+# With storage = "repo": directory for draft files in the site repository.
+# Must be outside Hugo's content directory, so Hugo never builds drafts.
+# Tip: exclude it from your site's build triggers (Cloudflare Workers Builds:
+# Settings → Build → Build watch paths) so saving a draft doesn't rebuild the site.
+# Type: string. Default: "drafts".
+repo_dir = "drafts"
 
 
 # ─────────────────────────────────────────────────────────────────────────────

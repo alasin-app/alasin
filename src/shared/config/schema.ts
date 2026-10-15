@@ -133,10 +133,15 @@ const media = z
 const drafts = z
   .object({
     storage: z
-      .enum(["private", "repo"])
-      .default("private")
+      .enum(["r2", "repo"])
+      .default("r2")
       .describe(
-        "Where unpublished draft text is kept. `private`: in the browser and the private `DRAFTS` bucket until publish, never in git. `repo`: committed to the site repository with `draft: true`, which makes it public if the repository is public.",
+        "Where unpublished draft text is kept. Both are server-side, so drafts follow the user between devices. `r2`: in the private `DRAFTS` bucket, never in git until published. `repo`: committed to `repo_dir` in the site repository, outside Hugo's content, with version history; anyone who can read the repository can read drafts, so use it with private repositories.",
+      ),
+    repo_dir: repoDir
+      .default("drafts")
+      .describe(
+        "With `storage = \"repo\"`: directory for draft files, e.g. `drafts`. Must be outside Hugo's content directory so drafts are never built.",
       ),
   })
   .strict()
@@ -270,6 +275,21 @@ export const configSchema = z
         path: ["security", "session_idle_days"],
         message: "must not be longer than security.session_max_days",
       });
+    }
+    const inside = (dir: string, parent: string) => dir === parent || dir.startsWith(`${parent}/`) || parent.startsWith(`${dir}/`);
+    if (c.drafts.storage === "repo") {
+      for (const key of ["posts_dir", "pages_dir"] as const) {
+        if (inside(c.drafts.repo_dir, c.site[key])) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["drafts", "repo_dir"],
+            message: `must be outside site.${key} ("${c.site[key]}"), or Hugo would publish drafts`,
+          });
+        }
+      }
+      if (c.drafts.repo_dir === "content" || c.drafts.repo_dir.startsWith("content/")) {
+        ctx.addIssue({ code: "custom", path: ["drafts", "repo_dir"], message: "must be outside Hugo's content directory" });
+      }
     }
     const ids = new Set<number>();
     c.users.allow.forEach((u, i) => {

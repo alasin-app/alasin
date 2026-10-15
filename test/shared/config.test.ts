@@ -7,7 +7,7 @@ describe("config schema", () => {
   it("accepts the test config and fills in defaults", () => {
     const c = parseConfig(testConfig);
     expect(c.github.branch).toBe("main");
-    expect(c.drafts.storage).toBe("private");
+    expect(c.drafts.storage).toBe("r2");
     expect(c.editor.lock_expiry_seconds).toBe(180);
     expect(c.security.session_idle_days).toBe(7);
     expect(c.ui.name).toBe("Alasin");
@@ -45,6 +45,14 @@ describe("config schema", () => {
     expect(() =>
       parseConfig({ ...testConfig, users: { allow: [{ login: "a", id: 1 }, { login: "b", id: 1 }] } }),
     ).toThrow(/twice/);
+  });
+
+  it("keeps repository drafts outside the content directories", () => {
+    const ok = parseConfig({ ...testConfig, drafts: { storage: "repo", repo_dir: "drafts" } });
+    expect(ok.drafts.repo_dir).toBe("drafts");
+    expect(() => parseConfig({ ...testConfig, drafts: { storage: "repo", repo_dir: "content/posts/drafts" } })).toThrow(/posts_dir/);
+    expect(() => parseConfig({ ...testConfig, drafts: { storage: "repo", repo_dir: "content/drafts" } })).toThrow(/content directory/);
+    expect(() => parseConfig({ ...testConfig, drafts: { storage: "repo", repo_dir: "../drafts" } })).toThrow();
   });
 
   it("requires the lock expiry to be longer than the heartbeat", () => {
