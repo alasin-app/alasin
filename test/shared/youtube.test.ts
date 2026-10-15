@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { shortcodeYoutubeId, youtubeId, youtubeShortcode } from "../../src/shared/youtube";
+import { pastedVideo, shortcodeYoutubeId, youtubeId, youtubeShortcode } from "../../src/shared/youtube";
 
 const ID = "dQw4w9WgXcQ";
 
@@ -50,5 +50,27 @@ describe("shortcodes", () => {
 
   it("ignores other shortcodes", () => {
     expect(shortcodeYoutubeId(`{{< vimeo ${ID} >}}`)).toBeNull();
+  });
+});
+
+describe("pastedVideo", () => {
+  const link = `https://youtu.be/${ID}?si=x`;
+  const code = `{{< youtube ${ID} >}}`;
+
+  it("converts a link pasted on an empty line", () => {
+    expect(pastedVideo(link, "", "")).toBe(code);
+    expect(pastedVideo(` ${link}\n`, "Text\n\n", "\n\nMore")).toBe(code);
+  });
+
+  it("keeps the shortcode apart from neighbouring text", () => {
+    expect(pastedVideo(link, "Text\n", "\nMore")).toBe(`\n${code}\n`);
+  });
+
+  it("leaves links inside text, bare IDs and other links alone", () => {
+    expect(pastedVideo(link, "See ", "")).toBeNull();
+    expect(pastedVideo(link, "", " here")).toBeNull();
+    expect(pastedVideo(ID, "", "")).toBeNull();
+    expect(pastedVideo("https://example.com/", "", "")).toBeNull();
+    expect(pastedVideo(`${link} ${link}`, "", "")).toBeNull();
   });
 });

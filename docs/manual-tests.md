@@ -1,6 +1,6 @@
 # Manual tests
 
-Automated tests (`npm test`) cover the Worker, the configuration and the scripts. Some things can only be checked by hand on real devices and a real deployment: installation from the docs, logging in with GitHub, and how the app looks and feels on an iPhone. This page lists those checks and records each time they were run.
+Automated tests (`npm test`) cover the Worker, the configuration and the scripts. Some things can only be checked by hand on real devices and a real deployment: installation from the docs, logging in with GitHub, and how the app looks and feels on iOS. This page lists those checks and records each time they were run.
 
 Run them on a **dev deployment** (a separate Worker, see the README's *Production and dev deployments*), never on production. Record results below with the date, Alasin version and devices; never the deployment's own names, addresses or accounts.
 
@@ -21,15 +21,15 @@ Result marks: ✅ passed · ❌ failed (with the fix) · ⏳ not run yet.
 | 1.7 | Account sheet | Avatar → name, `@login`, environment badge, *View site*, version, language switch (English/Suomi) |
 | 1.8 | Log out | *Log out* → confirmation action sheet → back on the login page; reloading stays logged out |
 | 1.9 | Desktop / iPad layout | Window ≥ 768 px: sidebar with all sections; badge and avatar only in the sidebar |
-| 1.10 | iPhone layout | On iPhone: tab bar (Home, Drafts, Media, More), large title, account sheet as a bottom sheet |
-| 1.12 | iPhone Safari | 1.4–1.10 in Safari on iPhone, including *Add to Home Screen* (icon and standalone mode) |
+| 1.10 | iOS layout | On iOS, window < 768 px (phones): tab bar (Home, Drafts, Media, More), large title, account sheet as a bottom sheet |
 | 1.11 | Dark mode | Device in dark mode: native-looking dark colours on both layouts |
+| 1.12 | iOS Safari | 1.4–1.10 in Safari on iOS, including *Add to Home Screen* (icon and standalone mode) |
 
 ### Test runs
 
 #### 2026-10-15 — v0.10.2 / v0.10.3, dev deployment with a custom domain
 
-Devices: Chrome on macOS (desktop), Chrome on iPhone (WebKit, like all iOS browsers).
+Devices: Chrome on macOS (desktop), Chrome on iOS (WebKit, like all iOS browsers).
 
 | # | Result | Notes |
 | --- | --- | --- |
@@ -37,14 +37,14 @@ Devices: Chrome on macOS (desktop), Chrome on iPhone (WebKit, like all iOS brows
 | 1.2 | ✅ | Wrangler warnings about preview URLs and the `workers.dev` address fixed (#33, #38). |
 | 1.3 | ✅ | v0.10.2 → v0.10.3 deployed from the deploy clone. |
 | 1.4 | ✅ | |
-| 1.5 | ✅ | Desktop and iPhone. |
+| 1.5 | ✅ | Desktop and iOS. |
 | 1.6 | ⏳ | Covered by automated tests; not yet run by hand. |
 | 1.7 | ✅ | |
 | 1.8 | ✅ | Reloading after logout stays on the login page. After confirming, the account sheet reappeared until logout finished, which was confusing; a "Logging out…" screen now shows at once (#46). |
 | 1.9 | ❌ → ✅ | Badge and avatar were repeated above the content in light mode; fixed in #34. |
 | 1.10 | ✅ | |
-| 1.11 | ⏳ | Checked on desktop screenshots during development only. |
-| 1.12 | ⏳ | Not yet run in Safari. |
+| 1.11 | ✅ | |
+| 1.12 | ✅ | |
 
 ## Milestone 2 — drafts and photos
 
@@ -60,7 +60,7 @@ Devices: Chrome on macOS (desktop), Chrome on iPhone (WebKit, like all iOS brows
 | 2.6 | Lists and quotes | Enter continues list items (`-`, `1.`) and quote lines (`>`); Enter on an empty item ends them |
 | 2.7 | One photo | Photo button → one photo: progress, then `![](…)` in the text and the photo as cover |
 | 2.8 | Gallery | Select several photos at once: a gallery shortcode block with all of them |
-| 2.9 | iPhone photos | 2.7 and 2.8 on iPhone (HEIC from the library is converted by iOS; WebP sizes come from the bundled encoder) |
+| 2.9 | iOS photos | 2.7 and 2.8 on iOS (HEIC from the library is converted by iOS; WebP sizes come from the bundled encoder) |
 | 2.10 | Cover picker | Cover image → choose another photo of the draft, or *No cover image* |
 | 2.11 | No GPS | Download a draft image (`/api/draft-media/…`) and check it has no location metadata |
 | 2.12 | Drafts bucket | The drafts bucket has `<draftId>/<name>.jpg` and `<name>-<width>.webp` files; the public media bucket is unchanged |
@@ -69,7 +69,7 @@ Devices: Chrome on macOS (desktop), Chrome on iPhone (WebKit, like all iOS brows
 | 2.15 | Images and galleries | Images show inline with ✕ to remove; a gallery is a card whose photos can be reordered (drag or ‹ ›) and removed |
 | 2.16 | Markdown mode | The Markdown button (right end of the toolbar) shows the whole file incl. front matter; editing there and switching back keeps every change; nothing changes by just switching |
 | 2.17 | Shortcodes | Other shortcodes (e.g. `instagram`) show as protected blocks and stay exactly as written |
-| 2.18 | YouTube video | Video button → paste a YouTube link (watch, youtu.be, shorts) or a bare video ID → `{{< youtube ID >}}` at the cursor, previewed with its thumbnail; anything else is refused with a message |
+| 2.18 | YouTube video | Video button → paste a YouTube link (watch, youtu.be, shorts) or a bare video ID → `{{< youtube ID >}}` at the cursor, previewed with its thumbnail; anything else is refused with a message. A YouTube link pasted on a line of its own becomes the shortcode too |
 
 ### Test runs
 
@@ -94,6 +94,6 @@ Devices: Chrome on macOS (desktop), Chrome on iPhone (WebKit, like all iOS brows
 | 2.15 | ✅ | |
 | 2.16 | ✅ | The mode switch moved from above the details to a toolbar button (#63). |
 | 2.17 | ✅ | |
-| 2.18 | ⏳ | Added after this run (#69). |
+| 2.18 | ✅ | Added after this run (#69); a YouTube link pasted on its own line now becomes the shortcode too (#70). |
 
 Also found during this run: reloading after a new deployment gave a blank page (old script names answered with the app page); fixed with real 404s, a no-store app page and a one-time automatic reload (#55).

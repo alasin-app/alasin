@@ -24,7 +24,7 @@ import {
   WidgetType,
 } from "@codemirror/view";
 import { isQuoted, keepLineBreaks, quoteLines, richEnter, unquoteLines } from "../lib/line-breaks";
-import { shortcodeYoutubeId, youtubeThumbnail } from "../../shared/youtube";
+import { pastedVideo, shortcodeYoutubeId, youtubeThumbnail } from "../../shared/youtube";
 import { findGalleries, findShortcodes, galleryText, type GalleryBlock, type GalleryImage, standaloneImage } from "./blocks";
 
 export interface EditorOptions {
@@ -575,8 +575,16 @@ export function createMarkdownEditor(opts: EditorOptions): MarkdownEditor {
         ]),
         markdownLanguage,
         EditorView.lineWrapping,
-        // Pasted plain text keeps its line breaks in rich text mode.
-        EditorView.clipboardInputFilter.of((text) => (rich ? keepLineBreaks(text) : text)),
+        // In rich text mode, pasted plain text keeps its line breaks, and a
+        // YouTube link pasted on a line of its own becomes the video shortcode.
+        EditorView.clipboardInputFilter.of((text, state) => {
+          if (!rich) return text;
+          const { from, to } = state.selection.main;
+          const doc = state.doc;
+          // The line around the cursor, and enough of its neighbours to see if they are blank.
+          const video = pastedVideo(text, doc.sliceString(Math.max(0, doc.lineAt(from).from - 2), from), doc.sliceString(to, Math.min(doc.length, doc.lineAt(to).to + 2)));
+          return video ?? keepLineBreaks(text);
+        }),
         placeholderExt(opts.placeholder),
         EditorView.contentAttributes.of({ autocapitalize: "sentences", autocorrect: "on", spellcheck: "true", "aria-multiline": "true" }),
         live.of(opts.rich ? richExtensions(opts) : []),
