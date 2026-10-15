@@ -127,3 +127,19 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 3.3 | ✅ | |
 | 3.4 | ✅ | |
 | 3.5 | ✅ | Media bucket listing compared before and after: only new files. |
+
+## Milestone 4 — lists and editing existing posts
+
+### Checklist
+
+| # | Check | How |
+| --- | --- | --- |
+| 4.1 | Round trip | `npm run roundtrip -- <site checkout>` reports every file saved unchanged |
+
+### Test runs
+
+#### 2026-10-15 — site checkout, development
+
+| # | Result | Notes |
+| --- | --- | --- |
+| 4.1 | ❌ → ✅ | At first two posts changed: saving tidied line breaks at the ends of paragraphs that the original posts have on purpose. Tidying now touches only lines changed since the last save, and a file without a final newline keeps it that way. All files now save unchanged. |

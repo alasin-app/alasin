@@ -19,7 +19,8 @@
     "test:watch": "vitest",
     "lint": "eslint . && tsx scripts/config-docs.ts --check && node scripts/denylist-check.mjs --tracked",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p scripts/tsconfig.json && tsc --noEmit -p src/web/tsconfig.json",
-    "docs:config": "tsx scripts/config-docs.ts"
+    "docs:config": "tsx scripts/config-docs.ts",
+    "roundtrip": "tsx scripts/roundtrip.ts"
   },
   "dependencies": {
     "@codemirror/commands": "6.11.1",

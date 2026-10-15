@@ -109,6 +109,17 @@ npm run deploy -- --env dev
 
 Each environment is its own Worker with its own URL, `DRAFTS` bucket, KV namespace, Durable Object, rate limits, secrets and (recommended) its own GitHub App. Settings that differ go in an `[env.dev]` table in `alasin.toml` and `wrangler.toml`; setup adds them. A dev deployment shows a badge (e.g. "DEV") everywhere in the app. Workers preview URLs aren't used for this, because they share production's bindings and secrets.
 
+### Check your existing posts first
+
+Before editing existing posts and pages with Alasin, check that it keeps them exactly as they are. With a checkout of your site repository:
+
+```sh
+npm run roundtrip -- ../my-hugo-site            # content directory "content"
+npm run roundtrip -- ../my-hugo-site site/content
+```
+
+It opens every Markdown file with the editor's own code and saves it without changes, in memory only. Every file must come back byte for byte; any that doesn't is listed with the first line that would change. Please report those as issues.
+
 ## Configuration reference
 
 Every option of `alasin.toml`. The commented [`alasin.example.toml`](alasin.example.toml) explains each one in more detail; Worker bindings and rate limits are in [`wrangler.example.toml`](wrangler.example.toml).

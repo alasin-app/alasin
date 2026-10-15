@@ -101,8 +101,11 @@ export function richEnter(text: string, cursor: number): { text: string; cursor:
   return { text: `${before}  \n${after}`, cursor: before.length + 3 };
 }
 
-/** On save: line breaks at the end of a paragraph (before a blank line or the end) have nothing to break. */
-export function dropDanglingBreaks(text: string): string {
+/**
+ * On save: line breaks at the end of a paragraph (before a blank line or the
+ * end) have nothing to break. Lines in `keep` (as last saved) stay as they are.
+ */
+export function dropDanglingBreaks(text: string, keep?: Set<string>): string {
   const lines = text.split("\n");
   let fence: string | null = null;
   for (let i = 0; i < lines.length; i++) {
@@ -110,7 +113,7 @@ export function dropDanglingBreaks(text: string): string {
     if (f) fence = fence === null ? f[1]! : fence === f[1] ? null : fence;
     if (fence !== null || f) continue;
     const next = lines[i + 1];
-    if (HARD_BREAK.test(lines[i]!) && (next === undefined || !next.trim())) lines[i] = lines[i]!.replace(/ +$/, "");
+    if (HARD_BREAK.test(lines[i]!) && (next === undefined || !next.trim()) && !keep?.has(lines[i]!)) lines[i] = lines[i]!.replace(/ +$/, "");
   }
   return lines.join("\n");
 }

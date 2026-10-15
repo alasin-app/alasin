@@ -15,6 +15,8 @@ import {
   utcIso,
 } from "../../shared/frontmatter";
 import type { SiteSettings } from "./site-types";
+import { dropDanglingBreaks } from "./line-breaks";
+import { removeEmptyItems } from "./markdown-cleanup";
 
 export interface DraftForm {
   title: string;
@@ -36,7 +38,7 @@ export interface DraftDoc {
    * The front matter text as read, kept as is while no form field changes,
    * so opening and saving (or switching to Markdown and back) changes nothing.
    */
-  raw?: { frontMatter: string; formFields: string; leading: string };
+  raw?: { frontMatter: string; formFields: string; leading: string; body: string };
 }
 
 /** The form fields that live in front matter, for detecting changes. */
@@ -75,13 +77,14 @@ export function parseDraft(text: string, site: SiteSettings): DraftDoc | null {
     cover: str(fields.get(site.coverField)),
     body: split.body.slice(leading.length),
   };
-  return { format: split.format, fields, form, raw: { frontMatter: split.raw, formFields: formFields(form), leading } };
+  return { format: split.format, fields, form, raw: { frontMatter: split.raw, formFields: formFields(form), leading, body: form.body } };
 }
 
 /** The file text to commit. */
 export function serializeDraft(doc: DraftDoc, site: SiteSettings): string {
   const f = doc.form;
-  const body = f.body === "" || f.body.endsWith("\n") ? f.body : `${f.body}\n`;
+  // A changed text ends with a newline; an unchanged one stays exactly as it was.
+  const body = f.body === "" || f.body.endsWith("\n") || f.body === doc.raw?.body ? f.body : `${f.body}\n`;
   // Unchanged form: the front matter text exactly as it was.
   if (doc.raw && doc.raw.formFields === formFields(f)) return joinFile(doc.format, doc.raw.frontMatter, doc.raw.leading + body);
   const fields = new Map(doc.fields);
@@ -97,4 +100,18 @@ export function serializeDraft(doc: DraftDoc, site: SiteSettings): string {
   // draftId last for new files, unchanged position otherwise.
   if (!fields.has("draftId")) throw new Error("draft without draftId");
   return joinFile(doc.format, stringifyFields(doc.format, fields), `\n${body}`);
+}
+
+/**
+ * What saving commits, and the body to show afterwards. In rich text mode,
+ * list items and quote lines left empty while writing and line breaks with
+ * nothing after them are tidied away, but only on lines changed since the
+ * last saved version (`saved`), so an untouched file saves unchanged. The
+ * Markdown mode is raw: nothing is changed there.
+ */
+export function prepareSave(doc: DraftDoc, site: SiteSettings, opts: { rich: boolean; saved: string | null }): { content: string; body: string } {
+  const keep = opts.saved === null ? undefined : new Set(opts.saved.split("\n"));
+  const body = opts.rich ? dropDanglingBreaks(removeEmptyItems(doc.form.body, keep), keep) : doc.form.body;
+  const tidied = body === doc.form.body ? doc : { ...doc, form: { ...doc.form, body } };
+  return { content: serializeDraft(tidied, site), body };
 }
