@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.10.3](https://github.com/oh2th/alasin/compare/v0.10.2...v0.10.3) (2026-10-15)
+
+
+### Bug Fixes
+
+* don't repeat the badge and avatar above the content on wide screens ([#34](https://github.com/oh2th/alasin/issues/34)) ([daa9334](https://github.com/oh2th/alasin/commit/daa933468b9127e7b07d5c332ae060112be021e8))
+* setup no longer reads secrets from .dev.vars ([#35](https://github.com/oh2th/alasin/issues/35)) ([11764b4](https://github.com/oh2th/alasin/commit/11764b4f4dc4ae37f1607fbf61289fca641648ae))
+* setup reuses GitHub App credentials from .dev.vars for an environment ([#29](https://github.com/oh2th/alasin/issues/29)) ([18e211b](https://github.com/oh2th/alasin/commit/18e211b5563b7b0eee4cfc3a8c53cf7f5ae29968))
+* suggest the media bucket's name for the drafts bucket ([#32](https://github.com/oh2th/alasin/issues/32)) ([bfc6ac4](https://github.com/oh2th/alasin/commit/bfc6ac40d01008c119896cc3073d7c22fb78309e))
+* turn off the workers.dev address when the app has a custom domain ([#38](https://github.com/oh2th/alasin/issues/38)) ([d79da86](https://github.com/oh2th/alasin/commit/d79da868fcbfda2f058d97079aa9d483c75649f5))
+* turn off Workers preview URLs on deploy ([#33](https://github.com/oh2th/alasin/issues/33)) ([d6a4192](https://github.com/oh2th/alasin/commit/d6a41922e63f3ae1a00d0bd5be0ff7888d72b789))
+
 ## [0.10.2](https://github.com/oh2th/alasin/compare/v0.10.1...v0.10.2) (2026-10-15)
 
 
