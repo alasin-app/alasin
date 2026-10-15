@@ -69,3 +69,29 @@ Devices: Chrome on macOS (desktop), Chrome on iPhone (WebKit, like all iOS brows
 | 2.15 | Images and galleries | Images show inline with ✕ to remove; a gallery is a card whose photos can be reordered (drag or ‹ ›) and removed |
 | 2.16 | Markdown mode | *Markdown* shows the whole file incl. front matter; editing there and switching back keeps every change; nothing changes by just switching |
 | 2.17 | Shortcodes | Other shortcodes (e.g. `youtube`) show as protected blocks and stay exactly as written |
+
+### Test runs
+
+#### 2026-10-15 — dev deployment, Chrome on macOS
+
+| # | Result | Notes |
+| --- | --- | --- |
+| 2.1 | ✅ | Draft committed to `drafts/posts/` on the site branch. |
+| 2.2 | ⏳ | |
+| 2.3 | ⏳ | |
+| 2.4 | ⏳ | |
+| 2.5 | ⏳ | |
+| 2.6 | ❌ → ✅ | Empty items stayed after ending a list (#52); empty markers now tidied on save (#53); quote lines continue line by line (#54, #59). |
+| 2.7 | ✅ | First photo became the cover. |
+| 2.8 | ✅ | Four photos as a gallery. Gallery images stay separated by blank lines: sites whose image render hook uses `.IsBlock` need them for figures and lightbox links. |
+| 2.9 | ⏳ | Not yet tested on an iPhone. |
+| 2.10 | ⏳ | |
+| 2.11 | ⏳ | |
+| 2.12 | ✅ | Main JPEG and 480/960/1600 WebP variants under the draft's prefix in the drafts bucket. |
+| 2.13 | ✅ | Horizontal rules shown as text at first; fixed (#57). Heading levels 2–5 added (#58). |
+| 2.14 | ❌ → ✅ | Line breaks needed Shift+Enter, which tablets don't have; now Enter makes a line break, Enter twice a paragraph, and Quote on a selection keeps lines and stanzas (#60). |
+| 2.15 | ⏳ | |
+| 2.16 | ⏳ | |
+| 2.17 | ⏳ | |
+
+Also found during this run: reloading after a new deployment gave a blank page (old script names answered with the app page); fixed with real 404s, a no-store app page and a one-time automatic reload (#55).
