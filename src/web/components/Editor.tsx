@@ -5,7 +5,8 @@
 // repository. If the draft changed on GitHub meanwhile, the user chooses
 // which version to keep — nothing is overwritten silently.
 
-import { Bold, Check, ChevronLeft, Heading2, ImageOff, Italic, Link, List, Quote } from "lucide-preact";
+import { Bold, Check, ChevronLeft, Heading2, ImageOff, ImagePlus, Italic, Link, List, Quote, RotateCw, X } from "lucide-preact";
+import { PhotoError, photosMarkdown, processPhoto, uploadPhoto } from "../lib/photos";
 import { continueBlock } from "../lib/continue-block";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { fromLocalInput, slugify, toLocalInput } from "../../shared/frontmatter";
@@ -30,6 +31,18 @@ interface Loaded {
 }
 
 type Status = "idle" | "saving" | "saved" | "error";
+
+interface Upload {
+  token: string;
+  file: File;
+  name: string;
+  state: "processing" | "uploading" | "done" | "error";
+  progress: number;
+  error?: string;
+}
+
+/** Placeholder address for an image still uploading (never saved: saving waits for uploads). */
+const placeholder = (token: string) => `alasin-upload:${token}`;
 
 async function load(me: Me, type: DraftKind, id: string): Promise<Loaded> {
   const site = await loadSite();
@@ -80,6 +93,11 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
   const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [conflict, setConflict] = useState(false);
   const [coverOpen, setCoverOpen] = useState(false);
+  const [uploads, setUploads] = useState<Upload[]>([]);
+  const fileRef = useRef<HTMLInputElement>(null);
+  /** Last caret position in the text, for inserting photos after focus moved to the toolbar. */
+  const caret = useRef<number | null>(null);
+  const uploading = uploads.some((u) => u.state === "processing" || u.state === "uploading");
   const [draftImages, setDraftImages] = useState<{ file: string; url: string; thumb: string }[] | null>(null);
 
   const openCover = () => {
@@ -124,6 +142,87 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
 
   const setForm = (patch: Partial<DraftForm>) =>
     setState((s) => (s ? { ...s, doc: { ...s.doc, form: { ...s.doc.form, ...patch } } } : s));
+  const updateForm = (fn: (f: DraftForm) => Partial<DraftForm>) =>
+    setState((s) => (s ? { ...s, doc: { ...s.doc, form: { ...s.doc.form, ...fn(s.doc.form) } } } : s));
+  const patchUpload = (token: string, patch: Partial<Upload>) =>
+    setUploads((list) => list.map((u) => (u.token === token ? { ...u, ...patch } : u)));
+
+  const photoMessage = (err: unknown): string => {
+    if (!(err instanceof PhotoError)) return t("photos.failed");
+    switch (err.code) {
+      case "heic":
+        return t("photos.heic");
+      case "unsupported":
+      case "decode":
+        return t("photos.unsupported");
+      case "no_canvas":
+        return t("photos.oldBrowser");
+      case "too_large":
+        return t("photos.tooLarge", { mb: String(state?.site.images.maxUploadMb ?? "") });
+      case "gps":
+        return t("photos.gps");
+      case "network":
+        return t("photos.network");
+      default:
+        return t("photos.failed");
+    }
+  };
+
+  const runUpload = async (u: Upload) => {
+    const site = state!.site;
+    try {
+      patchUpload(u.token, { state: "processing", progress: 0, error: undefined });
+      const image = await processPhoto(u.file, site);
+      patchUpload(u.token, { state: "uploading" });
+      const done = await uploadPhoto(id, u.name, image, (p) => patchUpload(u.token, { progress: p }));
+      updateForm((f) => ({
+        body: f.body.split(placeholder(u.token)).join(done.url),
+        ...(f.cover ? {} : { cover: done.url }),
+      }));
+      patchUpload(u.token, { state: "done", progress: 1 });
+      setTimeout(() => setUploads((list) => list.filter((x) => x.token !== u.token)), 1500);
+    } catch (err) {
+      patchUpload(u.token, { state: "error", error: photoMessage(err) });
+    }
+  };
+
+  const removeUpload = (token: string) => {
+    setUploads((list) => list.filter((x) => x.token !== token));
+    updateForm((f) => ({ body: f.body.replace(new RegExp(`!\\[\\]\\(${placeholder(token)}\\)\\n*`), "") }));
+  };
+
+  const addPhotos = (files: File[]) => {
+    if (!state || !files.length) return;
+    const list: Upload[] = files.map((file) => ({
+      token: Math.random().toString(36).slice(2, 10),
+      file,
+      name: file.name || "image.jpg",
+      state: "processing",
+      progress: 0,
+    }));
+    const md = photosMarkdown(
+      list.map((u) => placeholder(u.token)),
+      state.site.gallery,
+    );
+    const el = textRef.current;
+    updateForm((f) => {
+      const at = Math.min(el && document.activeElement === el ? el.selectionStart : (caret.current ?? f.body.length), f.body.length);
+      const before = f.body.slice(0, at).replace(/\s+$/, "");
+      const after = f.body.slice(at).replace(/^\s+/, "");
+      return { body: `${before}${before ? "\n\n" : ""}${md}\n\n${after}` };
+    });
+    setUploads((u) => [...u, ...list]);
+    // Two photos at a time.
+    const queue = [...list];
+    const next = async (): Promise<void> => {
+      const u = queue.shift();
+      if (!u) return;
+      await runUpload(u);
+      return next();
+    };
+    void next();
+    void next();
+  };
 
   const onTitle = (title: string) => {
     const f = state!.doc.form;
@@ -134,6 +233,10 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
 
   const save = async (opts: { overwrite?: boolean } = {}) => {
     if (!state || status === "saving") return;
+    if (uploading) {
+      setMessage(t("photos.waitForUploads"));
+      return;
+    }
     if (!state.doc.form.title.trim()) {
       setMessage(t("editor.needTitle"));
       titleRef.current?.focus();
@@ -255,7 +358,7 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
           {statusText}
         </div>
         <div class="nav-trailing">
-          <button type="button" class="btn btn-filled btn-small" onClick={() => void save()} disabled={status === "saving" || !unsaved}>
+          <button type="button" class="btn btn-filled btn-small" onClick={() => void save()} disabled={status === "saving" || uploading || !unsaved}>
             {t("editor.saveDraft")}
           </button>
         </div>
@@ -389,13 +492,74 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
           <button type="button" onClick={() => format("quote")} aria-label={t("editor.quote")}>
             <Quote size={20} aria-hidden="true" />
           </button>
+          <button type="button" onClick={() => fileRef.current?.click()} aria-label={t("photos.add")}>
+            <ImagePlus size={20} aria-hidden="true" />
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            multiple
+            hidden
+            onChange={(e) => {
+              const input = e.target as HTMLInputElement;
+              addPhotos([...(input.files ?? [])]);
+              input.value = "";
+            }}
+          />
         </div>
+        {uploads.length > 0 && (
+          <ul class="upload-list" aria-live="polite">
+            {uploads.map((u) => (
+              <li class={`upload upload-${u.state}`}>
+                <span class="upload-name">{u.name}</span>
+                <span class="upload-state">
+                  {u.state === "processing"
+                    ? t("photos.processing")
+                    : u.state === "uploading"
+                      ? t("photos.uploading", { pct: String(Math.round(u.progress * 100)) })
+                      : u.state === "done"
+                        ? t("photos.done")
+                        : u.error}
+                </span>
+                {u.state === "error" && (
+                  <span class="upload-actions">
+                    <button type="button" class="btn-plain" onClick={() => void runUpload(u)} aria-label={t("photos.retry")}>
+                      <RotateCw size={18} aria-hidden="true" />
+                    </button>
+                    <button type="button" class="btn-plain destructive" onClick={() => removeUpload(u.token)} aria-label={t("photos.remove")}>
+                      <X size={18} aria-hidden="true" />
+                    </button>
+                  </span>
+                )}
+                <progress class="upload-progress" max={1} value={u.state === "processing" ? undefined : u.progress} />
+              </li>
+            ))}
+          </ul>
+        )}
         <textarea
           ref={textRef}
           class="body-input"
           placeholder={t("editor.bodyPlaceholder")}
           value={f.body}
-          onInput={(e) => setForm({ body: (e.target as HTMLTextAreaElement).value })}
+          onInput={(e) => {
+            caret.current = (e.target as HTMLTextAreaElement).selectionStart;
+            setForm({ body: (e.target as HTMLTextAreaElement).value });
+          }}
+          onSelect={(e) => (caret.current = (e.target as HTMLTextAreaElement).selectionStart)}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            const files = [...(e.dataTransfer?.files ?? [])].filter((f) => f.type.startsWith("image/") || /\.hei[cf]$/i.test(f.name));
+            if (!files.length) return;
+            e.preventDefault();
+            addPhotos(files);
+          }}
+          onPaste={(e) => {
+            const files = [...(e.clipboardData?.files ?? [])].filter((f) => f.type.startsWith("image/"));
+            if (!files.length) return;
+            e.preventDefault();
+            addPhotos(files);
+          }}
           onKeyDown={(e) => {
             const el = e.currentTarget;
             if (e.key !== "Enter" || e.shiftKey || e.isComposing || el.selectionStart !== el.selectionEnd) return;

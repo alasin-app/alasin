@@ -10,6 +10,8 @@ export default defineConfig({
   publicDir: "public",
   plugins: [preact()],
   define: { __ALASIN_VERSION__: JSON.stringify(version) },
+  // The image worker loads the WebP encoder on demand, so it's an ES module worker.
+  worker: { format: "es" },
   build: {
     outDir: "../../dist/web",
     emptyOutDir: true,

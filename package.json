@@ -22,6 +22,7 @@
     "docs:config": "tsx scripts/config-docs.ts"
   },
   "dependencies": {
+    "@jsquash/webp": "1.5.0",
     "hono": "4.13.13",
     "lucide-preact": "1.57.0",
     "preact": "11.0.1",

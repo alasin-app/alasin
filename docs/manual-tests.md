@@ -45,3 +45,22 @@ Devices: Chrome on macOS (desktop), Chrome on iPhone (WebKit, like all iOS brows
 | 1.10 | ✅ | |
 | 1.11 | ⏳ | Checked on desktop screenshots during development only. |
 | 1.12 | ⏳ | Not yet run in Safari. |
+
+## Milestone 2 — drafts and photos
+
+### Checklist
+
+| # | Check | How |
+| --- | --- | --- |
+| 2.1 | New draft | *New post* → title, text, categories, tags → *Save draft*; the file appears in `drafts/posts/` on the site branch, committed as the user |
+| 2.2 | Reopen and edit | Drafts → open the draft → change it → *Save draft*; status shows unsaved changes until saved |
+| 2.3 | Autosave | Close the tab while editing, reopen the draft: "Restored changes…" and the text is there |
+| 2.4 | Conflict | Edit the draft file on GitHub, then save in Alasin: asked which version to keep; nothing overwritten silently |
+| 2.5 | Date | The date shows in the device's time zone; the file stores it in UTC |
+| 2.6 | Lists and quotes | Enter continues list items (`-`, `1.`) and quote lines (`>`); Enter on an empty item ends them |
+| 2.7 | One photo | Photo button → one photo: progress, then `![](…)` in the text and the photo as cover |
+| 2.8 | Gallery | Select several photos at once: a gallery shortcode block with all of them |
+| 2.9 | iPhone photos | 2.7 and 2.8 on iPhone (HEIC from the library is converted by iOS; WebP sizes come from the bundled encoder) |
+| 2.10 | Cover picker | Cover image → choose another photo of the draft, or *No cover image* |
+| 2.11 | No GPS | Download a draft image (`/api/draft-media/…`) and check it has no location metadata |
+| 2.12 | Drafts bucket | The drafts bucket has `<draftId>/<name>.jpg` and `<name>-<width>.webp` files; the public media bucket is unchanged |

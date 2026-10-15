@@ -1196,3 +1196,53 @@ img {
   background: var(--accent);
   color: #fff;
 }
+
+.upload-list {
+  margin: 0 var(--gutter-right) 0 var(--gutter);
+  padding: 4px 16px;
+  list-style: none;
+  background: var(--cell-bg);
+  border-bottom: 0.5px solid var(--separator);
+}
+
+.upload {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 2px 8px;
+  padding: 6px 0;
+  font-size: var(--footnote);
+}
+
+.upload-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.upload-state {
+  color: var(--secondary-label);
+}
+
+.upload-error .upload-state {
+  grid-column: 1 / -1;
+  color: var(--red);
+}
+
+.upload-actions {
+  display: flex;
+  grid-row: 1;
+  grid-column: 3;
+}
+
+.upload-progress {
+  grid-column: 1 / -1;
+  width: 100%;
+  height: 4px;
+  accent-color: var(--accent);
+}
+
+.upload-done .upload-progress,
+.upload-error .upload-progress {
+  display: none;
+}
