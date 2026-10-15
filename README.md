@@ -252,7 +252,7 @@ Read the release notes first and follow any upgrade steps they list. Then:
 git fetch --tags
 git checkout vX.Y.Z
 npm install
-npm run setup      # only if the release notes say so
+npm run setup      # updates alasin.toml if options were renamed or removed
 npm run deploy
 ```
 

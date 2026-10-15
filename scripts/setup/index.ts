@@ -15,6 +15,7 @@ import { parseArgs, repoRoot } from "../lib/args";
 import { displayPath, loadAlasinConfig } from "../lib/config";
 import { appendSection, setValue, type TomlValue } from "../lib/toml-edit";
 import { normalizeUrl, urlProblem } from "../lib/urls";
+import { migrateAlasinToml } from "../lib/migrate";
 import { checkBindings, generateWranglerConfig, REQUIRED_SECRETS } from "../lib/wrangler-config";
 import * as cf from "./cloudflare";
 import * as gh from "./github";
@@ -180,6 +181,13 @@ function ensureFiles() {
   }
   alasinText = readText(args.configPath);
   wranglerText = readText(args.wranglerPath);
+  const migration = migrateAlasinToml(alasinText);
+  if (migration.changes.length) {
+    alasinText = migration.text;
+    writeFileSync(args.configPath, alasinText);
+    ok(`Updated ${displayPath(args.configPath)} for this Alasin version:`);
+    for (const change of migration.changes) info(`  - ${change}`);
+  }
   if (env && !(wranglerRaw().env as Table | undefined)?.[env]) {
     wranglerText = appendSection(wranglerText, envWranglerSection(env, wranglerRaw()));
     writeFileSync(args.wranglerPath, wranglerText);

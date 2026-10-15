@@ -44,6 +44,8 @@ A scope is optional: `fix(editor): …`.
 
 Mark them with `!` (`feat!: …`) or a `BREAKING CHANGE:` footer, and put **upgrade steps** in the PR description; they end up in the release notes. Before 1.0, a breaking change bumps the minor version.
 
+When an `alasin.toml` option is renamed or removed, add a migration to `scripts/lib/migrate.ts` (with a test), so `npm run setup` updates existing files automatically.
+
 For Alasin, a change is breaking if an existing deployment would stop working or behave differently after updating without the operator doing something, in particular:
 
 - an `alasin.toml` option is removed, renamed or changes meaning, or a new option is required;
