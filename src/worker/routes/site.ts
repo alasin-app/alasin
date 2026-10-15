@@ -9,15 +9,12 @@
 import { Hono } from "hono";
 import { parse as parseToml } from "smol-toml";
 import { parse as parseYaml } from "yaml";
+import type { Category } from "../../shared/categories";
 import { parseFields, splitFrontMatter } from "../../shared/frontmatter";
 import type { AppEnv } from "../app";
 import { readFolderTexts, Repo } from "../lib/repo";
 import { getUserToken } from "../session";
 
-export interface Category {
-  slug: string;
-  title: string;
-}
 
 export const site = new Hono<AppEnv>();
 
@@ -41,7 +38,12 @@ site.get("/", async (c) => {
       const split = splitFrontMatter(f.text);
       const fields = split ? parseFields(split.format, split.raw) : new Map();
       const title = fields.get("title");
-      categories.push({ slug: m[1]!, title: typeof title === "string" && title ? title : m[1]! });
+      const parent = fields.get(cat.parent_field);
+      categories.push({
+        slug: m[1]!,
+        title: typeof title === "string" && title ? title : m[1]!,
+        ...(typeof parent === "string" && parent ? { parent } : {}),
+      });
     }
   } else if (cat.storage === "data-file") {
     const file = await repo.getFile(cat.path);
@@ -49,7 +51,11 @@ site.get("/", async (c) => {
       const data: unknown = cat.path.endsWith(".toml") ? parseToml(file.content) : parseYaml(file.content);
       const list = Array.isArray(data) ? data : data && typeof data === "object" ? Object.entries(data).map(([slug, title]) => ({ slug, title })) : [];
       categories = list
-        .map((x) => (typeof x === "string" ? { slug: x, title: x } : { slug: String(x.slug ?? ""), title: String(x.title ?? x.slug ?? "") }))
+        .map((x): Category => {
+          if (typeof x === "string") return { slug: x, title: x };
+          const parent = x[cat.parent_field];
+          return { slug: String(x.slug ?? ""), title: String(x.title ?? x.slug ?? ""), ...(typeof parent === "string" && parent ? { parent } : {}) };
+        })
         .filter((x) => x.slug);
     }
   }

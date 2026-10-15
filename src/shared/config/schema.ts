@@ -237,6 +237,13 @@ const categories = z
         "Where the category list lives: `term-pages` (`<dir>/<slug>/_index.md`), `data-file` (a TOML/YAML file listing them) or `front-matter` (only the values used in posts).",
       ),
     path: z.string().default("content/categories").describe("Directory of term pages, or path of the data file."),
+    parent_field: z
+      .string()
+      .regex(/^[A-Za-z_][A-Za-z0-9_-]*$/)
+      .default("parent")
+      .describe(
+        "Field naming a category's parent category (by slug), in its term page's front matter or its data file entry. Categories without it are top-level.",
+      ),
   })
   .strict()
   .describe("Categories.");

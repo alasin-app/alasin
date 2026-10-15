@@ -296,6 +296,11 @@ storage = "term-pages"
 # Directory of term pages, or path of the data file. Type: string. Default: "content/categories".
 path = "content/categories"
 
+# Categories can be nested: this field of a category's term page (or data file
+# entry) names its parent category by slug, e.g. parent: "travel". The editor
+# shows the categories as a tree. Type: string. Default: "parent".
+parent_field = "parent"
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # [preview] — preview styling.
