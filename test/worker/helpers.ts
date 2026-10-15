@@ -11,7 +11,8 @@ const app = createApp();
 export const fakeAssets: Fetcher = {
   fetch: async (input: RequestInfo | URL) => {
     const url = new URL(input instanceof Request ? input.url : String(input));
-    if (url.pathname.startsWith("/assets/")) return new Response("console.log(1)", { headers: { "Content-Type": "text/javascript" } });
+    if (url.pathname === "/assets/app.js") return new Response("console.log(1)", { headers: { "Content-Type": "text/javascript" } });
+    // Like Workers static assets in SPA mode: unknown paths get the app page.
     return new Response(
       '<!doctype html><html><head><title>x</title><meta name="theme-color" content="#000000"></head><body></body></html>',
       { headers: { "Content-Type": "text/html; charset=utf-8" } },

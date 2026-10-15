@@ -1246,3 +1246,18 @@ img {
 .upload-error .upload-progress {
   display: none;
 }
+
+.crash-details {
+  max-width: min(640px, 100%);
+  max-height: 40vh;
+  overflow: auto;
+  margin: 0;
+  padding: 12px;
+  border-radius: var(--radius-cell);
+  background: var(--cell-bg);
+  color: var(--secondary-label);
+  font-size: var(--caption);
+  text-align: left;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
