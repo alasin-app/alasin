@@ -42,7 +42,8 @@ export function authorUser(value: string, site: SiteSettings): SiteSettings["use
 function Byline(props: { item: ContentItem; site: SiteSettings; updated?: LastUpdate }) {
   const { item, updated } = props;
   const user = authorUser(item.author, props.site);
-  const by = updated ? (updated.login ?? updated.name) : "";
+  // The git author's name, as the site shows it (Hugo's git info).
+  const by = updated ? updated.name || updated.login || "" : "";
   const when = updated ? new Date(updated.date).toLocaleDateString(getLanguage(), { day: "numeric", month: "short", year: "numeric" }) : "";
   if (!item.author && !updated) return null;
   return (

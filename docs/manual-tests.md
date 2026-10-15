@@ -142,7 +142,7 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 4.6 | Up to date | Edit a post on GitHub, then open the list again: the change is there (the list is read again only when the repository changed) |
 | 4.7 | Drafts section | *Drafts* lists drafts saved by Alasin, posts and pages marked `draft: true` in the content folders, and drafts only on this device |
 | 4.8 | Quick lists | Opening Posts, Pages or Drafts again shows the list at once; after a change on GitHub the list updates within seconds without reading everything again |
-| 4.9 | Authors | Rows show the author (an older author name listed in a user's `aliases` shows that user's avatar) and who last changed the file and when; new posts get the user's `author`, by default their GitHub login |
+| 4.9 | Authors | Rows show the author (an older author name listed in a user's `aliases` shows that user's avatar) and the full name of who last changed the file, and when; new posts get the user's full name as author (`author` in `[users]`, by default their GitHub profile name) |
 
 ### Test runs
 

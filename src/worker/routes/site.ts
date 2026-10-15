@@ -79,9 +79,13 @@ site.get("/", async (c) => {
     frontMatterFormat: config.site.front_matter_format,
     coverField: config.site.cover_field,
     authorField: config.site.author_field ?? null,
-    author: user ? (user.author ?? user.login) : null,
-    // Who the author field values mean, to show authors in the lists.
-    users: config.users.allow.map((u) => ({ login: u.login, id: u.id, names: [u.author ?? u.login, u.login, ...(u.aliases ?? [])] })),
+    author: user ? (user.author ?? c.get("session").name ?? user.login) : null,
+    // Which author field values and git author names mean each user, to show them in the lists.
+    users: config.users.allow.map((u) => {
+      const own = u.id === c.get("session").uid ? c.get("session").name : null;
+      const names = [u.author, own, u.login, ...(u.aliases ?? [])].filter((n): n is string => !!n);
+      return { login: u.login, id: u.id, names: [...new Set(names)] };
+    }),
     categories,
     gallery: { shortcode: config.editor.gallery_shortcode, paired: config.editor.gallery_paired },
     media: { publicUrl: config.media.public_url, contentPrefix: config.media.content_prefix },
