@@ -53,16 +53,6 @@ describe("site settings", () => {
     expect(site.categories).toEqual([]);
   });
 
-  it("gives the signed-in user's author name", async () => {
-    const config = parseConfig({
-      ...testConfig,
-      site: { ...testConfig.site, author_field: "author" },
-      users: { allow: [{ ...ALLOWED_USER, author: "Octo" }] },
-    });
-    const site = (await (await call("/api/site", { cookie }, { ALASIN_CONFIG_JSON: JSON.stringify(config) })).json()) as Site;
-    expect(site).toMatchObject({ author: "Octo", authorField: "author" });
-  });
-
   it("takes full names from GitHub profiles, so users need only login and id", async () => {
     const other = { login: "jane", id: 424242 };
     gh.profiles.set(ALLOWED_USER.id, "Octo Cat");
@@ -70,18 +60,17 @@ describe("site settings", () => {
     const config = parseConfig({
       ...testConfig,
       site: { ...testConfig.site, author_field: "author" },
-      users: { allow: [{ ...ALLOWED_USER, aliases: ["Mona"] }, other, { login: "set", id: 777, author: "Set By Hand" }] },
+      users: { allow: [{ ...ALLOWED_USER, aliases: ["Mona"] }, other] },
     });
     const get = async () =>
       (await (await call("/api/site", { cookie }, { ALASIN_CONFIG_JSON: JSON.stringify(config) })).json()) as Site & {
         users: { login: string; id: number; names: string[] }[];
       };
     const site = await get();
-    expect(site.author).toBe("Octo Cat");
+    expect(site).toMatchObject({ author: "Octo Cat", authorField: "author" });
     expect(site.users).toEqual([
       { login: ALLOWED_USER.login, id: ALLOWED_USER.id, names: ["Octo Cat", ALLOWED_USER.login, "Mona"] },
       { login: "jane", id: 424242, names: ["Jane Doe", "jane"] },
-      { login: "set", id: 777, names: ["Set By Hand", "set"] },
     ]);
     // Kept for a day: no new lookups.
     gh.profiles.set(other.id, "Changed");

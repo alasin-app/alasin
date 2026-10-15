@@ -157,11 +157,55 @@ function addMissingSections(lines: string[], example: string, changes: string[])
   }
 }
 
+// v0.11.0: the comment above [users] allow described the removed `author` option.
+const OLD_USERS_COMMENT = [
+  "# `author` (optional) is written to new posts' author field (see [site] author_field).",
+  "# Type: array of { login = string, id = integer, author = string }. Required, at least one.",
+];
+const NEW_USERS_COMMENT = [
+  "# Each user's full name is taken from their GitHub profile: it's written to the",
+  "# author field of their new posts (see [site] author_field) and used to show",
+  "# who wrote or last changed a post. Optional `aliases`: other author values",
+  "# that mean this user, e.g. names used on an older blog.",
+  "# Type: array of { login = string, id = integer, aliases = [string] }.",
+  '# Required, at least one. Example: { login = "octocat", id = 583231, aliases = ["Mona"] }',
+];
+
+// [users] allow `author` was removed: full names come from GitHub profiles.
+function migrateUserAuthor(lines: string[], changes: string[]): void {
+  const value = String.raw`author\s*=\s*(?:"(?:[^"\\]|\\.)*"|'[^']*')`;
+  const after = new RegExp(String.raw`\s*,\s*${value}`, "g");
+  const before = new RegExp(String.raw`${value}\s*,\s*`, "g");
+  let section = "";
+  for (let i = 0; i < lines.length; i++) {
+    const m = HEADER.exec(lines[i]!);
+    if (m) {
+      section = m[1]!;
+      continue;
+    }
+    if (!/^(env\.[^.]+\.)?users$/.test(section)) continue;
+    const line = lines[i]!.replace(after, "").replace(before, "");
+    if (line !== lines[i]) {
+      lines[i] = line;
+      if (!changes.some((c) => c.startsWith(`[${section}]: removed "author"`))) {
+        changes.push(`[${section}]: removed "author" from users (full names now come from GitHub profiles)`);
+      }
+    }
+  }
+  for (let i = 0; i + OLD_USERS_COMMENT.length <= lines.length; i++) {
+    if (OLD_USERS_COMMENT.every((l, k) => lines[i + k] === l)) {
+      lines.splice(i, OLD_USERS_COMMENT.length, ...NEW_USERS_COMMENT);
+      break;
+    }
+  }
+}
+
 export function migrateAlasinToml(text: string, example?: string): Migration {
   const lines = text.split("\n");
   const changes: string[] = [];
   migrateDrafts(lines, changes);
   migrateTimezone(lines, changes);
+  migrateUserAuthor(lines, changes);
   if (example) addMissingSections(lines, example, changes);
   return { text: changes.length ? lines.join("\n") : text, changes };
 }

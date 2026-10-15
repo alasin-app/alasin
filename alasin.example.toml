@@ -118,12 +118,10 @@ client_id = "Iv23liAbCdEfGhIjKlMn"
 
 # Each user's full name is taken from their GitHub profile: it's written to the
 # author field of their new posts (see [site] author_field) and used to show
-# who wrote or last changed a post. Optional: `author` if the name to use
-# differs from the profile name, and `aliases` for other author values that
-# mean this user, e.g. names used on an older blog.
-# Type: array of { login = string, id = integer, author = string, aliases = [string] }.
-# Required, at least one.
-# Example: { login = "octocat", id = 583231, author = "Mona Lisa Octocat", aliases = ["Mona"] }
+# who wrote or last changed a post. Optional `aliases`: other author values
+# that mean this user, e.g. names used on an older blog.
+# Type: array of { login = string, id = integer, aliases = [string] }.
+# Required, at least one. Example: { login = "octocat", id = 583231, aliases = ["Mona"] }
 allow = [
   { login = "octocat", id = 583231 },
 ]

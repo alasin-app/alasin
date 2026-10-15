@@ -69,7 +69,7 @@ const site = z
       .string()
       .regex(/^[A-Za-z_][A-Za-z0-9_-]*$/)
       .optional()
-      .describe("Front matter field for the author: new posts and pages get the user's full name (`[users] allow` `author`, default: their GitHub profile name), and the lists show who wrote each one. Leave unset if the site doesn't use one."),
+      .describe("Front matter field for the author: new posts and pages get the user's full name from their GitHub profile, and the lists show who wrote each one. Leave unset if the site doesn't use one."),
     front_matter_format: z
       .enum(["yaml", "toml"])
       .default("yaml")
@@ -98,13 +98,6 @@ const github = z
 const allowedUser = z.strictObject({
   login: z.string().min(1).describe("GitHub username, for readability. Not used for access checks."),
   id: z.number().int().positive().describe("Numeric GitHub user ID; this is what access is checked against."),
-  author: z
-    .string()
-    .max(100)
-    .optional()
-    .describe(
-      "The user's full name, as in their git commits (e.g. `Jane Doe`): written to the author field of their new posts and pages, and used to show who last changed a file. Only needed if it differs from the name on their GitHub profile, which is used by default (else the login).",
-    ),
   aliases: z
     .array(z.string().min(1).max(100))
     .max(20)
