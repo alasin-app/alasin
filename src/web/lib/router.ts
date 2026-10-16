@@ -4,7 +4,7 @@
 import { useEffect, useState } from "preact/hooks";
 import { isUlid } from "../../shared/ulid";
 
-export type Section = "home" | "pages" | "posts" | "drafts" | "categories" | "media" | "users" | "more";
+export type Section = "home" | "pages" | "posts" | "drafts" | "categories" | "media" | "bin" | "users" | "more";
 export type DraftKind = "post" | "page";
 
 export type Route = { name: Section } | { name: "editor"; type: DraftKind; id: string } | { name: "file"; path: string };
@@ -16,6 +16,7 @@ const SECTION_PATHS: Record<Section, string> = {
   drafts: "/drafts",
   categories: "/categories",
   media: "/media",
+  bin: "/bin",
   users: "/users",
   more: "/more",
 };

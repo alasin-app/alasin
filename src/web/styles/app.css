@@ -1866,3 +1866,22 @@ img {
   color: var(--orange);
 }
 
+.bin-controls .list-note {
+  margin: 0;
+}
+
+.bin-controls .btn {
+  align-self: flex-start;
+}
+
+.sidebar-count {
+  margin-left: auto;
+  color: var(--secondary-label);
+  font-size: var(--footnote);
+  font-variant-numeric: tabular-nums;
+}
+
+.sidebar-item.active .sidebar-count {
+  color: rgba(255, 255, 255, 0.8);
+}
+
