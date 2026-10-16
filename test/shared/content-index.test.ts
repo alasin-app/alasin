@@ -72,3 +72,14 @@ describe("content index", () => {
   });
 });
 
+
+describe("valueCounts", () => {
+  it("counts each value once per item, most used first", async () => {
+    const { valueCounts } = await import("../../src/web/lib/content-index");
+    const items = [{ tags: ["a", "b", "a"] }, { tags: ["b"] }, { tags: [] }] as unknown as Parameters<typeof valueCounts>[0];
+    expect(valueCounts(items, (i) => i.tags)).toEqual([
+      { value: "b", count: 2 },
+      { value: "a", count: 1 },
+    ]);
+  });
+});

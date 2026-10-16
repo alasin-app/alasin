@@ -20,8 +20,9 @@ import { t, useLanguage } from "../lib/i18n";
 import { deleteLocalDraft, getLocalDraft, putLocalDraft } from "../lib/local-drafts";
 import { type DraftKind, navigate } from "../lib/router";
 import { ulid } from "../../shared/ulid";
-import { cachedContent } from "../lib/content-store";
-import type { ContentItem } from "../lib/content-index";
+import { valueCounts } from "../lib/content-index";
+import { useContent } from "../lib/use-content";
+import { TagsInput } from "./TagsInput";
 import { loadSite, type SiteSettings } from "../lib/site";
 import { ActionSheet, Sheet } from "./Sheet";
 
@@ -155,11 +156,12 @@ export function Editor(props: { me: Me; source: EditSource }) {
 
   useVisibleTop();
 
-  /** Published posts and pages as last listed on this device, to warn about addresses already in use. */
-  const [publishedItems, setPublishedItems] = useState<ContentItem[]>([]);
-  useEffect(() => {
-    void cachedContent(me.user.id).then((c) => setPublishedItems(c?.items.filter((i) => i.state === "published") ?? []));
-  }, []);
+  // The site's posts and pages (kept on the device, brought up to date in the
+  // background): published ones to warn about addresses already in use, and
+  // the tags in use to suggest while typing.
+  const { content: siteContent } = useContent(me);
+  const publishedItems = useMemo(() => siteContent?.items.filter((i) => i.state === "published") ?? [], [siteContent]);
+  const knownTags = useMemo(() => valueCounts(siteContent?.items ?? [], (i) => i.tags), [siteContent]);
 
   const uploading = uploads.some((u) => u.state === "processing" || u.state === "uploading");
   const [draftImages, setDraftImages] = useState<{ file: string; url: string; thumb: string }[] | null>(null);
@@ -737,21 +739,7 @@ export function Editor(props: { me: Me; source: EditSource }) {
               <label class="row-label" for="f-tags">
                 {t("editor.tags")}
               </label>
-              <input
-                id="f-tags"
-                class="row-input"
-                value={f.tags.join(", ")}
-                placeholder={t("editor.tagsPlaceholder")}
-                autocapitalize="off"
-                onChange={(e) =>
-                  setForm({
-                    tags: (e.target as HTMLInputElement).value
-                      .split(",")
-                      .map((x) => x.trim())
-                      .filter(Boolean),
-                  })
-                }
-              />
+              <TagsInput id="f-tags" value={f.tags} known={knownTags} onChange={(tags) => setForm({ tags })} />
             </li>
             <li>
               <button type="button" class="row row-button-left" onClick={openCover}>

@@ -149,6 +149,8 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 4.13 | Published elsewhere | Device A: change a saved draft without saving. Device B: publish it. Device A: *Drafts* shows it as "published or deleted elsewhere"; opening it offers *Use my changes in the published post* (opens the post with the changes, unsaved) or *Discard my changes* |
 | 4.14 | Unsaved edits listed | Change a published post without saving and leave: *Drafts* lists it under "Unsaved changes to published posts" |
 | 4.15 | My drafts on Home | *Home* lists your own drafts (by author), drafts only on this device and your unsaved changes to published posts; *Drafts* still lists everyone's |
+| 4.16 | Author and tag filters | In Posts and Pages, choose one or more authors and/or tags (the tag list can be searched; counts shown): only matching items show; all filters combine |
+| 4.17 | Tag suggestions | In the editor's Tags field, start typing: the site's tags that match appear (most used, and those starting with what you typed, first); tapping one completes it |
 
 ### Test runs
 
@@ -171,3 +173,5 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 4.13 | ❌ → ⏳ | Reported: such a draft was listed as a draft on device A (#90). Then: no warning that the copy existed only on this device and that a published post already has its address, and no way to discard it (#92). |
 | 4.14 | ✅ | |
 | 4.15 | ✅ | |
+| 4.16 | ⏳ | |
+| 4.17 | ⏳ | |
