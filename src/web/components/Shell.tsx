@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // App frame: a sidebar split view on iPad and desktop, a tab bar on iPhone.
 
-import { ChevronRight, Ellipsis, FileText, House, Image, Newspaper, PanelLeftClose, PanelLeftOpen, PenLine, Plus, Tags } from "lucide-preact";
+import { ChevronRight, Ellipsis, FileText, House, Image, Newspaper, PanelLeftClose, PanelLeftOpen, PenLine, Plus, Tags, Users } from "lucide-preact";
 import type { ComponentType } from "preact";
 import { useState } from "preact/hooks";
 import type { Me } from "../lib/api";
@@ -10,6 +10,7 @@ import { type DraftKind, hrefFor, linkHandler, navigate, type Section, useRoute 
 import { ulid } from "../../shared/ulid";
 import { ContentList } from "./ContentList";
 import { DraftsList } from "./DraftsList";
+import { UsersList } from "./UsersList";
 import { Editor } from "./Editor";
 import { settings } from "../lib/settings";
 import { AccountSheet } from "./AccountSheet";
@@ -25,6 +26,7 @@ const SECTIONS: { route: Section; label: MessageKey; icon: Icon }[] = [
   { route: "drafts", label: "nav.drafts", icon: PenLine },
   { route: "categories", label: "nav.categories", icon: Tags },
   { route: "media", label: "nav.media", icon: Image },
+  { route: "users", label: "nav.users", icon: Users },
 ];
 
 const TABS: { route: Section; label: MessageKey; icon: Icon }[] = [
@@ -34,7 +36,7 @@ const TABS: { route: Section; label: MessageKey; icon: Icon }[] = [
   { route: "more", label: "nav.more", icon: Ellipsis },
 ];
 
-const MORE: Section[] = ["pages", "posts", "categories"];
+const MORE: Section[] = ["pages", "posts", "categories", "users"];
 
 export function EnvBadge() {
   return settings.environment ? <span class="badge badge-env">{settings.environment}</span> : null;
@@ -177,6 +179,8 @@ export function Shell(props: { me: Me; onLogout: () => void }) {
               </ul>
             ) : current === "drafts" ? (
               <DraftsList me={props.me} />
+            ) : current === "users" ? (
+              <UsersList />
             ) : current === "home" ? (
               <>
                 <h2 class="list-title">{t("home.myDrafts")}</h2>

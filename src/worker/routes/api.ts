@@ -12,6 +12,7 @@ import { lifecycle } from "./lifecycle";
 import { locks } from "./locks";
 import { media } from "./media";
 import { site } from "./site";
+import { users } from "./users";
 
 export const api = new Hono<AppEnv>();
 
@@ -57,5 +58,6 @@ api.route("/lifecycle", lifecycle);
 api.route("/locks", locks);
 api.route("/draft-media", media);
 api.route("/site", site);
+api.route("/users", users);
 
 api.all("*", (c) => c.json({ error: "not_found", message: "No such API route." }, 404));
