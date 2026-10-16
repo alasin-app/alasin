@@ -164,7 +164,7 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 4.18 | New version notice | Keep the app open (also on a phone, in the background), deploy a new build, come back to the app (or wait up to 10 minutes): "A new version of Alasin is available" with *Reload*; after reloading, unsaved text is still there |
 | 4.19 | One editor at a time | Open a post on device A, then the same post on device B (or another user): B shows "(name) is editing this", read-only (text, details, toolbar and saving off); the lists show "✎ (name) is editing" on that post |
 | 4.20 | Take over | On B, *Take over editing* → confirm: B can edit (the text is read again first); A shows "(name) took over editing" when it's next active, read-only, with its unsaved text kept |
-| 4.21 | Abandoned lock | Close A's tab without leaving the editor (or put the phone to sleep): after about 3 minutes (`[editor] lock_expiry_seconds`), B can open the post for editing without taking over |
+| 4.21 | Abandoned lock | With B showing the post read-only, close A's tab without leaving the editor (or put the phone to sleep): after about 3 minutes (`[editor] lock_expiry_seconds`) B becomes editable by itself, with the text read again |
 
 ### Test runs
 
@@ -190,6 +190,6 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 4.16 | ✅ | The filter buttons should share the line with All / Drafts / Archived, wrapping only when the screen is too narrow (#95). |
 | 4.17 | ✅ | |
 | 4.18 | ✅ | |
-| 4.19 | ⏳ | |
-| 4.20 | ⏳ | |
-| 4.21 | ⏳ | |
+| 4.19 | ✅ | |
+| 4.20 | ✅ | A slight delay before the first device noticed; it now checks every 15 seconds (#102). |
+| 4.21 | ❌ → ⏳ | The lock was freed, but the read-only editor kept showing *Take over editing* until the post was opened again; it now notices within 15 seconds and becomes editable, reading the text again (#102). |

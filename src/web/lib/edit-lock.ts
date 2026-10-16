@@ -4,7 +4,9 @@
 // taken when the editor opens, renewed every heartbeat and when the app comes
 // back to the foreground, and released when the editor closes (also when the
 // tab is closed). If someone else has it, the editor is read-only until the
-// user takes over; if someone takes it over meanwhile, it becomes read-only.
+// user takes over or the lock comes free; if someone takes it over meanwhile,
+// it becomes read-only. A cheap status check every 15 seconds notices both
+// soon, without writing the lock each time.
 
 import { useEffect, useRef, useState } from "preact/hooks";
 import { api, ApiError } from "./api";
@@ -38,17 +40,33 @@ function release(key: string, lockId: string): void {
 }
 
 /** Holds the edit lock for `key` (null: nothing to lock yet). */
-export function useEditLock(key: string | null, heartbeatSeconds: number): LockState & { takeOver: () => Promise<void>; lockId: string } {
+/** How often the lock's state is checked (reads only; renewing stays on the heartbeat). */
+const CHECK_MS = 15_000;
+
+/**
+ * Holds the edit lock for `key` (null: nothing to lock yet). `onRegained` is
+ * called when a lock someone else had comes free and this editor takes it, so
+ * the text can be read again.
+ */
+export function useEditLock(
+  key: string | null,
+  heartbeatSeconds: number,
+  onRegained?: () => void,
+): LockState & { takeOver: () => Promise<void>; lockId: string } {
   const lockId = useRef(crypto.randomUUID()).current;
   const [lock, setLock] = useState<LockState>({ state: "pending" });
   const current = useRef(lock);
   current.current = lock;
+  const onRegainedRef = useRef(onRegained);
+  onRegainedRef.current = onRegained;
 
-  const ask = async (action: "acquire" | "renew", takeOver = false) => {
-    if (!key) return;
+  /** Asks for the lock (or renews it); true if this editor holds it afterwards. */
+  const ask = async (action: "acquire" | "renew", takeOver = false): Promise<boolean> => {
+    if (!key) return false;
     try {
       await api<Result>(`/api/locks/${action}`, { method: "POST", body: { key, lockId, ...(takeOver ? { takeOver } : {}) } });
       setLock({ state: "held" });
+      return true;
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
         const holder = (err.data as { holder?: Holder } | undefined)?.holder;
@@ -56,6 +74,7 @@ export function useEditLock(key: string | null, heartbeatSeconds: number): LockS
       }
       // Offline or a server error: keep editing; the next heartbeat tries again.
       else if (current.current.state === "pending") setLock({ state: "held" });
+      return false;
     }
   };
 
@@ -69,18 +88,43 @@ export function useEditLock(key: string | null, heartbeatSeconds: number): LockS
     const onVisible = () => {
       if (document.visibilityState === "visible" && current.current.state === "held") void ask("renew");
     };
+    // Between heartbeats: has someone taken it over, or has it come free?
+    const check = setInterval(async () => {
+      if (document.visibilityState !== "visible") return;
+      const state = current.current.state;
+      if (state === "pending") return;
+      try {
+        const res = await api<{ state: "mine" | "free" | "other"; holder?: Holder }>(
+          `/api/locks/status?key=${encodeURIComponent(key)}&lockId=${encodeURIComponent(lockId)}`,
+        );
+        if (state === "held" && res.state === "other" && res.holder) setLock({ state: "lost", holder: res.holder });
+        // Free again (released or expired): take it; the text is read again, keeping this device's unsaved changes.
+        else if ((state === "other" || state === "lost") && res.state === "free") {
+          if (await ask("acquire")) onRegainedRef.current?.();
+        }
+      } catch {
+        // Offline: checked again later.
+      }
+    }, CHECK_MS);
     const onHide = () => release(key, lockId);
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("pagehide", onHide);
     return () => {
       clearInterval(timer);
+      clearInterval(check);
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("pagehide", onHide);
       release(key, lockId);
     };
   }, [key]);
 
-  return { ...lock, takeOver: () => ask("acquire", true), lockId };
+  return {
+    ...lock,
+    takeOver: async () => {
+      await ask("acquire", true);
+    },
+    lockId,
+  };
 }
 
 /** The lock key of a listed post, page or draft. */

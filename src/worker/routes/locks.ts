@@ -4,6 +4,7 @@
 // `file:<repository path>` of a published post or page.
 //
 //   GET  /api/locks                          the locks held now (for the lists)
+//   GET  /api/locks/status?key=&lockId=      {state: "mine" | "free" | "other", holder?}: a cheap check, no write
 //   POST /api/locks/acquire {key, lockId, takeOver?}
 //   POST /api/locks/renew   {key, lockId}
 //   POST /api/locks/release {key, lockId}
@@ -40,6 +41,16 @@ async function parse(c: Context<AppEnv>) {
 export const locks = new Hono<AppEnv>();
 
 locks.get("/", async (c) => c.json({ locks: await locksFor(c).list() }));
+
+locks.get("/status", async (c) => {
+  const key = c.req.query("key") ?? "";
+  const lockId = c.req.query("lockId") ?? "";
+  if (!validKey(c.get("config"), key) || !/^[A-Za-z0-9-]{8,64}$/.test(lockId)) return c.json({ error: "invalid", message: "Invalid request." }, 400);
+  const holder = await locksFor(c).holderOf(key);
+  if (!holder) return c.json({ state: "free" });
+  const { lockId: held, ...who } = holder;
+  return c.json(held === lockId ? { state: "mine" } : { state: "other", holder: who });
+});
 
 for (const action of ["acquire", "renew"] as const) {
   locks.post(`/${action}`, async (c) => {
