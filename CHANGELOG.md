@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.0.0-pre1](https://github.com/oh2th/alasin/compare/v0.12.0...v1.0.0-pre1) (2026-10-16)
+
+
+### Features
+
+* manage categories ([#116](https://github.com/oh2th/alasin/issues/116)) ([d8cb411](https://github.com/oh2th/alasin/commit/d8cb411fead8871d06e01d24bc56e8f6dfd566b9))
+* media library filter: All, Used, Orphaned ([#128](https://github.com/oh2th/alasin/issues/128)) ([a186495](https://github.com/oh2th/alasin/commit/a186495f644fe226fc0529b29fae4c23363df73d))
+* media library, and reusing its photos in posts ([#124](https://github.com/oh2th/alasin/issues/124)) ([ea33cb9](https://github.com/oh2th/alasin/commit/ea33cb98bed10fbe341d1394f617cad10eb56af3))
+* My posts on the home screen ([#119](https://github.com/oh2th/alasin/issues/119)) ([5744c6f](https://github.com/oh2th/alasin/commit/5744c6f5c49a73c76e0e1f4606ff0f436e0c3a4e))
+* photo counts for every month in the media library ([#129](https://github.com/oh2th/alasin/issues/129)) ([bc8365d](https://github.com/oh2th/alasin/commit/bc8365d2da10324db803d955d4b95b01727ef3f7))
+* year headings in the media library ([#125](https://github.com/oh2th/alasin/issues/125)) ([05d484e](https://github.com/oh2th/alasin/commit/05d484e4f156921a5e736dfffa12ddaf4adefedc))
+
+
+### Bug Fixes
+
+* fast typing no longer pushes characters past the cursor ([#122](https://github.com/oh2th/alasin/issues/122)) ([ad8bfd7](https://github.com/oh2th/alasin/commit/ad8bfd7953c4831f4ecfcb5cf99a6f08ef5c6a19))
+* Home says My recent posts ([#127](https://github.com/oh2th/alasin/issues/127)) ([eca28b9](https://github.com/oh2th/alasin/commit/eca28b91504c84ec7024a3517992d7dc274376a8))
+* Media's used and orphaned counts follow saved changes ([#131](https://github.com/oh2th/alasin/issues/131)) ([f2a99bf](https://github.com/oh2th/alasin/commit/f2a99bfd94e29206fef66a3174376757f3372450))
+* no empty band above the title on wide screens ([#120](https://github.com/oh2th/alasin/issues/120)) ([43143f9](https://github.com/oh2th/alasin/commit/43143f97a4526e6677ea29da3eebea10c0e8c46c))
+* setup doesn't repeat where access is managed ([#117](https://github.com/oh2th/alasin/issues/117)) ([00bbd8c](https://github.com/oh2th/alasin/commit/00bbd8c8cf67f3ecd571ab27bca4f94799eecf33))
+
+
+### Documentation
+
+* record manual check 5.13 ([#133](https://github.com/oh2th/alasin/issues/133)) ([42d1ec4](https://github.com/oh2th/alasin/commit/42d1ec4c4098d75f5331b2cc572c67c1626d5353))
+
 ## [0.12.0](https://github.com/oh2th/alasin/compare/v0.11.0...v0.12.0) (2026-10-16)
 
 
