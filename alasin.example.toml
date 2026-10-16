@@ -193,6 +193,16 @@ browse_prefixes = [""]
 # Type: string. Default: "drafts".
 dir = "drafts"
 
+# The nightly cleanup removes a draft's photos from the DRAFTS bucket when no
+# draft with that ID exists in the repository (drafts folder or Bin) and
+# nothing in its folder changed for this many days. The wait protects drafts
+# that exist only on someone's device and editing sessions in progress.
+# Type: integer (1–365). Default: 7.
+cleanup_after_days = 7
+
+# When the cleanup runs: a cron expression in UTC. Default: "17 3 * * *".
+cleanup_cron = "17 3 * * *"
+
 
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -121,10 +121,11 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 3.9 | Publish an old draft | Open a post marked `draft: true` in the content folders (e.g. from an older blog) → *Publish*: `draft: false`, `lastmod` and `url` set, in place |
 | 3.10 | Locked | While someone else edits a post, the menu is off for you (read-only), and a direct attempt is refused naming who is editing |
 | 3.11 | Delete | In the editor, ••• → *Delete* → confirm, for a published post, a draft and (from the *Archived* list) an archived post: each moves to `bin/` under its old path, off the site; the *Bin* shows them with what they were and who deleted them when; the sidebar shows the count |
-| 3.12 | Never-saved draft | *Delete* on a draft that was never saved to GitHub says it exists only on this device and discards it (nothing goes to the Bin) |
+| 3.12 | Never-saved draft | For a draft never saved to GitHub the menu offers *Discard*, which says it exists only on this device and discards it (nothing goes to the Bin) |
 | 3.13 | Recover | In the *Bin*, tap an item → *Recover*: it's back at its old path (a draft opens in the editor, a post too); for a published post whose address was used again meanwhile, *Recover with a new name* puts it next to it with `-2` |
 | 3.14 | Delete permanently | In the *Bin*, an item → *Delete permanently* → confirm: gone from the repository; a deleted draft's photos are removed from the drafts bucket; the media bucket is unchanged |
 | 3.15 | Empty Bin | *Empty Bin* → confirm with the number of items: one commit removes them all |
+| 3.16 | Nightly cleanup | Upload a photo to a new draft and delete the draft permanently from the Bin with its photos already gone, or delete a draft's file directly on GitHub: its folder stays in the drafts bucket until the nightly run (`[drafts] cleanup_cron`, 03:17 UTC by default) after `[drafts] cleanup_after_days` (7) have passed, then it's gone. Folders of existing drafts (also in the Bin) stay. The Worker's logs show a `drafts_cleanup` line each night |
 
 ### Test runs
 
@@ -142,11 +143,12 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 3.8 | ✅ | |
 | 3.9 | ✅ | |
 | 3.10 | ✅ | |
-| 3.11 | ⏳ | |
-| 3.12 | ⏳ | |
-| 3.13 | ⏳ | |
-| 3.14 | ⏳ | |
-| 3.15 | ⏳ | |
+| 3.11 | ✅ | |
+| 3.12 | ✅ | Works; the menu said *Delete* where *Discard* fits a draft that was never saved; changed (#107). |
+| 3.13 | ✅ | |
+| 3.14 | ✅ | |
+| 3.15 | ✅ | |
+| 3.16 | ⏳ | Needs a draft folder older than `cleanup_after_days`; to check sooner, set it to 1 for the dev deployment. |
 
 ## Milestone 4 — lists and editing existing posts
 
@@ -202,6 +204,6 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 4.17 | ✅ | |
 | 4.18 | ✅ | |
 | 4.19 | ✅ | |
-| 4.20 | ❌ → ⏳ | A slight delay before the first device noticed; the editor now checks every 15 seconds (#102). In the editor the lock messages are now right, but the lists showed "is editing" late and kept it after editing ended: they checked only once a minute, now every 15 seconds and on returning to the app (#103). |
-| 4.21 | ❌ → ⏳ | The lock was freed, but the read-only editor kept showing *Take over editing* until the post was opened again; it now notices within 15 seconds and becomes editable, reading the text again (#102). Retest: right in the editor; the lists updated late, as in 4.20 (#103). |
-| 4.22 | ⏳ | |
+| 4.20 | ❌ → ✅ | A slight delay before the first device noticed; the editor now checks every 15 seconds (#102). In the editor the lock messages are now right, but the lists showed "is editing" late and kept it after editing ended: they checked only once a minute, now every 15 seconds and on returning to the app (#103). Retested: OK. |
+| 4.21 | ❌ → ✅ | The lock was freed, but the read-only editor kept showing *Take over editing* until the post was opened again; it now notices within 15 seconds and becomes editable, reading the text again (#102). Retest: right in the editor; the lists updated late, as in 4.20 (#103). Retested: OK. |
+| 4.22 | ✅ | |

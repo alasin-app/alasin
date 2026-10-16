@@ -73,6 +73,8 @@ export function generateWranglerConfig(opts: {
 
   const managed = {
     vars: { ALASIN_CONFIG_JSON: JSON.stringify(opts.config) },
+    // The nightly cleanup of the DRAFTS bucket.
+    triggers: { crons: [opts.config.drafts.cleanup_cron] },
     define: { __ALASIN_VERSION__: JSON.stringify(packageVersion()) },
   };
   // Preview URLs would be extra hostnames running this Worker with the same
