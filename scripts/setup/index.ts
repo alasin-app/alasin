@@ -301,7 +301,7 @@ const isPlaceholder = (u: { login: string; id: number }) => u.login === "octocat
 async function askUsers() {
   step(`Who can log in${envLabel}`);
   const repo = `${String(get(effective(), "github.owner"))}/${String(get(effective(), "github.repo"))}`;
-  info(`Everyone with write access to ${repo} on GitHub can log in. Add people there: the repository's Settings → Collaborators.`);
+  info(`Everyone with write access to ${repo} on GitHub can log in. Add or remove people there: the repository's Settings → Collaborators.`);
   const raw = alasinRaw();
   const baseAllow = ((raw.users as Table | undefined)?.allow as { login: string; id: number }[] | undefined) ?? [];
   const envAllow = env ? ((((raw.env as Table | undefined)?.[env] as Table | undefined)?.users as Table | undefined)?.allow as { login: string; id: number }[] | undefined) : undefined;
@@ -329,18 +329,7 @@ async function askUsers() {
     ok("Removed the list: write access to the repository decides");
     return;
   }
-  if (!(await confirm("Limit it further to a list of GitHub users?", false))) return;
-  const answer = await ask("GitHub usernames allowed to log in (comma-separated)");
-  const resolved: { login: string; id: number }[] = [];
-  for (const login of answer.split(/[\s,]+/).filter(Boolean)) {
-    const user = await gh.lookupUser(login);
-    if (!user) throw new Error(`GitHub user "${login}" doesn't exist.`);
-    if (user.type !== "User") throw new Error(`"${login}" is a ${user.type}, not a user account.`);
-    resolved.push({ login: user.login, id: user.id });
-    ok(`@${user.login} → ID ${user.id}`);
-  }
-  setAlasin("users", "allow", resolved);
-  info(dim("Each of them also needs write access to the repository."));
+  // Access is managed on GitHub; a list can still be added to alasin.toml by hand (see README).
 }
 
 async function setupBuckets() {
