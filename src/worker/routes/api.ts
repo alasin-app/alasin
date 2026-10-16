@@ -12,6 +12,7 @@ import { content } from "./content";
 import { drafts } from "./drafts";
 import { lifecycle } from "./lifecycle";
 import { locks } from "./locks";
+import { library } from "./library";
 import { media } from "./media";
 import { site } from "./site";
 import { users } from "./users";
@@ -61,6 +62,7 @@ api.route("/drafts", drafts);
 api.route("/lifecycle", lifecycle);
 api.route("/locks", locks);
 api.route("/draft-media", media);
+api.route("/media", library);
 api.route("/site", site);
 api.route("/users", users);
 

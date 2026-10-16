@@ -16,7 +16,7 @@ export interface SiteSettings {
   /** Edit lock timing (`[editor]`). */
   locks: { heartbeatSeconds: number; expirySeconds: number };
   /** How Markdown refers to published images, to show them in the editor. */
-  media: { publicUrl: string; contentPrefix: string };
+  media: { publicUrl: string; contentPrefix: string; browse: string[]; byMonth: boolean };
   /** Folders of the site repository, as configured. */
   folders: { posts: string; pages: string; drafts: string; archive: string; bin: string };
   images: {
