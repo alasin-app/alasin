@@ -289,13 +289,6 @@ async function confirmDeployment() {
   show();
 }
 
-/** Access isn't configured in Alasin: it follows the site repository's collaborators. */
-function explainAccess() {
-  step(`Who can log in${envLabel}`);
-  const repo = `${String(get(effective(), "github.owner"))}/${String(get(effective(), "github.repo"))}`;
-  info(`Everyone with write access to ${repo} on GitHub can log in. Add or remove people there: the repository's Settings → Collaborators.`);
-}
-
 async function setupBuckets() {
   step(`R2 buckets${envLabel}`);
   const target = wranglerTarget();
@@ -553,7 +546,6 @@ async function main() {
   await checkPrerequisites();
   await askSiteValues();
   await confirmDeployment();
-  explainAccess();
   await setupBuckets();
   setupKv();
   setupDomain();

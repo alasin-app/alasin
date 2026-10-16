@@ -180,7 +180,7 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 4.22 | Users | The *Users* section (sidebar; on phones under *More*) lists everyone who can log in with avatar, full name, login and permission on the site repository |
 | 4.23 | Access from the repository | A GitHub user with write access to the site repository can log in, one with read access or none gets "isn't allowed"; *Users* lists the repository's writers |
 | 4.24 | Removed on GitHub | Remove a logged-in user from the repository's collaborators (or set *Read*): within about an hour, their next action logs them out |
-| 4.25 | Setup | `npm run setup` only says that access comes from the repository's collaborators, without questions, and removes a `[users]` table from an older `alasin.toml` |
+| 4.25 | Setup | `npm run setup` asks nothing about users, and removes a `[users]` table from an older `alasin.toml` |
 
 ### Test runs
 
