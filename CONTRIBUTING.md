@@ -57,6 +57,14 @@ For Alasin, a change is breaking if an existing deployment would stop working or
 
 Nobody edits version numbers by hand. After each merge to `main`, [release-please](https://github.com/googleapis/release-please) opens or updates a release PR with the version bump and `CHANGELOG.md`. Merging it tags `vX.Y.Z` and publishes the GitHub Release, which deploys production (if continuous deployment is enabled).
 
+### Pre-releases before 1.0.0
+
+Until 1.0.0, releases are pre-releases numbered `1.0.0-pre.N`: whatever the commit types, the next release raises only `N` (`1.0.0-pre.2` → `1.0.0-pre.3`, and `pre.9` → `pre.10`), and the GitHub Release is marked as a pre-release. This comes from `"versioning": "prerelease"`, `"prerelease": true` and `"prerelease-type": "pre"` in `release-please-config.json`.
+
+To release 1.0.0, in one PR: remove those three settings, and give the squash commit a `Release-As: 1.0.0` footer. From then on, the commit types decide the version as in the table above.
+
+To set a version by hand at any time, add a `Release-As: X.Y.Z` footer to a commit that reaches `main`.
+
 Release PRs are created with the workflow token, so CI doesn't run on them automatically; push an empty commit to the release branch or re-run the checks if you need them.
 
 ## Keep deployment details out of the repository
