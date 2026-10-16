@@ -136,7 +136,12 @@ export function Editor(props: { me: Me; source: EditSource }) {
   /** Bumped to read the file again (after taking over editing from someone else). */
   const [reload, setReload] = useState(0);
   // One editor at a time: read-only while someone else holds the lock.
-  const lock = useEditLock(state && !state.fate ? (source.kind === "draft" ? `draft:${source.id}` : `file:${source.path}`) : null, state?.site.locks?.heartbeatSeconds ?? 60);
+  const lock = useEditLock(
+    state && !state.fate ? (source.kind === "draft" ? `draft:${source.id}` : `file:${source.path}`) : null,
+    state?.site.locks?.heartbeatSeconds ?? 60,
+    // The lock came free: read the text again, as the other editor may have saved.
+    () => setReload((n) => n + 1),
+  );
   const readOnly = lock.state === "other" || lock.state === "lost";
   const [takeOverOpen, setTakeOverOpen] = useState(false);
   /** The menu of a published file, and the action waiting for confirmation. */

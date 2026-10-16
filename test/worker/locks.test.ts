@@ -56,6 +56,16 @@ describe("edit locks", () => {
     expect((await post("acquire", { key, lockId: "tab-bbbbbbbb" })).status).toBe(200);
   });
 
+  it("tells an editor cheaply whether the lock is its own, free or someone else's", async () => {
+    const key = `draft:${ulid()}`;
+    const status = async (lockId: string) => (await call(`/api/locks/status?key=${encodeURIComponent(key)}&lockId=${lockId}`, { cookie })).json();
+    expect(await status("tab-aaaaaaaa")).toEqual({ state: "free" });
+    await post("acquire", { key, lockId: "tab-aaaaaaaa" });
+    expect(await status("tab-aaaaaaaa")).toEqual({ state: "mine" });
+    expect(await status("tab-bbbbbbbb")).toMatchObject({ state: "other", holder: { login: ALLOWED_USER.login } });
+    expect(JSON.stringify(await status("tab-bbbbbbbb"))).not.toContain("tab-aaaaaaaa");
+  });
+
   it("expires a lock that isn't renewed", async () => {
     const stub = env.LOCKS.get(env.LOCKS.idFromName("locks"));
     const key = `draft:${ulid()}`;
