@@ -228,12 +228,12 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 
 ### Test runs
 
-#### Not run yet
+#### 2026-10-16 — dev deployment
 
 | # | Result | Notes |
 | --- | --- | --- |
-| 5.1 | ⏳ | |
-| 5.2 | ⏳ | |
-| 5.3 | ⏳ | |
-| 5.4 | ⏳ | |
-| 5.5 | ⏳ | |
+| 5.1 | ✅ | Accepted as the first version of category management. |
+| 5.2 | ✅ | |
+| 5.3 | ✅ | |
+| 5.4 | ✅ | |
+| 5.5 | ✅ | |
