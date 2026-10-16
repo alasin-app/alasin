@@ -14,6 +14,11 @@ function runningScript(): string | null {
   return document.querySelector<HTMLScriptElement>('script[type="module"][src*="/assets/"]')?.getAttribute("src") ?? null;
 }
 
+/** The running build's ID: the hash in its script's name ("dev" on the development server). */
+export function buildId(): string {
+  return /index-([^/.]+)\.js$/.exec(runningScript() ?? "")?.[1] ?? "dev";
+}
+
 /** The app page's script as deployed now, or null if it can't be told. */
 async function deployedScript(): Promise<string | null> {
   try {
