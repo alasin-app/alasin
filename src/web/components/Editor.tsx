@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 //
-// Editing a draft: title, details (front matter as a form) and the text.
-// Typing autosaves on this device; "Save draft" commits to the site
-// repository. If the draft changed on GitHub meanwhile, the user chooses
-// which version to keep — nothing is overwritten silently.
+// Editing a draft or a published post or page: title, details (front matter
+// as a form) and the text. Typing autosaves on this device; saving commits to
+// the site repository. If the file changed on GitHub meanwhile, the user
+// chooses which version to keep — nothing is overwritten silently.
 
 import { Bold, Check, ChevronLeft, FileCode, Heading2, ImageOff, ImagePlus, Italic, Link, List, Quote, RotateCw, TvMinimalPlay, X } from "lucide-preact";
 import { PhotoError, photosMarkdown, processPhoto, uploadPhoto } from "../lib/photos";
@@ -19,11 +19,25 @@ import { type DraftDoc, type DraftForm, newDraft, parseDraft, prepareSave, seria
 import { t, useLanguage } from "../lib/i18n";
 import { deleteLocalDraft, getLocalDraft, putLocalDraft } from "../lib/local-drafts";
 import { type DraftKind, navigate } from "../lib/router";
+import { ulid } from "../../shared/ulid";
 import { loadSite, type SiteSettings } from "../lib/site";
 import { ActionSheet, Sheet } from "./Sheet";
 
+/** What is being edited: a draft, or a published post or page by its repository path. */
+export type EditSource = { kind: "draft"; type: DraftKind; id: string } | { kind: "file"; path: string };
+
+/** Where a draft went that this device saved earlier but is no longer in the drafts folder. */
+interface Fate {
+  state: "published" | "bin" | "deleted" | "unknown" | "draft";
+  path?: string;
+  exists?: boolean;
+}
+
 interface Loaded {
   site: SiteSettings;
+  type: DraftKind;
+  /** A draft saved from this device earlier was published or deleted elsewhere. */
+  fate?: Fate;
   doc: DraftDoc;
   /** Blob SHA of the GitHub version the edits are based on (null: not on GitHub yet). */
   sha: string | null;
@@ -48,32 +62,73 @@ interface Upload {
 /** Placeholder address for an image still uploading (never saved: saving waits for uploads). */
 const placeholder = (token: string) => `alasin-upload:${token}`;
 
-async function load(me: Me, type: DraftKind, id: string): Promise<Loaded> {
+/** The kind of a published file, from the configured folders. */
+function kindOf(site: SiteSettings, path: string): DraftKind {
+  return path.startsWith(`${site.folders.pages}/`) ? "page" : "post";
+}
+
+/** The key of this device's autosaved copy. */
+const localIdOf = (source: EditSource) => (source.kind === "draft" ? source.id : `file:${source.path}`);
+
+/** Where the file is read from and saved to. */
+const fileUrl = (source: EditSource, type: DraftKind) =>
+  source.kind === "draft" ? `/api/drafts/${type}/${source.id}` : `/api/content/file?path=${encodeURIComponent(source.path)}`;
+
+async function load(me: Me, source: EditSource): Promise<Loaded> {
   const site = await loadSite();
+  const type = source.kind === "draft" ? source.type : kindOf(site, source.path);
+  const localId = localIdOf(source);
   let remote: { content: string; sha: string } | null = null;
   try {
-    remote = await api<{ content: string; sha: string }>(`/api/drafts/${type}/${id}`);
+    remote = await api<{ content: string; sha: string }>(fileUrl(source, type));
   } catch (err) {
     if (!(err instanceof ApiError && err.status === 404)) throw err;
   }
-  const local = await getLocalDraft(me.user.id, type, id);
-  const fromText = (text: string) => parseDraft(text, site) ?? newDraft(id, site);
+  const local = await getLocalDraft(me.user.id, type, localId);
+  const fromText = (text: string) => parseDraft(text, site) ?? newDraft(source.kind === "draft" ? source.id : ulid(), site);
+  if (!remote && source.kind === "file") throw new ApiError(404, "not_found", t("editor.fileGone"));
 
   if (remote && local && local.content !== remote.content) {
     if (local.baseSha === remote.sha) {
-      return { site, doc: fromText(local.content), sha: remote.sha, savedContent: remote.content, notice: "restored" };
+      return { site, type, doc: fromText(local.content), sha: remote.sha, savedContent: remote.content, notice: "restored" };
     }
-    return { site, doc: fromText(local.content), sha: local.baseSha, savedContent: local.savedContent, notice: "conflict", remote };
+    return { site, type, doc: fromText(local.content), sha: local.baseSha, savedContent: local.savedContent, notice: "conflict", remote };
   }
-  if (remote) return { site, doc: fromText(remote.content), sha: remote.sha, savedContent: remote.content, notice: null };
-  if (local) return { site, doc: fromText(local.content), sha: null, savedContent: null, notice: local.content ? "restored" : null };
-  return { site, doc: newDraft(id, site), sha: null, savedContent: null, notice: null };
+  if (remote) return { site, type, doc: fromText(remote.content), sha: remote.sha, savedContent: remote.content, notice: null };
+  if (local) {
+    // Saved to GitHub from this device before, but gone now: find out where it went.
+    let fate: Fate | undefined;
+    if (local.baseSha !== null && source.kind === "draft") {
+      fate = await api<Fate>(`/api/drafts/${type}/${source.id}/fate`).catch(() => undefined);
+      if (fate && (fate.state === "unknown" || fate.state === "draft")) fate = undefined;
+    }
+    return { site, type, doc: fromText(local.content), sha: null, savedContent: null, notice: local.content ? "restored" : null, fate };
+  }
+  return { site, type, doc: newDraft(localId, site), sha: null, savedContent: null, notice: null };
 }
 
-export function Editor(props: { me: Me; type: DraftKind; id: string }) {
+/**
+ * Draft photo addresses in `text` replaced by the published ones with the same
+ * name in `published` (photo.jpg → /img/…/photo.jpg or photo-2.jpg), for
+ * changes made to a draft that was meanwhile published elsewhere.
+ */
+function mapPublishedPhotos(text: string, published: string): string {
+  const urls = [...published.matchAll(/\]\(([^)\s]+)/g)].map((m) => m[1]!);
+  return text.replace(/\/api\/draft-media\/[0-9A-Z]{26}\/([a-z0-9_-]+)\.([a-z]+)/g, (whole, stem: string, ext: string) => {
+    const match = urls.find((u) => new RegExp(`/${stem}(-\\d+)?\\.${ext}$`).test(u));
+    return match ?? whole;
+  });
+}
+
+export function Editor(props: { me: Me; source: EditSource }) {
   useLanguage();
-  const { me, type, id } = props;
+  const { me, source } = props;
+  const isDraft = source.kind === "draft";
+  const localId = localIdOf(source);
+  /** Photos are uploaded under the draft's ID, or for a published file under an ID for this editing session. */
+  const uploadId = useMemo(() => (source.kind === "draft" ? source.id : ulid()), []);
   const [state, setState] = useState<Loaded | null>(null);
+  const type: DraftKind = state?.type ?? (source.kind === "draft" ? source.type : "post");
   const [loadError, setLoadError] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>("idle");
   const [message, setMessage] = useState<string | null>(null);
@@ -125,16 +180,26 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
   const openCover = () => {
     setCoverOpen(true);
     setDraftImages(null);
-    api<{ images: { file: string; url: string; thumb: string }[] }>(`/api/draft-media/${id}`).then(
-      (r) => setDraftImages(r.images),
-      () => setDraftImages([]),
+    // Photos uploaded here, and (for a published file) the photos already in its text.
+    const inText = (): { file: string; url: string; thumb: string }[] => {
+      if (isDraft || !state) return [];
+      const { publicUrl, contentPrefix } = state.site.media;
+      const seen = new Set<string>();
+      return [...state.doc.form.body.matchAll(/!\[[^\]]*\]\(([^)\s]+)/g)]
+        .map((m) => m[1]!)
+        .filter((u) => u.startsWith(contentPrefix) && !seen.has(u) && seen.add(u))
+        .map((u) => ({ file: u.split("/").pop()!, url: u, thumb: publicUrl + u.slice(contentPrefix.length) }));
+    };
+    api<{ images: { file: string; url: string; thumb: string }[] }>(`/api/draft-media/${uploadId}`).then(
+      (r) => setDraftImages([...r.images, ...inText()]),
+      () => setDraftImages(inText()),
     );
   };
   const titleRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     let cancelled = false;
-    load(me, type, id).then(
+    load(me, source).then(
       (l) => {
         if (cancelled) return;
         setState(l);
@@ -144,9 +209,9 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
       (err: unknown) => !cancelled && setLoadError(err instanceof NetworkError ? t("error.network") : t("error.generic")),
     );
     return () => void (cancelled = true);
-  }, [type, id]);
+  }, [localId]);
 
-  const content = useMemo(() => (state ? serializeDraft(state.doc, state.site) : ""), [state]);
+  const content = useMemo(() => (state ? serializeDraft(state.doc, state.site, { draft: isDraft }) : ""), [state]);
   const unsaved = state !== null && content !== state.savedContent;
 
   // Autosave on this device while typing.
@@ -156,7 +221,7 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
     const empty = state.savedContent === null && !state.doc.form.title.trim() && !state.doc.form.body.trim();
     if (empty) return;
     const timer = setTimeout(() => {
-      void putLocalDraft({ uid: me.user.id, type, id, content, baseSha: state.sha, savedContent: state.savedContent });
+      void putLocalDraft({ uid: me.user.id, type, id: localId, content, baseSha: state.sha, savedContent: state.savedContent });
     }, 600);
     return () => clearTimeout(timer);
   }, [content]);
@@ -195,7 +260,7 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
       patchUpload(u.token, { state: "processing", progress: 0, error: undefined });
       const image = await processPhoto(u.file, site);
       patchUpload(u.token, { state: "uploading" });
-      const done = await uploadPhoto(id, u.name, image, (p) => patchUpload(u.token, { progress: p }));
+      const done = await uploadPhoto(uploadId, u.name, image, (p) => patchUpload(u.token, { progress: p }));
       updateForm((f) => ({
         body: f.body.split(placeholder(u.token)).join(done.url),
         ...(f.cover ? {} : { cover: done.url }),
@@ -242,8 +307,9 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
 
   const onTitle = (title: string) => {
     const f = state!.doc.form;
-    // The slug follows the title until it's edited by hand.
-    const slugFollows = !f.slug || f.slug === slugify(f.title);
+    // A draft's slug follows the title until it's edited by hand. (A published
+    // post's address never changes by itself.)
+    const slugFollows = isDraft && (!f.slug || f.slug === slugify(f.title));
     setForm({ title, ...(slugFollows ? { slug: title.trim() ? slugify(title) : "" } : {}) });
   };
 
@@ -261,34 +327,56 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
     }
     setStatus("saving");
     setMessage(null);
-    const { content: toSave, body } = prepareSave(state.doc, state.site, { rich: mode === "rich", saved: state.savedContent });
+    const { content: toSave, body } = prepareSave(state.doc, state.site, { rich: mode === "rich", saved: state.savedContent, draft: isDraft });
     let sha = state.sha;
     try {
       if (opts.overwrite) {
-        sha = (await api<{ sha: string }>(`/api/drafts/${type}/${id}`)).sha;
+        sha = (await api<{ sha: string }>(fileUrl(source, type))).sha;
       }
-      const res = await api<{ sha: string }>(`/api/drafts/${type}/${id}`, {
-        method: "PUT",
-        body: { content: toSave, sha, title: state.doc.form.title },
+      let saved = toSave;
+      if (source.kind === "draft") {
+        const res = await api<{ sha: string }>(fileUrl(source, type), {
+          method: "PUT",
+          body: { content: toSave, sha, title: state.doc.form.title },
+        });
+        sha = res.sha;
+      } else {
+        // The address or date changed: the url field follows (if the site keeps one).
+        const before = state.doc.raw ? (JSON.parse(state.doc.raw.formFields) as DraftForm) : null;
+        const res = await api<{ sha: string; content: string }>("/api/content/file", {
+          method: "PUT",
+          body: {
+            path: source.path,
+            content: toSave,
+            sha,
+            day: toLocalInput(state.doc.form.date).slice(0, 10) || undefined,
+            updateUrl: !!before && (before.slug !== state.doc.form.slug || before.date !== state.doc.form.date),
+            editId: uploadId,
+          },
+        });
+        // The Worker sets lastmod and turns new photos' addresses into public ones.
+        sha = res.sha;
+        saved = res.content;
+      }
+      setState((s) => {
+        if (!s) return s;
+        const typedMeanwhile = s.doc.form.body !== state.doc.form.body;
+        const reread = saved !== toSave && !typedMeanwhile ? parseDraft(saved, s.site) : null;
+        return {
+          ...s,
+          // Show the tidied (or saved) text, unless more was typed while saving.
+          doc: reread ?? (typedMeanwhile ? s.doc : { ...s.doc, form: { ...s.doc.form, body } }),
+          sha,
+          savedContent: saved,
+          notice: null,
+          remote: undefined,
+        };
       });
-      setState((s) =>
-        s
-          ? {
-              ...s,
-              // Show the tidied text, unless more was typed while saving.
-              doc: s.doc.form.body === state.doc.form.body ? { ...s.doc, form: { ...s.doc.form, body } } : s.doc,
-              sha: res.sha,
-              savedContent: toSave,
-              notice: null,
-              remote: undefined,
-            }
-          : s,
-      );
-      await putLocalDraft({ uid: me.user.id, type, id, content: toSave, baseSha: res.sha, savedContent: toSave });
+      await putLocalDraft({ uid: me.user.id, type, id: localId, content: saved, baseSha: sha, savedContent: saved });
       setConflict(false);
       setStatus("saved");
       setSavedAt(new Date());
-      return res.sha;
+      return sha;
     } catch (err) {
       setStatus("error");
       if (err instanceof ApiError && err.status === 409) setConflict(true);
@@ -300,18 +388,18 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
 
   /** Saves any changes, then publishes the saved version. */
   const publish = async () => {
-    if (!state) return;
+    if (!state || source.kind !== "draft") return;
     const sha = unsaved || !state.sha ? await save() : state.sha;
     if (!sha) return;
     setStatus("publishing");
     setMessage(null);
     try {
-      const res = await api<{ path: string }>(`/api/drafts/${type}/${id}/publish`, {
+      const res = await api<{ path: string }>(`/api/drafts/${type}/${source.id}/publish`, {
         method: "POST",
         // The post's day as the author sees it, for folders named by date.
         body: { sha, day: toLocalInput(state.doc.form.date).slice(0, 10) || undefined },
       });
-      await deleteLocalDraft(me.user.id, type, id);
+      await deleteLocalDraft(me.user.id, type, localId);
       setPublished(res.path);
     } catch (err) {
       setStatus("error");
@@ -323,10 +411,10 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
   const useRemote = async () => {
     if (!state) return;
     try {
-      const remote = state.remote ?? (await api<{ content: string; sha: string }>(`/api/drafts/${type}/${id}`));
+      const remote = state.remote ?? (await api<{ content: string; sha: string }>(fileUrl(source, type)));
       const doc = parseDraft(remote.content, state.site) ?? state.doc;
       setState({ ...state, doc, sha: remote.sha, savedContent: remote.content, notice: null, remote: undefined });
-      await deleteLocalDraft(me.user.id, type, id);
+      await deleteLocalDraft(me.user.id, type, localId);
       setConflict(false);
       setStatus("idle");
     } catch {
@@ -378,7 +466,29 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
     setMode(next);
   };
 
-  const back = () => navigate({ name: "drafts" });
+  const back = () => navigate({ name: isDraft ? "drafts" : type === "page" ? "pages" : "posts" });
+
+  /** A draft published elsewhere: carry this device's changes over to the published file. */
+  const useMineInPublished = async (path: string) => {
+    if (!state) return;
+    try {
+      const pub = await api<{ content: string; sha: string }>(`/api/content/file?path=${encodeURIComponent(path)}`);
+      const doc = parseDraft(pub.content, state.site);
+      if (!doc) throw new Error("unreadable");
+      const form = { ...state.doc.form, body: mapPublishedPhotos(state.doc.form.body, pub.content), cover: mapPublishedPhotos(state.doc.form.cover, pub.content) };
+      const content = serializeDraft({ ...doc, form }, state.site, { draft: false });
+      await putLocalDraft({ uid: me.user.id, type, id: `file:${path}`, content, baseSha: pub.sha, savedContent: pub.content });
+      await deleteLocalDraft(me.user.id, type, localId);
+      navigate({ name: "file", path }, { replace: true });
+    } catch {
+      setMessage(t("error.generic"));
+    }
+  };
+
+  const discardMine = async () => {
+    await deleteLocalDraft(me.user.id, type, localId);
+    back();
+  };
 
   if (loadError) {
     return (
@@ -399,6 +509,36 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
         <button type="button" class="btn btn-tinted" onClick={back}>
           {t("editor.backToDrafts")}
         </button>
+      </div>
+    );
+  }
+  if (state?.fate) {
+    const { fate } = state;
+    const title = state.doc.form.title.trim() || t("drafts.untitled");
+    return (
+      <div class="center-screen fate-screen">
+        <h2 class="headline">{fate.state === "published" ? t("editor.publishedElsewhere", { title }) : t("editor.deletedElsewhere", { title })}</h2>
+        <p class="secondary">{t("editor.elsewhereBody")}</p>
+        {message && (
+          <p class="banner banner-error" role="alert">
+            {message}
+          </p>
+        )}
+        <div class="button-column">
+          {fate.state === "published" && fate.path && fate.exists && (
+            <button type="button" class="btn btn-filled" onClick={() => void useMineInPublished(fate.path!)}>
+              {t("editor.useMineInPublished")}
+            </button>
+          )}
+          {fate.state !== "published" && (
+            <button type="button" class="btn btn-tinted" onClick={() => setState({ ...state, fate: undefined })}>
+              {t("editor.keepAsNewDraft")}
+            </button>
+          )}
+          <button type="button" class="btn btn-plain destructive" onClick={() => void discardMine()}>
+            {t("editor.discardMine")}
+          </button>
+        </div>
       </div>
     );
   }
@@ -433,7 +573,7 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
         <div class="nav-leading">
           <button type="button" class="btn-plain" onClick={back}>
             <ChevronLeft size={22} aria-hidden="true" />
-            {t("nav.drafts")}
+            {isDraft ? t("nav.drafts") : type === "page" ? t("nav.pages") : t("nav.posts")}
           </button>
         </div>
         <div class="nav-inline-title editor-status" role="status" aria-live="polite">
@@ -447,8 +587,9 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
             onClick={() => void save()}
             disabled={status === "saving" || status === "publishing" || uploading || markdownError || !unsaved}
           >
-            {t("editor.saveDraft")}
+            {isDraft ? t("editor.saveDraft") : t("editor.save")}
           </button>
+          {isDraft && (
           <button
             type="button"
             class="btn btn-filled btn-small"
@@ -462,6 +603,7 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
           >
             {t("editor.publish")}
           </button>
+          )}
         </div>
       </header>
 
@@ -488,7 +630,9 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
       )}
 
       <div class="editor-body">
-        <p class="eyebrow">{type === "post" ? t("editor.newPostLabel") : t("editor.newPageLabel")}</p>
+        <p class="eyebrow">
+          {isDraft ? (type === "post" ? t("editor.newPostLabel") : t("editor.newPageLabel")) : type === "post" ? t("editor.publishedPostLabel") : t("editor.publishedPageLabel")}
+        </p>
         <textarea
           ref={titleRef}
           class="title-input"
@@ -578,7 +722,18 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
               <button type="button" class="row row-button-left" onClick={openCover}>
                 <span class="row-label">{t("editor.cover")}</span>
                 {f.cover ? (
-                  <img class="cover-thumb" src={f.cover} alt="" width={44} height={44} />
+                  <img
+                    class="cover-thumb"
+                    src={
+                      // Published images are referred to by the site's own prefix (e.g. /img/…).
+                      state.site.media.contentPrefix.startsWith("/") && f.cover.startsWith(state.site.media.contentPrefix)
+                        ? state.site.media.publicUrl + f.cover.slice(state.site.media.contentPrefix.length)
+                        : f.cover
+                    }
+                    alt=""
+                    width={44}
+                    height={44}
+                  />
                 ) : (
                   <span class="row-value">{t("editor.none")}</span>
                 )}

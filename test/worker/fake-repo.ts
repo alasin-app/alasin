@@ -192,6 +192,28 @@ export class FakeRepo {
       return children.size ? json([...children.values()]) : json({ message: "Not Found" }, 404);
     }
     if (req.method === "GET" && path === `/git/ref/heads/${this.branch}`) return json({ object: { sha: this.head } });
+    if (req.method === "GET" && path === "/commits") {
+      // The last commit on the branch that changed `path`.
+      const file = url.searchParams.get("path") ?? "";
+      for (let c = this.head; c; ) {
+        const commit = this.commits.get(c)!;
+        const parent = commit.parents[0];
+        const before = parent ? this.trees.get(this.commits.get(parent)!.tree)!.get(file) : undefined;
+        if (this.trees.get(commit.tree)!.get(file) !== before) return json([{ sha: c }]);
+        c = parent ?? "";
+      }
+      return json([]);
+    }
+    if (req.method === "GET" && path.startsWith("/commits/")) {
+      const commit = this.commits.get(path.slice("/commits/".length));
+      if (!commit) return json({ message: "Not Found" }, 404);
+      const to = this.trees.get(commit.tree)!;
+      const from = commit.parents[0] ? this.trees.get(this.commits.get(commit.parents[0])!.tree)! : new Map<string, string>();
+      const files: { filename: string; status: string }[] = [];
+      for (const [p, sha] of to) if (from.get(p) !== sha) files.push({ filename: p, status: from.has(p) ? "modified" : "added" });
+      for (const [p] of from) if (!to.has(p)) files.push({ filename: p, status: "removed" });
+      return json({ sha: path.slice("/commits/".length), files });
+    }
     if (req.method === "GET" && path.startsWith("/compare/")) {
       const [base, head] = path.slice("/compare/".length).split("...") as [string, string];
       const from = this.treeAt(base);

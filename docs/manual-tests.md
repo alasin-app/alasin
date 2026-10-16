@@ -143,6 +143,11 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 4.7 | Drafts section | *Drafts* lists drafts saved by Alasin, posts and pages marked `draft: true` in the content folders, and drafts only on this device |
 | 4.8 | Quick lists | Opening Posts, Pages or Drafts again shows the list at once; after a change on GitHub the list updates within seconds without reading everything again |
 | 4.9 | Authors | Rows show the author (an older author name listed in a user's `aliases` shows that user's avatar) and the full name of who last changed the file, and when; new posts get the user's full name as author, from their GitHub profile; other users' posts show their avatars too, with only `login` and `id` in `[users]` |
+| 4.10 | Edit a published post | Open a post from *Posts*, change the text → *Save*: the commit changes only the edited lines and `lastmod`; editing a title or tag changes only that line of the front matter |
+| 4.11 | Address or date changed | Change a published post's address (slug) or date → *Save*: the `url` field follows (with `[site] post_url` set) |
+| 4.12 | Photos in a published post | Add a photo to a published post → *Save*: it is copied to the media bucket under the post's date and the text refers to it with the site's image prefix |
+| 4.13 | Published elsewhere | Device A: change a saved draft without saving. Device B: publish it. Device A: *Drafts* shows it as "published or deleted elsewhere"; opening it offers *Use my changes in the published post* (opens the post with the changes, unsaved) or *Discard my changes* |
+| 4.14 | Unsaved edits listed | Change a published post without saving and leave: *Drafts* lists it under "Unsaved changes to published posts" |
 
 ### Test runs
 
@@ -159,3 +164,8 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 4.7 | ⏳ | |
 | 4.8 | ⏳ | |
 | 4.9 | ⏳ | |
+| 4.10 | ⏳ | |
+| 4.11 | ⏳ | |
+| 4.12 | ⏳ | |
+| 4.13 | ⏳ | Reported: such a draft was listed as a draft on device A; fixed in #90. |
+| 4.14 | ⏳ | |

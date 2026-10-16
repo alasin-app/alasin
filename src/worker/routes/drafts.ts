@@ -13,6 +13,7 @@
 //   GET  /api/drafts/:type/:id       read one
 //   PUT  /api/drafts/:type/:id       save (commit) one, optimistic on the blob SHA
 //   POST /api/drafts/:type/:id/publish  publish one (see below)
+//   GET  /api/drafts/:type/:id/fate     where a draft went that is no longer in the drafts folder
 
 import { Hono, type Context } from "hono";
 import { z } from "zod";
@@ -21,7 +22,7 @@ import type { AlasinConfig } from "../../shared/config/schema";
 import type { AppEnv } from "../app";
 import { ConflictError, Repo } from "../lib/repo";
 import { copyDraftImages, MissingImageError } from "../lib/publish-media";
-import { contentPath, draftImageRefs, draftInfo, parseDay, publishedText } from "../../shared/publish";
+import { contentPath, draftImageRefs, draftInfo, maintainedFields, parseDay, publishedText } from "../../shared/publish";
 import { logError } from "../lib/log";
 import { getUserToken } from "../session";
 
@@ -175,7 +176,7 @@ drafts.post("/:type/:id/publish", async (c) => {
     throw err;
   }
 
-  const content = publishedText(file.content, urls);
+  const content = publishedText(file.content, urls, maintainedFields(config, p.type, info, day, { url: true }));
   const kind = p.type === "post" ? "post" : "page";
   try {
     const result = await repo.commit(
@@ -203,3 +204,31 @@ drafts.post("/:type/:id/publish", async (c) => {
     throw err;
   }
 });
+
+/**
+ * A draft this device saved earlier is gone from the drafts folder: it was
+ * published, moved to the Bin or deleted, maybe from another device. The last
+ * commit that touched the draft file tells which, and where it went.
+ */
+drafts.get("/:type/:id/fate", async (c) => {
+  const p = params(c);
+  if (!p) return c.json({ error: "not_found", message: "No such draft." }, 404);
+  const config = c.get("config");
+  const repo = await repoFor(c);
+  const source = draftPath(config, p.type, p.id);
+  if (await repo.getFile(source)) return c.json({ state: "draft" });
+  const change = await repo.lastChangeOf(source);
+  if (!change) return c.json({ state: "unknown" });
+  const moved = change.files.find((f) => f.previous_filename === source);
+  if (moved?.filename.startsWith(`${config.bin.dir}/`)) return c.json({ state: "bin", path: moved.filename });
+  const dir = p.type === "post" ? config.site.posts_dir : config.site.pages_dir;
+  const published = moved?.filename.startsWith(`${dir}/`)
+    ? moved.filename
+    : change.files.find((f) => f.status === "added" && f.filename.startsWith(`${dir}/`) && f.filename.endsWith(".md"))?.filename;
+  if (published) {
+    const exists = (await repo.getFile(published)) !== null;
+    return c.json({ state: "published", path: published, exists });
+  }
+  return c.json({ state: "deleted" });
+});
+

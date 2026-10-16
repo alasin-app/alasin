@@ -5,7 +5,7 @@
 // route does the copying and the commit.
 
 import type { AlasinConfig } from "./config/schema";
-import { applyChanges, joinFile, parseFields, slugify, splitFrontMatter, stringifyFields } from "./frontmatter";
+import { joinFile, parseFields, setFields, slugify, splitFrontMatter, utcIso } from "./frontmatter";
 
 /** A draft image as written in Markdown: `/api/draft-media/<draftId>/<file>`. */
 const DRAFT_IMAGE = /\/api\/draft-media\/([0-9A-HJKMNP-TV-Z]{26})\/([a-z0-9][a-z0-9_-]{0,79}\.(?:jpg|png|webp|gif))/g;
@@ -72,17 +72,37 @@ export function draftInfo(text: string): DraftInfo | null {
   return { title, date: str(fields.get("date")), slug: own !== "untitled" ? own : title ? slugify(title) : "" };
 }
 
+/** A `url` field value from `[site] post_url` / `page_url`. */
+export function contentUrl(pattern: string, slug: string, day: Day): string {
+  return pattern.replaceAll("{slug}", slug).replaceAll("{yyyy}", day.yyyy).replaceAll("{mm}", day.mm).replaceAll("{dd}", day.dd);
+}
+
+/** Draft image URLs replaced by their public ones, anywhere in the file. */
+export function replaceImageUrls(text: string, urls: Map<string, string>): string {
+  return text.replace(DRAFT_IMAGE, (whole, id: string, file: string) => urls.get(`${id}/${file}`) ?? whole);
+}
+
+/** Changes front matter fields of a whole file line by line (see setFields). */
+export function withFields(text: string, changes: [string, unknown][]): string {
+  const split = splitFrontMatter(text);
+  if (!split) throw new Error("file without front matter");
+  return joinFile(split.format, setFields(split.format, split.raw, changes), split.body);
+}
+
+/** What publishing and saving keep up to date: `lastmod` and, with a pattern, `url`. */
+export function maintainedFields(config: AlasinConfig, type: "post" | "page", info: { slug: string }, day: Day, opts: { url: boolean; now?: Date }): [string, unknown][] {
+  const out: [string, unknown][] = [];
+  if (config.site.lastmod_field) out.push([config.site.lastmod_field, utcIso(opts.now ?? new Date())]);
+  const pattern = type === "post" ? config.site.post_url : config.site.page_url;
+  if (opts.url && pattern && info.slug) out.push(["url", contentUrl(pattern, info.slug, day)]);
+  return out;
+}
+
 /**
  * The published file: draft image URLs replaced by their public ones,
- * `draft: false`, no `draftId`. Other front matter stays as it was.
+ * `draft: false`, no `draftId`, plus `extra` fields. Everything else in the
+ * front matter stays exactly as written.
  */
-export function publishedText(text: string, urls: Map<string, string>): string {
-  const replaced = text.replace(DRAFT_IMAGE, (whole, id: string, file: string) => urls.get(`${id}/${file}`) ?? whole);
-  const split = splitFrontMatter(replaced);
-  if (!split) throw new Error("draft without front matter");
-  const fields = applyChanges(parseFields(split.format, split.raw), [
-    ["draft", false],
-    ["draftId", undefined],
-  ]);
-  return joinFile(split.format, stringifyFields(split.format, fields), split.body);
+export function publishedText(text: string, urls: Map<string, string>, extra: [string, unknown][] = []): string {
+  return withFields(replaceImageUrls(text, urls), [["draft", false], ["draftId", undefined], ...extra]);
 }

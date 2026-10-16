@@ -16,6 +16,8 @@
 //   GET  /api/content/changes?base=  files changed since a commit (GitHub's compare, unparsed)
 //   POST /api/content/files {paths}  the text of some files (GraphQL, unparsed), up to 100
 //   POST /api/content/history {paths}  each file's last commit: who and when (GraphQL, unparsed), up to 50
+//   GET  /api/content/file?path=     one published post or page {content, sha}
+//   PUT  /api/content/file           save one (see below)
 //
 // With the last two, a cached index is brought up to date by reading only
 // what changed, instead of every file again.
@@ -25,6 +27,11 @@ import { z } from "zod";
 import type { AlasinConfig } from "../../shared/config/schema";
 import type { AppEnv } from "../app";
 import { GitHubError } from "../lib/github";
+import { copyDraftImages, MissingImageError } from "../lib/publish-media";
+import { ConflictError, Repo } from "../lib/repo";
+import { draftImageRefs, draftInfo, maintainedFields, parseDay, replaceImageUrls, withFields } from "../../shared/publish";
+import { isUlid } from "../../shared/ulid";
+import { logError } from "../lib/log";
 import { getUserToken } from "../session";
 
 /** Folder levels read below each folder, e.g. bin/content/posts/2026/<slug>/index.md. */
@@ -164,3 +171,101 @@ ${paths.map((_, i) => `      h${i}: history(first: 1, path: $h${i}) { ${fields} 
 }`;
   return forward(await graphql(await getUserToken(c), { query, variables }));
 });
+
+/** Largest post or page accepted, in bytes (Markdown text; images are stored separately). */
+const MAX_FILE_BYTES = 1024 * 1024;
+
+/** The kind of a published post or page path, or null if it isn't one Alasin edits. */
+function publishedKind(config: AlasinConfig, path: string): "post" | "page" | null {
+  if (!path.endsWith(".md") || path.startsWith("/") || path.split("/").some((s) => s === ".." || s === "." || s === "")) return null;
+  if (path.startsWith(`${config.site.posts_dir}/`)) return "post";
+  if (path.startsWith(`${config.site.pages_dir}/`)) return "page";
+  return null;
+}
+
+async function repoFor(c: Context<AppEnv>): Promise<Repo> {
+  const { github } = c.get("config");
+  return new Repo(await getUserToken(c), github.owner, github.repo, github.branch);
+}
+
+content.get("/file", async (c) => {
+  const path = c.req.query("path") ?? "";
+  if (!publishedKind(c.get("config"), path)) return c.json({ error: "not_found", message: "No such post or page." }, 404);
+  const file = await (await repoFor(c)).getFile(path);
+  if (!file) return c.json({ error: "not_found", message: "No such post or page." }, 404);
+  return c.json({ path, content: file.content, sha: file.sha });
+});
+
+const saveBody = z.strictObject({
+  path: z.string().max(512),
+  content: z.string().max(MAX_FILE_BYTES),
+  /** Blob SHA of the version being replaced. */
+  sha: z.string().regex(SHA),
+  /** The post's day in the author's time zone (YYYY-MM-DD), for image folders and the url. */
+  day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  /** The address or date was changed: update the `url` field (if `[site] post_url`/`page_url` is set). */
+  updateUrl: z.boolean().optional(),
+  /** Where photos added in this editing session were uploaded (DRAFTS/<editId>/), cleared after saving. */
+  editId: z.string().refine(isUlid).optional(),
+});
+
+/**
+ * Saving a published post or page, like publishing: draft images it uses
+ * (photos added while editing) are copied to MEDIA first, never overwriting;
+ * then one commit replaces the file (which must be unchanged since it was
+ * opened), with `lastmod` updated; only then are those images removed from
+ * DRAFTS. Returns the saved text, which may differ from what was sent.
+ */
+content.put("/file", async (c) => {
+  const length = Number(c.req.header("Content-Length") ?? "0");
+  if (length > MAX_FILE_BYTES * 2) return c.json({ error: "too_large", message: "The text is too large." }, 413);
+  const parsed = saveBody.safeParse(await c.req.json().catch(() => undefined));
+  if (!parsed.success) return c.json({ error: "invalid", message: "Invalid request." }, 400);
+  const config = c.get("config");
+  const { path, sha, updateUrl } = parsed.data;
+  const kind = publishedKind(config, path);
+  if (!kind) return c.json({ error: "not_found", message: "No such post or page." }, 404);
+  if (new TextEncoder().encode(parsed.data.content).length > MAX_FILE_BYTES) return c.json({ error: "too_large", message: "The text is too large." }, 413);
+  const info = draftInfo(parsed.data.content);
+  if (!info) return c.json({ error: "invalid", message: "The front matter can't be read." }, 422);
+
+  const { success } = await c.env.RL_COMMIT.limit({ key: `commit:${c.get("session").uid}` });
+  if (!success) return c.json({ error: "rate_limited", message: "Too many saves. Wait a moment and try again." }, 429);
+
+  const day = parseDay(parsed.data.day) ?? parseDay(info.date) ?? parseDay(new Date().toISOString())!;
+  const refs = draftImageRefs(parsed.data.content);
+  let urls: Map<string, string>;
+  try {
+    urls = await copyDraftImages(c.env.DRAFTS, c.env.MEDIA, refs, day, {
+      pathPattern: config.media.path_pattern,
+      contentPrefix: config.media.content_prefix,
+      cacheControl: config.media.cache_control,
+    });
+  } catch (err) {
+    if (err instanceof MissingImageError) {
+      return c.json({ error: "missing_image", message: `An image in the text (${err.file}) no longer exists. Remove it and try again.` }, 422);
+    }
+    throw err;
+  }
+  const text = withFields(replaceImageUrls(parsed.data.content, urls), maintainedFields(config, kind, info, day, { url: updateUrl === true }));
+  try {
+    const result = await (await repoFor(c)).commit([{ path, content: text, expectedSha: sha }], `Update ${kind}: ${(info.title || path).replace(/\s+/g, " ")}`);
+    // The photos added in this editing session now live in MEDIA. (Photos of
+    // other drafts the text may refer to stay with their drafts.)
+    if (parsed.data.editId) {
+      try {
+        const listed = await c.env.DRAFTS.list({ prefix: `${parsed.data.editId}/`, limit: 1000 });
+        if (listed.objects.length) await c.env.DRAFTS.delete(listed.objects.map((o) => o.key));
+      } catch (err) {
+        logError({ rid: c.get("requestId"), event: "draft_media_cleanup_failed", uid: c.get("session").uid }, err);
+      }
+    }
+    return c.json({ path, content: text, sha: result.shas[path], commit: result.commit });
+  } catch (err) {
+    if (err instanceof ConflictError) {
+      return c.json({ error: "conflict", message: "This was changed somewhere else since you opened it. Reload it to see the latest version." }, 409);
+    }
+    throw err;
+  }
+});
+
