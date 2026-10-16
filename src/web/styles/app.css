@@ -1731,3 +1731,9 @@ img {
   margin-top: 8px;
 }
 
+.list-title {
+  margin: 8px var(--gutter-right) 8px var(--gutter);
+  font-size: var(--title3);
+  font-weight: 700;
+}
+

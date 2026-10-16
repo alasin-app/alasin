@@ -170,6 +170,11 @@ export function Shell(props: { me: Me; onLogout: () => void }) {
               </ul>
             ) : current === "drafts" ? (
               <DraftsList me={props.me} />
+            ) : current === "home" ? (
+              <>
+                <h2 class="list-title">{t("home.myDrafts")}</h2>
+                <DraftsList me={props.me} mine />
+              </>
             ) : current === "posts" || current === "pages" ? (
               <ContentList key={current} me={props.me} kind={current === "posts" ? "post" : "page"} />
             ) : (
