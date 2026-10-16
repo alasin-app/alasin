@@ -1,5 +1,50 @@
 # Changelog
 
+## [0.12.0](https://github.com/oh2th/alasin/compare/v0.11.0...v0.12.0) (2026-10-16)
+
+
+### ⚠ BREAKING CHANGES
+
+* alasin.toml no longer accepts [users]. Run npm run setup to remove it automatically, or delete the [users] tables by hand. Everyone with write access to the site repository can log in.
+* [users] allow no longer accepts author. Run npm run setup to update alasin.toml automatically, or delete the author entries by hand.
+
+### Features
+
+* access from the site repository's collaborators ([#108](https://github.com/oh2th/alasin/issues/108)) ([128bc28](https://github.com/oh2th/alasin/commit/128bc283124c3d49f9672c2ac9d24a205ef3873c))
+* archive and Bin folders in the configuration ([#77](https://github.com/oh2th/alasin/issues/77)) ([fd6057a](https://github.com/oh2th/alasin/commit/fd6057adb123320ed13e4b86c7f14f813374b687))
+* author and tag filters, tag suggestions ([#93](https://github.com/oh2th/alasin/issues/93)) ([5816223](https://github.com/oh2th/alasin/commit/5816223e4ca9c215299d11b61690b4752e9664d3))
+* authors by full name ([#87](https://github.com/oh2th/alasin/issues/87)) ([3c617c7](https://github.com/oh2th/alasin/commit/3c617c7bd653af5a71413d99211bc55ad02446d1))
+* delete to the Bin, recover, delete permanently, Empty Bin ([#106](https://github.com/oh2th/alasin/issues/106)) ([eb2e6d1](https://github.com/oh2th/alasin/commit/eb2e6d167256fc798ff54145860f9fb7b7acb013))
+* edit published posts and pages ([#90](https://github.com/oh2th/alasin/issues/90)) ([de71697](https://github.com/oh2th/alasin/commit/de7169739a9908a229a7f922c8d107b08cfa7883))
+* faster lists, several categories in the filter, all drafts ([#85](https://github.com/oh2th/alasin/issues/85)) ([69a6a4a](https://github.com/oh2th/alasin/commit/69a6a4a9d03b2aa0bed9249ce3e44f827718f923))
+* filters on one line, build ID in the sidebar ([#95](https://github.com/oh2th/alasin/issues/95)) ([b873943](https://github.com/oh2th/alasin/commit/b873943013e7b53108483bafd428ee91deffb178))
+* full names from GitHub profiles for every allowed user ([#88](https://github.com/oh2th/alasin/issues/88)) ([85d1eaa](https://github.com/oh2th/alasin/commit/85d1eaa95eec870eb8e7e190cfa52aa83dc22eff))
+* My drafts on the home screen ([#91](https://github.com/oh2th/alasin/issues/91)) ([aa4507e](https://github.com/oh2th/alasin/commit/aa4507e5f5bf89177ed8e58d03985ad5d2f9f4fa))
+* nested categories, shown as a tree ([#80](https://github.com/oh2th/alasin/issues/80)) ([347c137](https://github.com/oh2th/alasin/commit/347c137d3e5671b267b0c4bdf2060c630a55f51f))
+* nightly cleanup of the drafts bucket; Discard for never-saved drafts ([#107](https://github.com/oh2th/alasin/issues/107)) ([46e7964](https://github.com/oh2th/alasin/commit/46e7964af15e929f57cd2fc597dff3653eaa0837))
+* no [users] section; access only from the site repository ([#110](https://github.com/oh2th/alasin/issues/110)) ([9641879](https://github.com/oh2th/alasin/commit/96418791cd64a9424a66abd057ce8385ec8be29f))
+* no author option for users ([#89](https://github.com/oh2th/alasin/issues/89)) ([0b0dafd](https://github.com/oh2th/alasin/commit/0b0dafd13d36a4e9396bdcae385a3cedcf03c624))
+* one editor at a time ([#97](https://github.com/oh2th/alasin/issues/97)) ([e167450](https://github.com/oh2th/alasin/commit/e167450f9980fd774390106065a78147507de701))
+* Posts and Pages lists with search and filters ([#84](https://github.com/oh2th/alasin/issues/84)) ([6973c4b](https://github.com/oh2th/alasin/commit/6973c4bc3376b573e0c268ff6960859a4fc20c69))
+* publish drafts with their photos ([#78](https://github.com/oh2th/alasin/issues/78)) ([96e80dc](https://github.com/oh2th/alasin/commit/96e80dc70fa3f2debed951f3d8a2e4a4940806e4))
+* read the site's posts and pages for lists and search ([#83](https://github.com/oh2th/alasin/issues/83)) ([611a516](https://github.com/oh2th/alasin/commit/611a5160246096d9d7898e5bf3a526a674ecab4c))
+* round-trip check for existing posts ([#82](https://github.com/oh2th/alasin/issues/82)) ([472174d](https://github.com/oh2th/alasin/commit/472174d071149806de344411362d494007565c74))
+* setup adds new configuration sections to alasin.toml ([#79](https://github.com/oh2th/alasin/issues/79)) ([cf85420](https://github.com/oh2th/alasin/commit/cf85420f263d07d26a0400ca4efa85a4ba097b19))
+* setup adds new options to existing sections of alasin.toml ([#111](https://github.com/oh2th/alasin/issues/111)) ([80677e0](https://github.com/oh2th/alasin/commit/80677e060ea5ff5a30eff463964a4734b35f4360))
+* show authors and who last changed each post ([#86](https://github.com/oh2th/alasin/issues/86)) ([bb5ede9](https://github.com/oh2th/alasin/commit/bb5ede90a76bbe3910852a3ff8af195c734a6f16))
+* tell when a new version of the app is deployed ([#94](https://github.com/oh2th/alasin/issues/94)) ([f848de6](https://github.com/oh2th/alasin/commit/f848de63dc4e8e4abdd03b58e92a8ccd26a5c737))
+* unpublish, archive and republish ([#101](https://github.com/oh2th/alasin/issues/101)) ([2c84a68](https://github.com/oh2th/alasin/commit/2c84a683cfeaf070c99b30a57c5b7d59c1670f3c))
+* Users section and README on users and access ([#104](https://github.com/oh2th/alasin/issues/104)) ([c5d7750](https://github.com/oh2th/alasin/commit/c5d775080cd39b7621e80a18704c6b9e2833f241))
+
+
+### Bug Fixes
+
+* create the GitHub App as public so every listed user can sign in ([#99](https://github.com/oh2th/alasin/issues/99)) ([6eb05c9](https://github.com/oh2th/alasin/commit/6eb05c9296d5f0e54f684108137117189bc6fe51))
+* exact category filter, rename on new address, warn about a taken address ([#92](https://github.com/oh2th/alasin/issues/92)) ([2a80ee5](https://github.com/oh2th/alasin/commit/2a80ee52f137020028f8d6eb23b03926168f9f87))
+* lists show who is editing within seconds ([#103](https://github.com/oh2th/alasin/issues/103)) ([cb0765a](https://github.com/oh2th/alasin/commit/cb0765a83a114b4778e12301388e27279356592d))
+* notice a freed or taken-over edit lock within seconds ([#102](https://github.com/oh2th/alasin/issues/102)) ([346b03f](https://github.com/oh2th/alasin/commit/346b03fac0efe2b844ed4c1cfb216db6a8c14b3f))
+* setup doesn't ask about a user list ([#109](https://github.com/oh2th/alasin/issues/109)) ([86e2e28](https://github.com/oh2th/alasin/commit/86e2e28f5586b32a46e2d343fe9a3695328bd6bc))
+
 ## [0.11.0](https://github.com/oh2th/alasin/compare/v0.10.3...v0.11.0) (2026-10-15)
 
 
