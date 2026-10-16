@@ -180,7 +180,7 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 4.22 | Users | The *Users* section (sidebar; on phones under *More*) lists everyone in `[users]` with avatar, full name, login and permission on the site repository; someone listed but not invited shows "No access" |
 | 4.23 | Access from the repository | With no `[users] allow`: a GitHub user with write access to the site repository can log in, one with read access or none gets "isn't allowed"; *Users* lists the repository's writers |
 | 4.24 | Removed on GitHub | Remove a logged-in user from the repository's collaborators (or set *Read*): within about an hour, their next action logs them out |
-| 4.25 | Setup | `npm run setup` no longer asks for users; with an existing list it asks once whether to keep it, and *No* removes it |
+| 4.25 | Setup | `npm run setup` only says that access comes from the repository's collaborators, without questions; with an existing list it asks once whether to keep it, and *No* removes it |
 
 ### Test runs
 
@@ -210,6 +210,6 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 4.20 | ❌ → ✅ | A slight delay before the first device noticed; the editor now checks every 15 seconds (#102). In the editor the lock messages are now right, but the lists showed "is editing" late and kept it after editing ended: they checked only once a minute, now every 15 seconds and on returning to the app (#103). Retested: OK. |
 | 4.21 | ❌ → ✅ | The lock was freed, but the read-only editor kept showing *Take over editing* until the post was opened again; it now notices within 15 seconds and becomes editable, reading the text again (#102). Retest: right in the editor; the lists updated late, as in 4.20 (#103). Retested: OK. |
 | 4.22 | ✅ | |
-| 4.23 | ⏳ | |
-| 4.24 | ⏳ | |
-| 4.25 | ⏳ | |
+| 4.23 | ✅ | |
+| 4.24 | ✅ | |
+| 4.25 | ✅ | Works; setup still offered "Limit it further to a list of GitHub users?", which isn't wanted: access is always managed on GitHub. Removed (#109). |

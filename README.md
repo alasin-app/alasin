@@ -312,7 +312,7 @@ Nothing in `alasin.toml` changes and nothing needs deploying. Two more things:
 - **The GitHub App must be public** (*Where can this GitHub App be installed?* → *Any account*; for an existing app, its settings → *Advanced* → *Make public*). GitHub shows a private app to nobody but its owner, so nobody else could even sign in. Making it public lets nobody else in: anyone without write access is refused and their token revoked, and the app reaches only the repositories it's installed on.
 - **A protected branch:** if `[github] branch` has rules that stop some writers from pushing, their saves fail with GitHub's message. Give them the right on GitHub, or use another branch.
 
-**Narrowing it down (optional):** to let only some of the repository's writers in, list them in `[users] allow` in `alasin.toml` (for a second deployment, in `[env.<name>.users]`), run `npm run setup` (it looks up their numeric IDs) and `npm run deploy`. Listed people still need write access. `npm run setup` asks whether to keep a list you already have.
+**Narrowing it down (rarely needed):** to let only some of the repository's writers in, add `allow = [{ login = "…", id = … }]` to `[users]` in `alasin.toml` by hand (for a second deployment, in `[env.<name>.users]`; a user's numeric ID is the `id` at `https://api.github.com/users/<login>`) and run `npm run deploy`. Listed people still need write access. `npm run setup` asks whether to keep such a list.
 
 ## Housekeeping
 
