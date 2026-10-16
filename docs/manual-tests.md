@@ -132,11 +132,11 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 3.3 | ✅ | |
 | 3.4 | ✅ | |
 | 3.5 | ✅ | Media bucket listing compared before and after: only new files. |
-| 3.6 | ⏳ | |
-| 3.7 | ⏳ | |
-| 3.8 | ⏳ | |
-| 3.9 | ⏳ | |
-| 3.10 | ⏳ | |
+| 3.6 | ✅ | |
+| 3.7 | ✅ | |
+| 3.8 | ✅ | |
+| 3.9 | ✅ | |
+| 3.10 | ✅ | |
 
 ## Milestone 4 — lists and editing existing posts
 
