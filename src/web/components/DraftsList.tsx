@@ -50,6 +50,8 @@ export function DraftsList(props: { me: Me; mine?: boolean }) {
   const changedFiles = local.filter((l) => l.id.startsWith("file:") && l.content !== l.savedContent);
 
   if (!drafts.length && !onlyHere.length && !changedFiles.length) {
+    // On the home screen, a short note, so what follows stays in view.
+    if (props.mine) return <p class="secondary list-note">{t("home.noDraftsTitle")}</p>;
     return (
       <div class="empty-state">
         <h2 class="headline">{props.mine ? t("home.noDraftsTitle") : t("drafts.emptyTitle")}</h2>

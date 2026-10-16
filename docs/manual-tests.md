@@ -181,6 +181,7 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 4.23 | Access from the repository | A GitHub user with write access to the site repository can log in, one with read access or none gets "isn't allowed"; *Users* lists the repository's writers |
 | 4.24 | Removed on GitHub | Remove a logged-in user from the repository's collaborators (or set *Read*): within about an hour, their next action logs them out |
 | 4.25 | Setup | `npm run setup` asks nothing about users, and removes a `[users]` table from an older `alasin.toml` |
+| 4.26 | My posts on Home | Below *My drafts*, *My posts* lists your published posts with the latest dates, 5, 10 or 20 of them (the choice is remembered on the device); a row opens the post |
 
 ### Test runs
 
@@ -213,6 +214,7 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 4.23 | ✅ | |
 | 4.24 | ✅ | |
 | 4.25 | ✅ | Works; setup still offered "Limit it further to a list of GitHub users?", which isn't wanted: access is always managed on GitHub. Removed (#109). |
+| 4.26 | ⏳ | |
 
 ## Milestone 5 — categories and media
 
