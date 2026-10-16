@@ -213,3 +213,27 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 4.23 | ✅ | |
 | 4.24 | ✅ | |
 | 4.25 | ✅ | Works; setup still offered "Limit it further to a list of GitHub users?", which isn't wanted: access is always managed on GitHub. Removed (#109). |
+
+## Milestone 5 — categories and media
+
+### Checklist
+
+| # | Check | How |
+| --- | --- | --- |
+| 5.1 | Category tree | *Categories* shows the categories as a tree, each with how many posts and pages use it |
+| 5.2 | Add a category | *Add category* (or a category → *Add a subcategory*): name, address (follows the name), parent → a new term page in one commit, with `url` from `[categories] url_pattern` if set; it appears in the tree and in the editor's category picker |
+| 5.3 | Delete an unused category | A category with no posts → *Delete* → confirm: its term page is removed |
+| 5.4 | Delete a used category | A used category → *Delete*: the warning names how many posts and pages use it; *Remove from N and delete* takes it out of all of them and removes the term page in one commit; other categories of those posts stay |
+| 5.5 | Subcategories | A category with subcategories offers no *Delete*, and says to delete those first |
+
+### Test runs
+
+#### Not run yet
+
+| # | Result | Notes |
+| --- | --- | --- |
+| 5.1 | ⏳ | |
+| 5.2 | ⏳ | |
+| 5.3 | ⏳ | |
+| 5.4 | ⏳ | |
+| 5.5 | ⏳ | |

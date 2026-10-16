@@ -7,6 +7,7 @@ import type { AppEnv } from "../app";
 import { requireSession } from "../session";
 import { housekeepingDue } from "../../shared/housekeeping";
 import { bin } from "./bin";
+import { categories } from "./categories";
 import { content } from "./content";
 import { drafts } from "./drafts";
 import { lifecycle } from "./lifecycle";
@@ -54,6 +55,7 @@ api.get("/avatar/:id{[0-9]{1,12}}", async (c) => {
 });
 
 api.route("/bin", bin);
+api.route("/categories", categories);
 api.route("/content", content);
 api.route("/drafts", drafts);
 api.route("/lifecycle", lifecycle);

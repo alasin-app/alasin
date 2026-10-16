@@ -92,6 +92,8 @@ site.get("/", async (c) => {
       return { login: u.login, id: u.id, names: [...new Set(all)] };
     }),
     categories,
+    /** Whether categories can be added and deleted in the app (term pages only). */
+    categoriesEditable: config.categories.storage === "term-pages",
     gallery: { shortcode: config.editor.gallery_shortcode, paired: config.editor.gallery_paired },
     locks: { heartbeatSeconds: config.editor.lock_heartbeat_seconds, expirySeconds: config.editor.lock_expiry_seconds },
     media: { publicUrl: config.media.public_url, contentPrefix: config.media.content_prefix },

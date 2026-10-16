@@ -6,7 +6,7 @@ Format: a short title, then a few lines on what and why. Add a date if it helps.
 
 ## Ideas
 
-- **Category management** — list the category tree, add categories, remove unused ones, and remove used ones after a warning. *(In progress.)*
+- **Rename and move categories** — rename a category (updating every post that uses it in one commit, with an alias from the old address) and move it under another parent.
 - **Media browser** — browse the public media bucket by folder and insert existing images into a post.
 - **Theme-styled preview** — preview a post with the site's own styles, and link to the hosting's preview build where there is one.
 - **Swipe actions and pull to refresh** — the iOS gestures in the lists (e.g. swipe to delete, pull to read the list again).

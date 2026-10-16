@@ -259,9 +259,18 @@ const categories = z
       .describe(
         "Field naming a category's parent category (by slug), in its term page's front matter or its data file entry. Categories without it are top-level.",
       ),
+    url_pattern: z
+      .string()
+      .optional()
+      .refine((p) => p === undefined || (p.startsWith("/") && (p.includes("{slug}") || p.includes("{path}"))), {
+        message: "must start with / and contain {slug} or {path}",
+      })
+      .describe(
+        "If set, new categories get a `url` field following this pattern, e.g. `/category/{path}/`. Placeholders: `{slug}`, `{path}` (the slugs from the top-level category down to this one, joined with /). Leave unset if the site's permalinks are enough.",
+      ),
   })
   .strict()
-  .describe("Categories.");
+  .describe("Categories. With `term-pages`, they can be added and deleted in the app.");
 
 const preview = z
   .object({

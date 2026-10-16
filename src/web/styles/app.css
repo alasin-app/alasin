@@ -1885,3 +1885,17 @@ img {
   color: rgba(255, 255, 255, 0.8);
 }
 
+.add-category {
+  align-self: flex-start;
+}
+
+.video-form select {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--radius-cell);
+  background: var(--cell-bg);
+  color: var(--label);
+  font: inherit;
+}
+
