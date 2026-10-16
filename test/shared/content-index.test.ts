@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { buildIndex, changedPaths, plainText } from "../../src/web/lib/content-index";
+import { buildIndex, changedPaths, imagesIn, mediaUsage, plainText } from "../../src/web/lib/content-index";
 
 const folders = { posts: "content/posts", pages: "content/pages", drafts: "drafts", archive: "archive", bin: "bin" };
-const site = { folders, authorField: "author" };
+const site = { folders, authorField: "author", media: { publicUrl: "https://media.example.com/", contentPrefix: "/img/", browse: [""], byMonth: true } };
 
 const file = (name: string, text: string, oid = "a".repeat(40)) => ({ name, type: "blob", object: { oid, text, isBinary: false, isTruncated: false } });
 const dir = (name: string, entries: unknown[]) => ({ name, type: "tree", object: { entries } });
@@ -81,5 +81,32 @@ describe("valueCounts", () => {
       { value: "b", count: 2 },
       { value: "a", count: 1 },
     ]);
+  });
+});
+
+describe("media usage", () => {
+  it("finds the images a file refers to, by content prefix or public URL", () => {
+    const text = `---\nimage: /img/2026/10/01/cover.jpg\n---\n![](/img/2026/10/02/a%C3%A4.jpg) <img src="https://media.example.com/2025/01/01/b-960.webp">\n{{< figure src="/img/2026/10/03/c.PNG" >}} /img/notes.txt /other/x.jpg`;
+    expect(imagesIn(text, site)).toEqual(["2026/10/01/cover.jpg", "2026/10/02/aä.jpg", "2025/01/01/b-960.webp", "2026/10/03/c.PNG"]);
+  });
+
+  it("counts an image as used through its variants and from any file, section pages included", () => {
+    const index = buildIndex(
+      {
+        data: {
+          repository: {
+            ref: { target: { oid: "c".repeat(40) } },
+            posts: { entries: [file("_index.md", "![](/img/2026/01/01/section.jpg)"), file("p.md", "---\ntitle: P\n---\n![](/img/2026/01/01/b-480.webp) /img/2026/01/01/route-66.jpg")] },
+            pages: { entries: [] },
+            drafts: null,
+            archive: null,
+            bin: null,
+          },
+        },
+      },
+      site,
+    );
+    const used = mediaUsage(index);
+    expect(["section.jpg", "b.jpg", "route-66.jpg", "route.jpg", "orphan.jpg"].map((n) => used(`2026/01/01/${n}`))).toEqual([true, true, true, true, false]);
   });
 });

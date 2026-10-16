@@ -1936,12 +1936,16 @@ img {
 
 
 /* Media library: months, newest first, opened one at a time as needed. */
+.media-filter {
+  margin: 4px var(--gutter-right) 0 var(--gutter);
+}
+
 .media-year {
   margin-top: 20px;
 }
 
-.media-year:first-child {
-  margin-top: 8px;
+.media-filter + .media-year {
+  margin-top: 12px;
 }
 
 .media-month-header {

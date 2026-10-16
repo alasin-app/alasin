@@ -20,7 +20,7 @@ import { t, useLanguage } from "../lib/i18n";
 import { deleteLocalDraft, getLocalDraft, putLocalDraft } from "../lib/local-drafts";
 import { type DraftKind, navigate } from "../lib/router";
 import { ulid } from "../../shared/ulid";
-import { valueCounts } from "../lib/content-index";
+import { mediaUsage, valueCounts } from "../lib/content-index";
 import { useContent } from "../lib/use-content";
 import { TagsInput } from "./TagsInput";
 import { useEditLock } from "../lib/edit-lock";
@@ -180,6 +180,7 @@ export function Editor(props: { me: Me; source: EditSource }) {
   // the tags in use to suggest while typing.
   const { content: siteContent } = useContent(me);
   const publishedItems = useMemo(() => siteContent?.items.filter((i) => i.state === "published") ?? [], [siteContent]);
+  const mediaUsed = useMemo(() => (siteContent ? mediaUsage(siteContent) : null), [siteContent]);
   const knownTags = useMemo(() => valueCounts(siteContent?.items ?? [], (i) => i.tags), [siteContent]);
 
   const uploading = uploads.some((u) => u.state === "processing" || u.state === "uploading");
@@ -1060,6 +1061,7 @@ export function Editor(props: { me: Me; source: EditSource }) {
       <Sheet open={library !== null} onClose={() => setLibrary(null)} title={t("nav.media")} doneLabel={t("common.cancel")}>
         <MediaLibrary
           site={state.site}
+          used={mediaUsed}
           selected={library ?? []}
           onToggle={(key) => setLibrary((l) => (l?.includes(key) ? l.filter((k) => k !== key) : [...(l ?? []), key]))}
         />

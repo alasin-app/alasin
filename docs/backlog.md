@@ -10,10 +10,11 @@ Format: a short title, then a few lines on what and why. Add a date if it helps.
 - **Theme-styled preview** — preview a post with the site's own styles, and link to the hosting's preview build where there is one.
 - **Swipe actions and pull to refresh** — the iOS gestures in the lists (e.g. swipe to delete, pull to read the list again).
 - **Offline editing** — keep working without a connection beyond the local autosave, and save when back online.
+- **Manage media** — edit an image's description (used as the image title in posts). For orphaned images: select several and *Delete*, moving them to a Bin first rather than deleting at once. This changes the earlier rule that Alasin never deletes from the public media bucket.
 
 ## Decided against
 
 Ideas that were considered and left out, so they aren't proposed again without a new reason.
 
-- **Maintenance of the site and its media bucket** (e.g. reports or cleanup of images no post uses) — not in the scope of Alasin. Alasin never deletes from the public media bucket.
+- **Maintenance of the site repository** (e.g. reports or cleanup of the site's own files) — not in the scope of Alasin. Media is the exception: see *Manage media* above.
 - **A list of allowed users in the configuration** — who can log in is managed only through the site repository's collaborators on GitHub.

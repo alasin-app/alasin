@@ -45,7 +45,17 @@ async function monthImages(prefix: string): Promise<LibraryImage[]> {
   return groupImages(keys);
 }
 
-function Month(props: { site: SiteSettings; prefix: string; initiallyOpen: boolean; selected?: string[]; onToggle?: (key: string) => void }) {
+type Filter = "all" | "used" | "orphaned";
+
+function Month(props: {
+  site: SiteSettings;
+  prefix: string;
+  initiallyOpen: boolean;
+  filter: Filter;
+  used: ((key: string) => boolean) | null;
+  selected?: string[];
+  onToggle?: (key: string) => void;
+}) {
   const [open, setOpen] = useState(props.initiallyOpen);
   const [images, setImages] = useState<LibraryImage[] | null>(null);
   const [failed, setFailed] = useState(false);
@@ -56,6 +66,8 @@ function Month(props: { site: SiteSettings; prefix: string; initiallyOpen: boole
   }, [open, failed]);
   const url = (key: string) => props.site.media.publicUrl + key;
   const label = monthLabel(props.prefix);
+  const { used, filter } = props;
+  const shown = images && used && filter !== "all" ? images.filter((img) => used(img.key) === (filter === "used")) : images;
 
   return (
     <section class="media-month">
@@ -63,7 +75,7 @@ function Month(props: { site: SiteSettings; prefix: string; initiallyOpen: boole
         <button type="button" class="btn-plain" aria-expanded={open} onClick={() => setOpen(!open)}>
           {open ? <ChevronDown size={18} aria-hidden="true" /> : <ChevronRight size={18} aria-hidden="true" />}
           {label}
-          {images && <span class="secondary media-count">{images.length}</span>}
+          {images && shown && <span class="secondary media-count">{shown === images ? images.length : t("media.countOf", { n: String(shown.length), total: String(images.length) })}</span>}
         </button>
       </h3>
       {open &&
@@ -74,15 +86,17 @@ function Month(props: { site: SiteSettings; prefix: string; initiallyOpen: boole
               {t("photos.retry")}
             </button>
           </p>
-        ) : !images ? (
+        ) : !images || !shown ? (
           <div class="media-loading" role="status" aria-label={t("app.loading")}>
             <span class="spinner" aria-hidden="true" />
           </div>
         ) : images.length === 0 ? (
           <p class="secondary list-note">{t("media.emptyMonth")}</p>
+        ) : shown.length === 0 ? (
+          <p class="secondary list-note">{t(filter === "used" ? "media.noneUsed" : "media.noneOrphaned")}</p>
         ) : (
           <div class="image-grid">
-            {images.map((img) => {
+            {shown.map((img) => {
               const thumb = <img src={url(img.thumb)} alt="" loading="lazy" decoding="async" />;
               if (!props.onToggle) {
                 return (
@@ -107,10 +121,12 @@ function Month(props: { site: SiteSettings; prefix: string; initiallyOpen: boole
 
 /**
  * The month list. With `onToggle`, tapping an image selects it (in the order
- * tapped, in `selected`); without, it opens the image.
+ * tapped, in `selected`); without, it opens the image. `used` tells which
+ * images posts and pages use (null until the content is read), for the filter.
  */
-export function MediaLibrary(props: { site: SiteSettings; selected?: string[]; onToggle?: (key: string) => void }) {
+export function MediaLibrary(props: { site: SiteSettings; used: ((key: string) => boolean) | null; selected?: string[]; onToggle?: (key: string) => void }) {
   useLanguage();
+  const [filter, setFilter] = useState<Filter>("all");
   const { browse, byMonth } = props.site.media;
   /** Year folders whose months aren't listed yet, newest first. */
   const [years, setYears] = useState<string[] | null>(null);
@@ -182,6 +198,13 @@ export function MediaLibrary(props: { site: SiteSettings; selected?: string[]; o
   }
   return (
     <div class="media-library">
+      <div class="media-filter segmented segmented-small" role="radiogroup" aria-label={t("media.filter")}>
+        {(["all", "used", "orphaned"] as const).map((f) => (
+          <button type="button" role="radio" aria-checked={filter === f} class={filter === f ? "selected" : ""} disabled={f !== "all" && !props.used} onClick={() => setFilter(f)}>
+            {t(`media.filter.${f}`)}
+          </button>
+        ))}
+      </div>
       {months.map((m, i) => {
         // A year heading wherever the year changes.
         const year = MONTH.exec(m)![1]!;
@@ -189,7 +212,7 @@ export function MediaLibrary(props: { site: SiteSettings; selected?: string[]; o
         return (
           <Fragment key={m}>
             {newYear && <h2 class="list-title media-year">{year}</h2>}
-            <Month site={props.site} prefix={m} initiallyOpen={i === 0} selected={props.selected} onToggle={props.onToggle} />
+            <Month site={props.site} prefix={m} initiallyOpen={i === 0} filter={filter} used={props.used} selected={props.selected} onToggle={props.onToggle} />
           </Fragment>
         );
       })}
