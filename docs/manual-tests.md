@@ -183,7 +183,7 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 4.23 | Access from the repository | A GitHub user with write access to the site repository can log in, one with read access or none gets "isn't allowed"; *Users* lists the repository's writers |
 | 4.24 | Removed on GitHub | Remove a logged-in user from the repository's collaborators (or set *Read*): within about an hour, their next action logs them out |
 | 4.25 | Setup | `npm run setup` asks nothing about users, and removes a `[users]` table from an older `alasin.toml` |
-| 4.26 | My posts on Home | Below *My drafts*, *My posts* lists your published posts with the latest dates, 5, 10 or 20 of them (the choice is remembered on the device); a row opens the post |
+| 4.26 | My recent posts on Home | Below *My drafts*, *My recent posts* lists your published posts with the latest dates, 5, 10 or 20 of them (the choice is remembered on the device); a row opens the post |
 
 ### Test runs
 
