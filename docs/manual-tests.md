@@ -176,4 +176,4 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 4.15 | ✅ | |
 | 4.16 | ✅ | The filter buttons should share the line with All / Drafts / Archived, wrapping only when the screen is too narrow (#95). |
 | 4.17 | ✅ | |
-| 4.18 | ⏳ | |
+| 4.18 | ✅ | |
