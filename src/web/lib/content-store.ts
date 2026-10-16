@@ -8,7 +8,7 @@
 // Removed on logout (clearLocalData).
 
 import { api, NetworkError } from "./api";
-import { buildIndex, type ChangedFile, changedPaths, type ContentIndex, type ContentItem, INDEX_VERSION, type IndexSettings, itemFromFile } from "./content-index";
+import { buildIndex, type ChangedFile, changedPaths, type ContentIndex, type ContentItem, imagesIn, INDEX_VERSION, type IndexSettings, itemFromFile } from "./content-index";
 
 const DB = "alasin-content";
 const STORE = "index";
@@ -72,7 +72,11 @@ async function readChanges(current: ContentIndex, head: string, site: IndexSetti
   if (files.length >= COMPARE_LIMIT) return null;
   const { remove, read } = changedPaths(files, site.folders);
   const items = new Map<string, ContentItem>(current.items.map((i) => [i.path, i]));
-  for (const p of [...remove, ...read]) items.delete(p);
+  const media = { ...current.media };
+  for (const p of [...remove, ...read]) {
+    items.delete(p);
+    delete media[p];
+  }
   for (let i = 0; i < read.length; i += BATCH) {
     const paths = read.slice(i, i + BATCH);
     const res = await api<{ data?: { repository?: Record<string, { oid?: string; text?: string | null } | null> } }>("/api/content/files", {
@@ -84,9 +88,11 @@ async function readChanges(current: ContentIndex, head: string, site: IndexSetti
       if (!blob?.oid || typeof blob.text !== "string") return;
       const it = itemFromFile(path, blob.oid, blob.text, site);
       if (it) items.set(path, it);
+      const images = imagesIn(blob.text, site);
+      if (images.length) media[path] = images;
     });
   }
-  return { version: INDEX_VERSION, commit: head, items: [...items.values()] };
+  return { version: INDEX_VERSION, commit: head, items: [...items.values()], media };
 }
 
 export interface LoadedContent extends ContentIndex {

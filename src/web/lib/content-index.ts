@@ -43,19 +43,21 @@ export interface ContentItem {
 }
 
 /** Changes when the index gains fields, so older kept copies are read again. */
-export const INDEX_VERSION = 2;
+export const INDEX_VERSION = 3;
 
 export interface ContentIndex {
   version?: number;
   /** Head commit of the branch the index was read from. */
   commit: string;
   items: ContentItem[];
+  /** The published images (MEDIA keys) each file refers to, section pages included; files with none are left out. */
+  media?: Record<string, string[]>;
 }
 
 type Entry = { name: string; type: string; object: { oid?: string; text?: string | null; isBinary?: boolean; entries?: Entry[] } | null };
 type Folders = SiteSettings["folders"];
 /** What reading the files needs to know about the site. */
-export type IndexSettings = Pick<SiteSettings, "folders" | "authorField">;
+export type IndexSettings = Pick<SiteSettings, "folders" | "authorField" | "media">;
 
 /** The files of a folder tree, with paths relative to it. */
 function files(entries: Entry[] | undefined, prefix = ""): { rel: string; sha: string; text: string }[] {
@@ -101,6 +103,26 @@ export function plainText(body: string): string {
 
 const str = (v: unknown) => (typeof v === "string" ? v : v instanceof Date ? v.toISOString() : v == null ? "" : String(v));
 const list = (v: unknown) => (Array.isArray(v) ? v.map(String) : typeof v === "string" && v ? [v] : []);
+
+const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** The MEDIA keys a file refers to: anything after the content prefix or the public URL that looks like an image. */
+export function imagesIn(text: string, site: Pick<SiteSettings, "media">): string[] {
+  const { contentPrefix, publicUrl } = site.media;
+  const starts = [...new Set([contentPrefix, publicUrl].filter(Boolean))].map(escape).join("|");
+  if (!starts) return [];
+  const keys = new Set<string>();
+  for (const m of text.matchAll(new RegExp(`(?:${starts})([^\\s"'()<>\\]]+?\\.(?:jpe?g|png|webp|gif|avif))(?![A-Za-z0-9])`, "gi"))) {
+    let key = m[1]!;
+    try {
+      key = decodeURI(key);
+    } catch {
+      // Not valid percent-encoding: kept as written.
+    }
+    keys.add(key);
+  }
+  return [...keys];
+}
 
 /** The list entry for one file, or null if it isn't a post or page. */
 export function itemFromFile(path: string, sha: string, text: string, site: IndexSettings): ContentItem | null {
@@ -150,6 +172,7 @@ export function buildIndex(response: unknown, site: IndexSettings): ContentIndex
   const commit = (repo?.ref as { target?: { oid?: string } } | null | undefined)?.target?.oid;
   if (!repo || !commit) throw new Error(r.errors?.[0]?.message ?? "The site's content couldn't be read.");
   const items: ContentItem[] = [];
+  const media: Record<string, string[]> = {};
   const seen = new Set<string>();
   for (const key of ["posts", "pages", "drafts", "archive", "bin"] as const) {
     const dir = folders[key];
@@ -157,12 +180,14 @@ export function buildIndex(response: unknown, site: IndexSettings): ContentIndex
       const path = `${dir}/${f.rel}`;
       if (seen.has(path)) continue;
       seen.add(path);
+      const images = imagesIn(f.text, site);
+      if (images.length) media[path] = images;
       // Section list pages (_index.md) aren't posts or pages of their own.
       const it = itemFromFile(path, f.sha, f.text, site);
       if (it) items.push(it);
     }
   }
-  return { version: INDEX_VERSION, commit, items };
+  return { version: INDEX_VERSION, commit, items, media };
 }
 
 /** A file changed between two commits, as GitHub's compare lists it. */
@@ -197,4 +222,23 @@ export function valueCounts(items: ContentItem[], pick: (i: ContentItem) => stri
     for (const x of new Set(Array.isArray(v) ? v : [v])) if (x) counts.set(x, (counts.get(x) ?? 0) + 1);
   }
   return [...counts].map(([value, count]) => ({ value, count })).sort((a, b) => b.count - a.count || a.value.localeCompare(b.value));
+}
+
+const stemOf = (key: string) => key.replace(/\.[A-Za-z0-9]+$/, "");
+
+/**
+ * Whether an image is used by any post or page (any state, the Bin included,
+ * since those can come back). A reference to one of its size variants counts;
+ * when unsure (a name that ends in a number), it counts as used.
+ */
+export function mediaUsage(index: ContentIndex): (key: string) => boolean {
+  const stems = new Set<string>();
+  for (const keys of Object.values(index.media ?? {})) {
+    for (const key of keys) {
+      const stem = stemOf(key);
+      stems.add(stem);
+      stems.add(stem.replace(/-\d{2,5}$/, ""));
+    }
+  }
+  return (key) => stems.has(stemOf(key));
 }

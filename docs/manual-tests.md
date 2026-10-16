@@ -235,6 +235,8 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 5.9 | Pick from the library | In a post or page, the photo button → *From media library* → tap two photos (checked, in the order tapped) → *Add 2 photos*: a gallery of their existing addresses at the cursor; one photo → a single image; nothing is copied or uploaded |
 | 5.10 | Pick from this device | The photo button → *From this device*: the photo picker of iOS (Photos, camera, files) or the computer's file dialog, as before |
 | 5.11 | Reuse and publish | Publish a post that uses a library photo: it shows on the site, and the photo isn't copied again in `MEDIA` |
+| 5.12 | Used and orphaned | *Media* → *Used* / *Orphaned*: an open month shows only the photos posts and pages use (or don't), with "N of M" next to the month; a photo used only in a section page, a draft, the archive or the Bin, or only through one of its sizes, counts as used; *All* shows everything again |
+| 5.13 | Usage stays current | Add a library photo to a post and save: after the list updates, the photo moves from *Orphaned* to *Used* |
 
 ### Test runs
 
