@@ -67,7 +67,7 @@ Starting from a state where everything in [PREREQUISITES.md](PREREQUISITES.md) i
 
 ### Creating the GitHub App manually
 
-Alasin logs users in with a **GitHub App** installed only on the site repository: it's used for login, for commits made with each user's own short-lived token, and for the daily cleanup's read-only token. Unlike an OAuth App, it can be limited to one repository and to exactly the permissions Alasin needs.
+Alasin logs users in with a **GitHub App** installed only on the site repository (the app itself is public, so that every listed user can sign in): it's used for login, for commits made with each user's own short-lived token, and for the daily cleanup's read-only token. Unlike an OAuth App, it can be limited to one repository and to exactly the permissions Alasin needs.
 
 `npm run setup` normally creates it. If that isn't possible, create it under **Settings → Developer settings → GitHub Apps → New GitHub App** (for an organisation: the organisation's **Settings → Developer settings**):
 
@@ -78,7 +78,7 @@ Alasin logs users in with a **GitHub App** installed only on the site repository
 - **Request user authorization (OAuth) during installation:** off.
 - **Webhook:** uncheck **Active**.
 - **Repository permissions:** **Contents: Read and write**, **Metadata: Read-only**. Nothing else.
-- **Where can this GitHub App be installed?** **Only on this account**.
+- **Where can this GitHub App be installed?** **Any account**. With *Only on this account*, GitHub shows everyone except the app's owner a 404 page instead of the sign-in, so nobody else could log in. Making it public is safe: Alasin lets in only the users listed in `[users]` (anyone else's sign-in is refused and their token revoked), and the app can reach only the repositories it's installed on — install it only on the site repository.
 
 Create it, then:
 
