@@ -138,13 +138,13 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 4.2 | Posts list | *Posts*: every post, grouped by year and month, newest first; the current year open, other years open and close; drafts marked; categories by name |
 | 4.3 | Pages list | *Pages*: every page, by title |
 | 4.4 | Search | Type part of a word from a title or from the text, with or without ä/ö/å, or with a small typo: matching posts appear as you type, title matches first, with the matching words highlighted |
-| 4.5 | Filters | *Drafts* and *Archived* show only those; choosing one or more categories from the tree shows the posts in any of them or in a category below them; filters and search combine |
+| 4.5 | Filters | *Drafts* and *Archived* show only those; choosing one or more categories from the tree shows the posts that have any of exactly those categories (not the categories below them); filters and search combine |
 | 4.6 | Up to date | Edit a post on GitHub, then open the list again: the change is there (the list is read again only when the repository changed) |
 | 4.7 | Drafts section | *Drafts* lists drafts saved by Alasin, posts and pages marked `draft: true` in the content folders, and drafts only on this device |
 | 4.8 | Quick lists | Opening Posts, Pages or Drafts again shows the list at once; after a change on GitHub the list updates within seconds without reading everything again |
-| 4.9 | Authors | Rows show the author (an older author name listed in a user's `aliases` shows that user's avatar) and the full name of who last changed the file, and when; new posts get the user's full name as author, from their GitHub profile; other users' posts show their avatars too, with only `login` and `id` in `[users]` |
+| 4.9 | Authors | Rows show the author (with an avatar for users of the app, as text for others) and the full name of who last changed the file, and when; new posts get the user's full name as author, from their GitHub profile |
 | 4.10 | Edit a published post | Open a post from *Posts*, change the text → *Save*: the commit changes only the edited lines and `lastmod`; editing a title or tag changes only that line of the front matter |
-| 4.11 | Address or date changed | Change a published post's address (slug) or date → *Save*: the `url` field follows (with `[site] post_url` set) |
+| 4.11 | Address or date changed | Change a published post's address (slug) or date → *Save*: the file is renamed (and moved to another year folder) to match, and the `url` field follows (with `[site] post_url` set) |
 | 4.12 | Photos in a published post | Add a photo to a published post → *Save*: it is copied to the media bucket under the post's date and the text refers to it with the site's image prefix |
 | 4.13 | Published elsewhere | Device A: change a saved draft without saving. Device B: publish it. Device A: *Drafts* shows it as "published or deleted elsewhere"; opening it offers *Use my changes in the published post* (opens the post with the changes, unsaved) or *Discard my changes* |
 | 4.14 | Unsaved edits listed | Change a published post without saving and leave: *Drafts* lists it under "Unsaved changes to published posts" |
@@ -160,14 +160,14 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 4.2 | ✅ | The author should show too (author names from the old blog need mapping to GitHub users). Loading felt slow. |
 | 4.3 | ✅ | |
 | 4.4 | ✅ | |
-| 4.5 | ❌ → ⏳ | The category filter allowed only one category; now several, including the categories below them (#85). |
+| 4.5 | ❌ → ⏳ | The category filter allowed only one category; now several (#85). Choosing a category also showed the categories below it; it should match exactly (#92). |
 | 4.6 | ✅ | |
-| 4.7 | ⏳ | |
-| 4.8 | ⏳ | |
-| 4.9 | ⏳ | |
-| 4.10 | ⏳ | |
-| 4.11 | ⏳ | |
-| 4.12 | ⏳ | |
-| 4.13 | ⏳ | Reported: such a draft was listed as a draft on device A; fixed in #90. |
-| 4.14 | ⏳ | |
-| 4.15 | ⏳ | |
+| 4.7 | ✅ | |
+| 4.8 | ✅ | Faster. The first load still takes a while, and will grow with the number of posts: keep an eye on it. |
+| 4.9 | ✅ | Authors show, also those who aren't users of the app. |
+| 4.10 | ✅ | |
+| 4.11 | ❌ → ⏳ | Slug and `url` changed, but the file kept its old name; the file is now renamed to match (#92). |
+| 4.12 | ✅ | |
+| 4.13 | ❌ → ⏳ | Reported: such a draft was listed as a draft on device A (#90). Then: no warning that the copy existed only on this device and that a published post already has its address, and no way to discard it (#92). |
+| 4.14 | ✅ | |
+| 4.15 | ✅ | |

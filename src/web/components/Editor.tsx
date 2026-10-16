@@ -20,6 +20,8 @@ import { t, useLanguage } from "../lib/i18n";
 import { deleteLocalDraft, getLocalDraft, putLocalDraft } from "../lib/local-drafts";
 import { type DraftKind, navigate } from "../lib/router";
 import { ulid } from "../../shared/ulid";
+import { cachedContent } from "../lib/content-store";
+import type { ContentItem } from "../lib/content-index";
 import { loadSite, type SiteSettings } from "../lib/site";
 import { ActionSheet, Sheet } from "./Sheet";
 
@@ -152,6 +154,12 @@ export function Editor(props: { me: Me; source: EditSource }) {
   const [markdownError, setMarkdownError] = useState(false);
 
   useVisibleTop();
+
+  /** Published posts and pages as last listed on this device, to warn about addresses already in use. */
+  const [publishedItems, setPublishedItems] = useState<ContentItem[]>([]);
+  useEffect(() => {
+    void cachedContent(me.user.id).then((c) => setPublishedItems(c?.items.filter((i) => i.state === "published") ?? []));
+  }, []);
 
   const uploading = uploads.some((u) => u.state === "processing" || u.state === "uploading");
   const [draftImages, setDraftImages] = useState<{ file: string; url: string; thumb: string }[] | null>(null);
@@ -343,7 +351,7 @@ export function Editor(props: { me: Me; source: EditSource }) {
       } else {
         // The address or date changed: the url field follows (if the site keeps one).
         const before = state.doc.raw ? (JSON.parse(state.doc.raw.formFields) as DraftForm) : null;
-        const res = await api<{ sha: string; content: string }>("/api/content/file", {
+        const res = await api<{ sha: string; content: string; path: string }>("/api/content/file", {
           method: "PUT",
           body: {
             path: source.path,
@@ -357,6 +365,14 @@ export function Editor(props: { me: Me; source: EditSource }) {
         // The Worker sets lastmod and turns new photos' addresses into public ones.
         sha = res.sha;
         saved = res.content;
+        if (res.path !== source.path) {
+          // Renamed to match the new address or date: continue editing it there.
+          await deleteLocalDraft(me.user.id, type, localId);
+          await putLocalDraft({ uid: me.user.id, type, id: `file:${res.path}`, content: saved, baseSha: sha, savedContent: saved });
+          setStatus("saved");
+          navigate({ name: "file", path: res.path }, { replace: true });
+          return sha;
+        }
       }
       setState((s) => {
         if (!s) return s;
@@ -379,7 +395,7 @@ export function Editor(props: { me: Me; source: EditSource }) {
       return sha;
     } catch (err) {
       setStatus("error");
-      if (err instanceof ApiError && err.status === 409) setConflict(true);
+      if (err instanceof ApiError && err.status === 409 && err.code !== "exists") setConflict(true);
       else if (err instanceof NetworkError) setMessage(t("editor.offline"));
       else setMessage(err instanceof ApiError ? err.message : t("error.generic"));
       return null;
@@ -564,6 +580,8 @@ export function Editor(props: { me: Me; source: EditSource }) {
         : savedAt
           ? t("editor.savedAt", { time: savedAt.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }) })
           : t("editor.savedOnGitHub");
+  // A draft whose address a published post or page already has: publishing it would fail.
+  const sameAddress = isDraft && f.slug ? publishedItems.find((i) => i.kind === type && i.slug === f.slug) : undefined;
   const categories = categoryTree(state.site.categories);
   const categoryNode = (slug: string) => categories.find((c) => c.slug === slug);
 
@@ -618,6 +636,23 @@ export function Editor(props: { me: Me; source: EditSource }) {
               <button type="button" class="btn btn-plain btn-small destructive" onClick={() => void save({ overwrite: true })}>
                 {t("editor.keepMine")}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {sameAddress && (
+        <div class="banner banner-error editor-banner" role="alert">
+          <div>
+            <p>{t(state.savedContent === null ? "editor.onlyHereSameAddress" : "editor.sameAddress", { title: sameAddress.title })}</p>
+            <div class="banner-actions">
+              <button type="button" class="btn btn-tinted btn-small" onClick={() => navigate({ name: "file", path: sameAddress.path })}>
+                {t("editor.openPublished")}
+              </button>
+              {state.savedContent === null && (
+                <button type="button" class="btn btn-plain btn-small destructive" onClick={() => void discardMine()}>
+                  {t("editor.discardCopy")}
+                </button>
+              )}
             </div>
           </div>
         </div>

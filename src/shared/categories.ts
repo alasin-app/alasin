@@ -53,14 +53,3 @@ export function categoryTree(categories: Category[]): CategoryNode[] {
   walk(undefined, 0, []);
   return out;
 }
-
-/** The given categories and every category below them. */
-export function withDescendants(categories: Category[], slugs: string[]): Set<string> {
-  const out = new Set(slugs);
-  for (const node of categoryTree(categories)) {
-    // categoryTree puts parents before children, so one pass is enough.
-    const parent = categories.find((c) => c.slug === node.slug)?.parent;
-    if (parent && out.has(parent) && node.depth > 0) out.add(node.slug);
-  }
-  return out;
-}
