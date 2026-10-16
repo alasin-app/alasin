@@ -40,7 +40,10 @@ export interface ContentState {
   updating: boolean;
   /** Reading failed and there is nothing to show. */
   error: boolean;
+  /** Reads everything again. */
   refresh: () => void;
+  /** Brings the list up to date, reading only what changed (e.g. after the app's own commit). */
+  update: () => void;
 }
 
 export function useContent(me: Me): ContentState {
@@ -74,5 +77,5 @@ export function useContent(me: Me): ContentState {
     };
   }, []);
 
-  return { site, content, updating, error, refresh: () => void run(true) };
+  return { site, content, updating, error, refresh: () => void run(true), update: () => void run(false) };
 }

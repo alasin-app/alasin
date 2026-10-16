@@ -12,6 +12,7 @@ import { ContentList } from "./ContentList";
 import { DraftsList } from "./DraftsList";
 import { UsersList } from "./UsersList";
 import { BinList } from "./BinList";
+import { CategoriesManager } from "./CategoriesManager";
 import { Editor } from "./Editor";
 import { settings } from "../lib/settings";
 import { AccountSheet } from "./AccountSheet";
@@ -186,6 +187,8 @@ export function Shell(props: { me: Me; onLogout: () => void }) {
               </ul>
             ) : current === "drafts" ? (
               <DraftsList me={props.me} />
+            ) : current === "categories" ? (
+              <CategoriesManager me={props.me} />
             ) : current === "bin" ? (
               <BinList me={props.me} />
             ) : current === "users" ? (

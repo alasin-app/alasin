@@ -306,6 +306,12 @@ path = "content/categories"
 # shows the categories as a tree. Type: string. Default: "parent".
 parent_field = "parent"
 
+# If set, categories added in the app get a `url` field following this
+# pattern. Placeholders: {slug}, {path} (the slugs from the top-level category
+# down to this one, joined with /). Leave unset if the site's permalinks are
+# enough. Type: string. Optional.
+# url_pattern = "/category/{path}/"
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # [preview] — preview styling.

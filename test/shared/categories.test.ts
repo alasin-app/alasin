@@ -29,3 +29,15 @@ describe("categoryTree", () => {
     expect(tree).toHaveLength(4);
   });
 });
+
+describe("withoutCategory", () => {
+  it("takes one category out, changing only that line", async () => {
+    const { withoutCategory } = await import("../../src/shared/categories");
+    const text = `---\ntitle: 'Trip'\n# kept\ncategories: ["travel", "summer-2015"]\ntags: [a]\n---\n\nText.\n`;
+    expect(withoutCategory(text, "summer-2015")).toBe(text.replace('categories: ["travel", "summer-2015"]', 'categories: ["travel"]'));
+    expect(withoutCategory(text.replace('["travel", "summer-2015"]', '["travel"]'), "travel")).toBe(`---\ntitle: 'Trip'\n# kept\ntags: [a]\n---\n\nText.\n`);
+    expect(withoutCategory(text, "dogs")).toBeNull();
+    const toml = `+++\ntitle = "T"\ncategories = [\n  "a",\n  "b",\n]\n+++\nBody\n`;
+    expect(withoutCategory(toml, "a")).toBe(`+++\ntitle = "T"\ncategories = [ "b" ]\n+++\nBody\n`);
+  });
+});
