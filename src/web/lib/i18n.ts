@@ -7,6 +7,8 @@ import { useEffect, useState } from "preact/hooks";
 
 const en = {
   "app.loading": "Loading…",
+  "app.newVersion": "A new version of Alasin is available. Unsaved text stays on this device.",
+  "app.reload": "Reload",
   "login.title": "Sign in",
   "login.subtitle": "Write and publish to your Hugo site from any device.",
   "login.button": "Sign in with GitHub",
@@ -194,6 +196,8 @@ type Messages = Record<MessageKey, string>;
 
 const fi: Messages = {
   "app.loading": "Ladataan…",
+  "app.newVersion": "Alasinista on uusi versio. Tallentamaton teksti säilyy tällä laitteella.",
+  "app.reload": "Lataa uudelleen",
   "login.title": "Kirjaudu",
   "login.subtitle": "Kirjoita ja julkaise Hugo-sivustollesi millä tahansa laitteella.",
   "login.button": "Kirjaudu GitHubilla",
