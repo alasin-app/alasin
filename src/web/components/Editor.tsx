@@ -20,11 +20,12 @@ import { t, useLanguage } from "../lib/i18n";
 import { deleteLocalDraft, getLocalDraft, putLocalDraft } from "../lib/local-drafts";
 import { type DraftKind, navigate } from "../lib/router";
 import { ulid } from "../../shared/ulid";
-import { valueCounts } from "../lib/content-index";
+import { mediaUsage, valueCounts } from "../lib/content-index";
 import { useContent } from "../lib/use-content";
 import { TagsInput } from "./TagsInput";
 import { useEditLock } from "../lib/edit-lock";
 import { loadSite, type SiteSettings } from "../lib/site";
+import { MediaLibrary } from "./MediaLibrary";
 import { ActionSheet, Sheet } from "./Sheet";
 
 /** What is being edited: a draft, or a published post or page by its repository path. */
@@ -163,6 +164,9 @@ export function Editor(props: { me: Me; source: EditSource }) {
   const [videoError, setVideoError] = useState(false);
   const [uploads, setUploads] = useState<Upload[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [photoMenu, setPhotoMenu] = useState(false);
+  /** The media library sheet: the images picked, in the order picked. */
+  const [library, setLibrary] = useState<string[] | null>(null);
   const editorRef = useRef<MarkdownEditor | null>(null);
   const [mode, setMode] = useState<"rich" | "markdown">("rich");
   /** The whole file as text while in Markdown mode. */
@@ -176,6 +180,7 @@ export function Editor(props: { me: Me; source: EditSource }) {
   // the tags in use to suggest while typing.
   const { content: siteContent } = useContent(me);
   const publishedItems = useMemo(() => siteContent?.items.filter((i) => i.state === "published") ?? [], [siteContent]);
+  const mediaUsed = useMemo(() => (siteContent ? mediaUsage(siteContent) : null), [siteContent]);
   const knownTags = useMemo(() => valueCounts(siteContent?.items ?? [], (i) => i.tags), [siteContent]);
 
   const uploading = uploads.some((u) => u.state === "processing" || u.state === "uploading");
@@ -295,6 +300,18 @@ export function Editor(props: { me: Me; source: EditSource }) {
     } catch (err) {
       patchUpload(u.token, { state: "error", error: photoMessage(err) });
     }
+  };
+
+  /** Published images reused as they are: no copy, the same address. */
+  const addFromLibrary = (keys: string[]) => {
+    setLibrary(null);
+    if (!state || !keys.length) return;
+    const md = photosMarkdown(
+      keys.map((k) => state.site.media.contentPrefix + k),
+      state.site.gallery,
+    );
+    if (editorRef.current) editorRef.current.insertBlock(md);
+    else updateForm((f) => ({ body: `${f.body.replace(/\s+$/, "")}\n\n${md}\n` }));
   };
 
   const removeUpload = (token: string) => {
@@ -890,7 +907,7 @@ export function Editor(props: { me: Me; source: EditSource }) {
           <button type="button" onClick={() => format("quote")} aria-label={t("editor.quote")}>
             <Quote size={20} aria-hidden="true" />
           </button>
-          <button type="button" onClick={() => fileRef.current?.click()} aria-label={t("photos.add")}>
+          <button type="button" onClick={() => setPhotoMenu(true)} aria-label={t("photos.add")}>
             <ImagePlus size={20} aria-hidden="true" />
           </button>
           <button type="button" onClick={openVideo} aria-label={t("editor.video")}>
@@ -1029,6 +1046,31 @@ export function Editor(props: { me: Me; source: EditSource }) {
         ]}
         cancelLabel={t("common.cancel")}
       />
+
+      <ActionSheet
+        open={photoMenu}
+        onClose={() => setPhotoMenu(false)}
+        title={t("photos.add")}
+        actions={[
+          { label: t("photos.fromDevice"), onSelect: () => fileRef.current?.click() },
+          { label: t("photos.fromLibrary"), onSelect: () => setLibrary([]) },
+        ]}
+        cancelLabel={t("common.cancel")}
+      />
+
+      <Sheet open={library !== null} onClose={() => setLibrary(null)} title={t("nav.media")} doneLabel={t("common.cancel")}>
+        <MediaLibrary
+          site={state.site}
+          used={mediaUsed}
+          selected={library ?? []}
+          onToggle={(key) => setLibrary((l) => (l?.includes(key) ? l.filter((k) => k !== key) : [...(l ?? []), key]))}
+        />
+        <div class="sheet-actions">
+          <button type="button" class="btn btn-filled" disabled={!library?.length} onClick={() => addFromLibrary(library ?? [])}>
+            {library && library.length > 1 ? t("photos.addCount", { n: String(library.length) }) : t("photos.addOne")}
+          </button>
+        </div>
+      </Sheet>
 
       <Sheet open={coverOpen} onClose={() => setCoverOpen(false)} title={t("editor.cover")} doneLabel={t("account.done")}>
         {draftImages === null ? (

@@ -25,6 +25,14 @@ export function BodyEditor(props: {
   onChange.current = props.onChange;
   onFiles.current = props.onFiles;
   /** Value and mode at the time CodeMirror finishes loading. */
+  /**
+   * Texts the editor itself reported while the app's state catches up. Typing
+   * fast, an older one of them can come back as `value` after newer keys were
+   * typed; putting it back would move text past the cursor. Only values that
+   * didn't come from here (photos uploaded, the text tidied on save, the
+   * Markdown mode) are applied.
+   */
+  const emitted = useRef<string[]>([]);
   const latest = useRef({ value: props.value, rich: props.rich, readOnly: props.readOnly ?? false });
   latest.current = { value: props.value, rich: props.rich, readOnly: props.readOnly ?? false };
 
@@ -54,7 +62,12 @@ export function BodyEditor(props: {
         shortcode: t("editor.shortcode"),
       },
       resolveImage,
-      onChange: (text) => onChange.current(text),
+      onChange: (text) => {
+        emitted.current.push(text);
+        // Only the last few keystrokes can still be on their way.
+        if (emitted.current.length > 50) emitted.current.splice(0, emitted.current.length - 50);
+        onChange.current(text);
+      },
     });
     editor.current = ed;
     props.onReady(ed);
@@ -94,7 +107,18 @@ export function BodyEditor(props: {
     };
   }, []);
 
-  useEffect(() => editor.current?.setText(props.value), [props.value]);
+  useEffect(() => {
+    const ed = editor.current;
+    if (!ed) return;
+    const at = emitted.current.lastIndexOf(props.value);
+    if (at !== -1) {
+      // An echo of the editor's own text: nothing to apply. Older echoes can't come any more.
+      emitted.current.splice(0, at + 1);
+      return;
+    }
+    emitted.current = [];
+    ed.setText(props.value);
+  }, [props.value]);
   useEffect(() => editor.current?.setRich(props.rich), [props.rich]);
   useEffect(() => editor.current?.setReadOnly(props.readOnly ?? false), [props.readOnly]);
 

@@ -7,10 +7,12 @@ import type { AppEnv } from "../app";
 import { requireSession } from "../session";
 import { housekeepingDue } from "../../shared/housekeeping";
 import { bin } from "./bin";
+import { categories } from "./categories";
 import { content } from "./content";
 import { drafts } from "./drafts";
 import { lifecycle } from "./lifecycle";
 import { locks } from "./locks";
+import { library } from "./library";
 import { media } from "./media";
 import { site } from "./site";
 import { users } from "./users";
@@ -54,11 +56,13 @@ api.get("/avatar/:id{[0-9]{1,12}}", async (c) => {
 });
 
 api.route("/bin", bin);
+api.route("/categories", categories);
 api.route("/content", content);
 api.route("/drafts", drafts);
 api.route("/lifecycle", lifecycle);
 api.route("/locks", locks);
 api.route("/draft-media", media);
+api.route("/media", library);
 api.route("/site", site);
 api.route("/users", users);
 

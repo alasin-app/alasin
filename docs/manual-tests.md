@@ -73,6 +73,7 @@ Devices: Chrome on macOS (desktop), Chrome on iOS (WebKit, like all iOS browsers
 | 2.17 | Shortcodes | Other shortcodes (e.g. `instagram`) show as protected blocks and stay exactly as written |
 | 2.18 | YouTube video | Video button → paste a YouTube link (watch, youtu.be, shorts) or a bare video ID → `{{< youtube ID >}}` at the cursor, previewed with its thumbnail; anything else is refused with a message. A YouTube link pasted on a line of its own becomes the shortcode too |
 | 2.19 | Category tree | Categories with a parent show indented under it in the picker (siblings by title); choosing a child doesn't add its parent; the chip shows the full path on hover |
+| 2.20 | Fast typing | Type as fast as you can in the text, also in the middle of a paragraph: every character lands in order, before the cursor |
 
 ### Test runs
 
@@ -99,6 +100,7 @@ Devices: Chrome on macOS (desktop), Chrome on iOS (WebKit, like all iOS browsers
 | 2.17 | ✅ | |
 | 2.18 | ✅ | Added after this run (#69); a YouTube link pasted on its own line now becomes the shortcode too (#70). |
 | 2.19 | ✅ | Added after this run; checked later. |
+| 2.20 | ❌ → ✅ | Typing fast pushed some characters past the cursor; fixed (#122). |
 
 Also found during this run: reloading after a new deployment gave a blank page (old script names answered with the app page); fixed with real 404s, a no-store app page and a one-time automatic reload (#55).
 
@@ -180,7 +182,8 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 4.22 | Users | The *Users* section (sidebar; on phones under *More*) lists everyone who can log in with avatar, full name, login and permission on the site repository |
 | 4.23 | Access from the repository | A GitHub user with write access to the site repository can log in, one with read access or none gets "isn't allowed"; *Users* lists the repository's writers |
 | 4.24 | Removed on GitHub | Remove a logged-in user from the repository's collaborators (or set *Read*): within about an hour, their next action logs them out |
-| 4.25 | Setup | `npm run setup` only says that access comes from the repository's collaborators, without questions, and removes a `[users]` table from an older `alasin.toml` |
+| 4.25 | Setup | `npm run setup` asks nothing about users, and removes a `[users]` table from an older `alasin.toml` |
+| 4.26 | My recent posts on Home | Below *My drafts*, *My recent posts* lists your published posts with the latest dates, 5, 10 or 20 of them (the choice is remembered on the device); a row opens the post |
 
 ### Test runs
 
@@ -213,3 +216,44 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 4.23 | ✅ | |
 | 4.24 | ✅ | |
 | 4.25 | ✅ | Works; setup still offered "Limit it further to a list of GitHub users?", which isn't wanted: access is always managed on GitHub. Removed (#109). |
+| 4.26 | ✅ | |
+
+## Milestone 5 — categories and media
+
+### Checklist
+
+| # | Check | How |
+| --- | --- | --- |
+| 5.1 | Category tree | *Categories* shows the categories as a tree, each with how many posts and pages use it |
+| 5.2 | Add a category | *Add category* (or a category → *Add a subcategory*): name, address (follows the name), parent → a new term page in one commit, with `url` from `[categories] url_pattern` if set; it appears in the tree and in the editor's category picker |
+| 5.3 | Delete an unused category | A category with no posts → *Delete* → confirm: its term page is removed |
+| 5.4 | Delete a used category | A used category → *Delete*: the warning names how many posts and pages use it; *Remove from N and delete* takes it out of all of them and removes the term page in one commit; other categories of those posts stay |
+| 5.5 | Subcategories | A category with subcategories offers no *Delete*, and says to delete those first |
+| 5.6 | Media by month | *Media* lists months as "Month YYYY" under a heading for each year, newest first, the newest open; each image once (no size variants), with a small thumbnail; tapping one opens the full image |
+| 5.7 | Loads as needed | Scrolling down lists older years' months, each with its photo count (also *N of M* with *Used* or *Orphaned*) while still closed; thumbnails load only when a month is opened |
+| 5.8 | No adding in Media | *Media* has no way to add photos, only a note that photos are added from a post or page |
+| 5.9 | Pick from the library | In a post or page, the photo button → *From media library* → tap two photos (checked, in the order tapped) → *Add 2 photos*: a gallery of their existing addresses at the cursor; one photo → a single image; nothing is copied or uploaded |
+| 5.10 | Pick from this device | The photo button → *From this device*: the photo picker of iOS (Photos, camera, files) or the computer's file dialog, as before |
+| 5.11 | Reuse and publish | Publish a post that uses a library photo: it shows on the site, and the photo isn't copied again in `MEDIA` |
+| 5.12 | Used and orphaned | *Media* → *Used* / *Orphaned*: an open month shows only the photos posts and pages use (or don't), with "N of M" next to the month; a photo used only in a section page, a draft, the archive or the Bin, or only through one of its sizes, counts as used; *All* shows everything again |
+| 5.13 | Usage stays current | Add an orphaned library photo to a draft and save it (or to a post and publish): back in *Media*, after a moment the photo moves from *Orphaned* to *Used* and the month's counts change; the same after an edit made outside Alasin. Changes only on this device (not saved) don't count |
+
+### Test runs
+
+#### 2026-10-16 — dev deployment
+
+| # | Result | Notes |
+| --- | --- | --- |
+| 5.1 | ✅ | Accepted as the first version of category management. |
+| 5.2 | ✅ | |
+| 5.3 | ✅ | |
+| 5.4 | ✅ | |
+| 5.5 | ✅ | |
+| 5.6 | ✅ | Asked for year headings between the months; added. |
+| 5.7 | ✅ | |
+| 5.8 | ✅ | |
+| 5.9 | ✅ | |
+| 5.10 | ✅ | |
+| 5.11 | ✅ | |
+| 5.12 | ✅ | |
+| 5.13 | ✅ | First run failed (counts didn't change after adding an orphaned photo to a draft or post); fixed in #131, passed on the second run. |

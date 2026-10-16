@@ -9,6 +9,11 @@ export type { SiteSettings };
 
 let cached: Promise<SiteSettings> | undefined;
 
+/** Reads the site settings again next time (e.g. after categories changed). */
+export function reloadSite(): void {
+  cached = undefined;
+}
+
 export function loadSite(): Promise<SiteSettings> {
   cached ??= api<SiteSettings>("/api/site").catch((err: unknown) => {
     cached = undefined;

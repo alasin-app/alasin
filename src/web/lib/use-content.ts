@@ -40,7 +40,10 @@ export interface ContentState {
   updating: boolean;
   /** Reading failed and there is nothing to show. */
   error: boolean;
+  /** Reads everything again. */
   refresh: () => void;
+  /** Brings the list up to date, reading only what changed (e.g. after the app's own commit). */
+  update: () => void;
 }
 
 export function useContent(me: Me): ContentState {
@@ -65,7 +68,11 @@ export function useContent(me: Me): ContentState {
   };
 
   useEffect(() => {
-    const onChange = () => setUpdating(running !== undefined);
+    // Every section follows the shared list, whichever of them brought it up to date.
+    const onChange = () => {
+      setUpdating(running !== undefined);
+      if (latest) setContent(latest);
+    };
     listeners.add(onChange);
     onChange();
     void run(false);
@@ -74,5 +81,5 @@ export function useContent(me: Me): ContentState {
     };
   }, []);
 
-  return { site, content, updating, error, refresh: () => void run(true) };
+  return { site, content, updating, error, refresh: () => void run(true), update: () => void run(false) };
 }

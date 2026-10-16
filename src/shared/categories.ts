@@ -4,6 +4,8 @@
 // front matter or data file entry, e.g. `parent: "travel"`. Posts list only
 // the categories chosen for them; a child doesn't imply its parent.
 
+import { joinFile, parseFields, setFields, splitFrontMatter } from "./frontmatter";
+
 export interface Category {
   slug: string;
   title: string;
@@ -52,4 +54,19 @@ export function categoryTree(categories: Category[]): CategoryNode[] {
   };
   walk(undefined, 0, []);
   return out;
+}
+
+/**
+ * The file without `slug` among its categories, changing only that front
+ * matter line (the field goes if no category is left); null if it doesn't
+ * have the category.
+ */
+export function withoutCategory(text: string, slug: string): string | null {
+  const split = splitFrontMatter(text);
+  if (!split) return null;
+  const value = parseFields(split.format, split.raw).get("categories");
+  const list = Array.isArray(value) ? value.map(String) : typeof value === "string" && value ? [value] : [];
+  if (!list.includes(slug)) return null;
+  const rest = list.filter((c) => c !== slug);
+  return joinFile(split.format, setFields(split.format, split.raw, [["categories", rest.length ? rest : undefined]]), split.body);
 }

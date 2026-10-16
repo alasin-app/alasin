@@ -172,10 +172,10 @@ The site's existing public image bucket (`MEDIA` binding). Alasin never overwrit
 | Option | Type | Default | Example | Description |
 | --- | --- | --- | --- | --- |
 | `public_url` | string (URL) | **required** | `"https://media.example.com/"` | Public base URL of the `MEDIA` bucket, ending in `/`. Its origin is added to the Content-Security-Policy. |
-| `path_pattern` | string | `"{yyyy}/{mm}/{dd}/{name}.{ext}"` | `"{yyyy}/{mm}/{dd}/{name}.{ext}"` | R2 key pattern for published images. Placeholders: `{yyyy}`, `{mm}`, `{dd}` (from the post date), `{name}` (the original file name, lower-cased and URL-safe; `-2`, `-3`… is added only if that name is already taken), `{ext}` (from the image type). Must match the bucket's existing layout. |
+| `path_pattern` | string | `"{yyyy}/{mm}/{dd}/{name}.{ext}"` | `"{yyyy}/{mm}/{dd}/{name}.{ext}"` | R2 key pattern for published images. Placeholders: `{yyyy}`, `{mm}`, `{dd}` (from the post date), `{name}` (the original file name, lower-cased and URL-safe; `-2`, `-3`… is added only if that name is already taken), `{ext}` (from the image type). Must match the bucket's existing layout. The media library lists images by month when it starts with `{yyyy}/{mm}/`. |
 | `content_prefix` | string | `"/img/"` | `"/img/"` | How Markdown refers to published images: this prefix followed by the R2 key. Use the site's own convention, e.g. `/img/` when a render hook maps it to the media domain, or the full `public_url`. |
 | `cache_control` | string | `"public, max-age=604800"` | `"public, max-age=604800"` | `Cache-Control` header set on images copied to `MEDIA`. |
-| `browse_prefixes` | array of string | `[""]` | `[""]` | Top-level prefixes of `MEDIA` the media browser may list. `""` means the bucket root. |
+| `browse_prefixes` | array of string | `[""]` | `[""]` | Top-level prefixes of `MEDIA` the media library may list. `""` means the bucket root. |
 
 ### `[drafts]`
 
@@ -236,13 +236,14 @@ Editor behaviour.
 
 ### `[categories]`
 
-Categories.
+Categories. With `term-pages`, they can be added and deleted in the app.
 
 | Option | Type | Default | Example | Description |
 | --- | --- | --- | --- | --- |
 | `storage` | one of "term-pages", "data-file", "front-matter" | `"term-pages"` | `"term-pages"` | Where the category list lives: `term-pages` (`<dir>/<slug>/_index.md`), `data-file` (a TOML/YAML file listing them) or `front-matter` (only the values used in posts). |
 | `path` | string | `"content/categories"` | `"content/categories"` | Directory of term pages, or path of the data file. |
 | `parent_field` | string | `"parent"` | `"parent"` | Field naming a category's parent category (by slug), in its term page's front matter or its data file entry. Categories without it are top-level. |
+| `url_pattern` | string | — | — | If set, new categories get a `url` field following this pattern, e.g. `/category/{path}/`. Placeholders: `{slug}`, `{path}` (the slugs from the top-level category down to this one, joined with /). Leave unset if the site's permalinks are enough. |
 
 ### `[preview]`
 
@@ -322,7 +323,7 @@ Secrets are rotated by hand, and Alasin reminds you when it's time. `npm run set
 - **Sessions:** an encrypted, `HttpOnly`, `Secure`, `SameSite=Lax` `__Host-` cookie that refers to a server-side session in KV. Idle and absolute timeouts; logout deletes the session server-side.
 - **Tokens:** GitHub tokens never reach the browser. They are stored encrypted (AES-GCM) in KV and refreshed before expiry.
 - **Browser:** a strict Content-Security-Policy (no inline or third-party scripts, no `eval`; WebAssembly is allowed only for the bundled WebP encoder, needed because iOS browsers can't encode WebP), CSRF protection on every state-changing request, HSTS and other security headers. No analytics or trackers.
-- **Data:** drafts, archived items and the Bin are folders of the site repository (`drafts/`, `archive/`, `bin/`; keep it private), and the app deletes files from the repository only when the Bin is emptied. Images never go into git: draft images are in a private R2 bucket, published images in your public bucket, where the app never overwrites or deletes anything.
+- **Data:** drafts, archived items and the Bin are folders of the site repository (`drafts/`, `archive/`, `bin/`; keep it private). The app deletes posts, pages and drafts from the repository only when the Bin is emptied; the one other deletion is a category's term page, when the category is deleted in *Categories* (after a confirmation that names how many posts use it). Images never go into git: draft images are in a private R2 bucket, published images in your public bucket, where the app never overwrites or deletes anything.
 - **Logs** contain request IDs, routes, status codes and GitHub user IDs only.
 
 **Rotating secrets** (per deployment; add `-- --env dev` for the dev app):

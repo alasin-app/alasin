@@ -458,6 +458,22 @@ img {
     display: none;
   }
 
+  /* So the bar is empty until the page scrolls: it lies over the top of the
+     page instead of above it, and the large title starts at the top, level
+     with the sidebar's header. Scrolled, it shows the small title as usual. */
+  .nav-bar {
+    margin-bottom: calc(-1 * (var(--bar-height) + env(safe-area-inset-top)));
+    pointer-events: none;
+  }
+
+  .nav-bar.collapsed {
+    pointer-events: auto;
+  }
+
+  .large-title {
+    padding-top: calc(env(safe-area-inset-top) + 8px);
+  }
+
   .shell {
     transition: grid-template-columns 0.25s ease;
   }
@@ -1885,3 +1901,91 @@ img {
   color: rgba(255, 255, 255, 0.8);
 }
 
+.add-category {
+  align-self: flex-start;
+}
+
+.video-form select {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--radius-cell);
+  background: var(--cell-bg);
+  color: var(--label);
+  font: inherit;
+}
+
+.my-posts {
+  margin-top: 8px;
+}
+
+.section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-right: var(--gutter-right);
+}
+
+.segmented-small button {
+  min-height: 28px;
+  min-width: 36px;
+  padding: 0 10px;
+  font-size: var(--footnote);
+}
+
+
+/* Media library: months, newest first, opened one at a time as needed. */
+.media-filter {
+  margin: 4px var(--gutter-right) 0 var(--gutter);
+}
+
+.media-year {
+  margin-top: 20px;
+}
+
+.media-filter + .media-year {
+  margin-top: 12px;
+}
+
+.media-month-header {
+  margin: 12px var(--gutter-right) 6px var(--gutter);
+  font-size: var(--headline);
+}
+
+.media-month-header button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  color: var(--label);
+  font: inherit;
+}
+
+.media-count {
+  margin-left: 6px;
+  font-size: var(--footnote);
+  font-weight: 400;
+}
+
+.media-loading,
+.media-end {
+  display: flex;
+  justify-content: center;
+  min-height: 44px;
+  padding: 12px 0;
+}
+
+/* The picker's add button stays at the bottom of the sheet. */
+.sheet-actions {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  padding: 12px var(--gutter-right) 4px var(--gutter);
+  background: linear-gradient(transparent, var(--grouped-bg) 30%);
+}
+
+.sheet-actions .btn {
+  min-width: 200px;
+}

@@ -16,7 +16,7 @@ afterEach(() => {
 });
 
 const folders = { posts: "content/posts", pages: "content/pages", drafts: "drafts", archive: "archive", bin: "bin" };
-const site = { folders, authorField: "author" };
+const site = { folders, authorField: "author", media: { publicUrl: "https://media.example.com/", contentPrefix: "/img/", browse: [""], byMonth: true } };
 
 describe("content", () => {
   it("returns the content folders in one response the browser can index", async () => {

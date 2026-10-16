@@ -3,21 +3,25 @@
 
 import { ChevronRight, Ellipsis, FileText, House, Image, Newspaper, PanelLeftClose, PanelLeftOpen, PenLine, Plus, Tags, Trash2, Users } from "lucide-preact";
 import type { ComponentType } from "preact";
-import { useState } from "preact/hooks";
+import { useMemo, useState } from "preact/hooks";
 import type { Me } from "../lib/api";
 import { type MessageKey, t, useLanguage } from "../lib/i18n";
 import { type DraftKind, hrefFor, linkHandler, navigate, type Section, useRoute } from "../lib/router";
 import { ulid } from "../../shared/ulid";
 import { ContentList } from "./ContentList";
 import { DraftsList } from "./DraftsList";
+import { MediaLibrary } from "./MediaLibrary";
+import { MyPosts } from "./MyPosts";
 import { UsersList } from "./UsersList";
 import { BinList } from "./BinList";
+import { CategoriesManager } from "./CategoriesManager";
 import { Editor } from "./Editor";
 import { settings } from "../lib/settings";
 import { AccountSheet } from "./AccountSheet";
 import { NavBar } from "./NavBar";
 import { buildId, useNewBuild } from "../lib/new-build";
 import { useContent } from "../lib/use-content";
+import { mediaUsage } from "../lib/content-index";
 
 type Icon = ComponentType<{ size?: number; "aria-hidden"?: "true" }>;
 
@@ -76,6 +80,25 @@ function useSidebarCollapsed(): [boolean, () => void] {
     }
   };
   return [collapsed, toggle];
+}
+
+/** Media, with which photos are used brought up to date on opening it. */
+function MediaSection(props: { me: Me }) {
+  const { site, content } = useContent(props.me);
+  const used = useMemo(() => (content ? mediaUsage(content) : null), [content]);
+  if (!site) {
+    return (
+      <div class="empty-state" role="status">
+        <span class="spinner" aria-hidden="true" />
+      </div>
+    );
+  }
+  return (
+    <>
+      <p class="secondary list-note">{t("media.addFromPost")}</p>
+      <MediaLibrary site={site} used={used} />
+    </>
+  );
 }
 
 export function Shell(props: { me: Me; onLogout: () => void }) {
@@ -186,14 +209,19 @@ export function Shell(props: { me: Me; onLogout: () => void }) {
               </ul>
             ) : current === "drafts" ? (
               <DraftsList me={props.me} />
+            ) : current === "categories" ? (
+              <CategoriesManager me={props.me} />
             ) : current === "bin" ? (
               <BinList me={props.me} />
+            ) : current === "media" ? (
+              <MediaSection me={props.me} />
             ) : current === "users" ? (
               <UsersList />
             ) : current === "home" ? (
               <>
                 <h2 class="list-title">{t("home.myDrafts")}</h2>
                 <DraftsList me={props.me} mine />
+                <MyPosts me={props.me} />
               </>
             ) : current === "posts" || current === "pages" ? (
               <ContentList key={current} me={props.me} kind={current === "posts" ? "post" : "page"} />
