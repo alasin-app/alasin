@@ -256,4 +256,4 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 5.10 | ✅ | |
 | 5.11 | ✅ | |
 | 5.12 | ✅ | |
-| 5.13 | ❌ | Counts didn't change after adding an orphaned photo to a draft or post. Fixed in #131; test again. |
+| 5.13 | ✅ | First run failed (counts didn't change after adding an orphaned photo to a draft or post); fixed in #131, passed on the second run. |
