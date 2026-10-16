@@ -214,7 +214,7 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 4.23 | ✅ | |
 | 4.24 | ✅ | |
 | 4.25 | ✅ | Works; setup still offered "Limit it further to a list of GitHub users?", which isn't wanted: access is always managed on GitHub. Removed (#109). |
-| 4.26 | ⏳ | |
+| 4.26 | ✅ | |
 
 ## Milestone 5 — categories and media
 
