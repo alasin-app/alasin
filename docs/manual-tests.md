@@ -39,7 +39,7 @@ Devices: Chrome on macOS (desktop), Chrome on iOS (WebKit, like all iOS browsers
 | 1.3 | ✅ | v0.10.2 → v0.10.3 deployed from the deploy clone. |
 | 1.4 | ✅ | |
 | 1.5 | ✅ | Desktop and iOS. |
-| 1.6 | ❌ → ⏳ | With an account not on the list, GitHub showed its own 404 page instead of the sign-in, so Alasin's message never appeared: the GitHub App was private (*Only on this account*), which GitHub hides from everyone but its owner — so no second user could have logged in at all. The app must be public (*Any account*); setup now creates it so, and the README says why. A listed account worked. |
+| 1.6 | ❌ → ✅ | With an account not on the list, GitHub showed its own 404 page instead of the sign-in, so Alasin's message never appeared: the GitHub App was private (*Only on this account*), which GitHub hides from everyone but its owner — so no second user could have logged in at all. The app must be public (*Any account*); setup now creates it so, and the README says why. A listed account worked. After making the app public, the account not on the list gets Alasin's "isn't allowed" message. |
 | 1.7 | ✅ | |
 | 1.8 | ✅ | Reloading after logout stays on the login page. After confirming, the account sheet reappeared until logout finished, which was confusing; a "Logging out…" screen now shows at once (#46). |
 | 1.9 | ❌ → ✅ | Badge and avatar were repeated above the content in light mode; fixed in #34. |
