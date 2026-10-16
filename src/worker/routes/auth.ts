@@ -12,6 +12,7 @@ import type { AppEnv } from "../app";
 import { isAllowed } from "../config";
 import { clearCookie, OAUTH_COOKIE, readCookie, serializeCookie, SESSION_COOKIE } from "../lib/cookies";
 import { randomToken, safeEqual, sha256Base64Url } from "../lib/crypto";
+import { canWrite, repoPermission } from "../lib/access";
 import { exchangeCode, getAuthenticatedUser, revokeToken } from "../lib/github";
 import { log, logError } from "../lib/log";
 import { createSession, destroySession, readSession } from "../session";
@@ -99,10 +100,12 @@ auth.get("/callback", async (c) => {
     return redirectWithError(c, "github");
   }
 
-  if (!isAllowed(config, user.id)) {
-    log({ rid, event: "login_rejected_not_allowed", uid: user.id });
+  // Who may log in: write access to the site repository (and, if set, the [users] allow list).
+  const permission = isAllowed(config, user.id) ? await repoPermission(tokens.accessToken, config, user.login) : "none";
+  if (!canWrite(permission)) {
+    log({ rid, event: permission === null ? "login_access_unknown" : "login_rejected_not_allowed", uid: user.id });
     c.executionCtx.waitUntil(revokeToken({ ...credentials, accessToken: tokens.accessToken }).catch(() => undefined));
-    return redirectWithError(c, "not_allowed");
+    return redirectWithError(c, permission === null ? "github" : "not_allowed");
   }
 
   // A previous session in this browser is replaced (session fixation).

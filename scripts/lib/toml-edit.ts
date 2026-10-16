@@ -135,6 +135,19 @@ export function setValue(text: string, header: string, key: string, value: TomlV
   return lines.join("\n");
 }
 
+/** Removes `key` (with a multi-line value) from the table `header`, if it's there. Comments stay. */
+export function removeValue(text: string, header: string, key: string): string {
+  const lines = text.split("\n");
+  for (const block of blocks(lines, header)) {
+    const range = findKey(lines, block, key, false);
+    if (range) {
+      lines.splice(range[0], range[1] - range[0]);
+      return lines.join("\n");
+    }
+  }
+  return text;
+}
+
 /** Appends a block of text (e.g. a new [env.dev] section) at the end. */
 export function appendSection(text: string, section: string): string {
   return `${text.replace(/\n*$/, "\n")}\n${section.replace(/\n*$/, "\n")}`;

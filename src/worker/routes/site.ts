@@ -12,6 +12,7 @@ import { parse as parseYaml } from "yaml";
 import type { Category } from "../../shared/categories";
 import { parseFields, splitFrontMatter } from "../../shared/frontmatter";
 import type { AppEnv } from "../app";
+import { members } from "../lib/access";
 import { profileNames } from "../lib/profile-names";
 import { readFolderTexts, Repo } from "../lib/repo";
 import { getUserToken } from "../session";
@@ -76,17 +77,17 @@ site.get("/", async (c) => {
   }
 
   const session = c.get("session");
-  const user = config.users.allow.find((u) => u.id === session.uid);
-  // Full names from GitHub profiles.
-  const names = await profileNames(c.env.KV, token, config.users.allow.map((u) => u.id));
-  const fullName = (u: (typeof config.users.allow)[number]) => names.get(u.id) ?? (u.id === session.uid ? session.name : null);
+  // Who can log in (the list, or the repository's writers), with full names from GitHub profiles.
+  const people = await members(c.env.KV, token, config);
+  const names = await profileNames(c.env.KV, token, [...new Set([session.uid, ...people.map((u) => u.id)])]);
+  const fullName = (u: { id: number }) => names.get(u.id) ?? (u.id === session.uid ? session.name : null);
   return c.json({
     frontMatterFormat: config.site.front_matter_format,
     coverField: config.site.cover_field,
     authorField: config.site.author_field ?? null,
-    author: user ? (fullName(user) ?? user.login) : null,
+    author: fullName({ id: session.uid }) ?? session.login,
     // Which author field values and git author names mean each user, to show them in the lists.
-    users: config.users.allow.map((u) => {
+    users: people.map((u) => {
       const all = [fullName(u), u.login, ...(u.aliases ?? [])].filter((n): n is string => !!n);
       return { login: u.login, id: u.id, names: [...new Set(all)] };
     }),

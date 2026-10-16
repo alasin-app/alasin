@@ -56,3 +56,13 @@ describe("toml-edit", () => {
     expect((parse(out) as { a: { x: string } }).a.x).toBe('quote " and \\ backslash');
   });
 });
+
+describe("removeValue", () => {
+  it("removes a key with a multi-line value from one table, keeping comments and other tables", async () => {
+    const { removeValue } = await import("../../scripts/lib/toml-edit");
+    const text = `[users]\n# who\nallow = [\n  { login = "a", id = 1 },\n  { login = "b", id = 2 },\n]\n\n[env.dev.users]\nallow = [{ login = "c", id = 3 }]\n`;
+    expect(removeValue(text, "[users]", "allow")).toBe(`[users]\n# who\n\n[env.dev.users]\nallow = [{ login = "c", id = 3 }]\n`);
+    expect(removeValue(text, "[env.dev.users]", "allow")).toBe(`[users]\n# who\nallow = [\n  { login = "a", id = 1 },\n  { login = "b", id = 2 },\n]\n\n[env.dev.users]\n`);
+    expect(removeValue(text, "[media]", "allow")).toBe(text);
+  });
+});

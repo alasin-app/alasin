@@ -78,7 +78,7 @@ Alasin logs users in with a **GitHub App** installed only on the site repository
 - **Request user authorization (OAuth) during installation:** off.
 - **Webhook:** uncheck **Active**.
 - **Repository permissions:** **Contents: Read and write**, **Metadata: Read-only**. Nothing else.
-- **Where can this GitHub App be installed?** **Any account**. With *Only on this account*, GitHub shows everyone except the app's owner a 404 page instead of the sign-in, so nobody else could log in. Making it public is safe: Alasin lets in only the users listed in `[users]` (anyone else's sign-in is refused and their token revoked), and the app can reach only the repositories it's installed on — install it only on the site repository.
+- **Where can this GitHub App be installed?** **Any account**. With *Only on this account*, GitHub shows everyone except the app's owner a 404 page instead of the sign-in, so nobody else could log in. Making it public is safe: Alasin lets in only people with write access to the site repository (everyone else's sign-in is refused and their token revoked), and the app can reach only the repositories it's installed on — install it only on the site repository.
 
 Create it, then:
 
@@ -167,11 +167,11 @@ The site repository and the GitHub App used to log in. Secrets go in Worker secr
 
 ### `[users]`
 
-Who may log in.
+Who may log in: everyone with write access to the site repository on GitHub, optionally narrowed to a list.
 
 | Option | Type | Default | Example | Description |
 | --- | --- | --- | --- | --- |
-| `allow` | array of { login, id, aliases } | **required** | `[{"login" = "octocat", "id" = 583231}]` | GitHub users allowed to log in. `npm run setup` resolves usernames to numeric IDs. |
+| `allow` | array of { login, id, aliases } | — | — | Optional. Everyone with write access to the site repository can log in; with this list, only those of them listed here (by numeric GitHub user ID). `npm run setup` resolves usernames to IDs. |
 
 ### `[media]`
 
@@ -301,25 +301,18 @@ npm run deploy
 
 ## Users and access
 
-Someone can use an Alasin deployment when all three are true:
+**Everyone with write access to the site repository on GitHub can use the deployment** (write, maintain or admin). Alasin asks GitHub at every login and again about once an hour during a session, so you manage people in one place, on GitHub:
 
-1. **They are listed** in `[users] allow` in `alasin.toml` (for a second deployment, in its `[env.<name>.users]`). Access is checked by numeric GitHub user ID on every request.
-2. **They can write to the site repository** on GitHub: Alasin commits with each user's own GitHub token, so saving and publishing need write access to `[github] owner/repo` (and to `[github] branch`, if it's protected).
-3. **The GitHub App is public** (*Where can this GitHub App be installed?* → *Any account*, under the app's settings → *Advanced* → *Make public*). GitHub shows a private app to nobody but its owner, so nobody else could even sign in. This doesn't let anyone else in: everyone not in `[users]` is refused and their token revoked, and the app reaches only the repositories it's installed on.
+- **Add someone:** invite them to the site repository with **Write** access (the repository's **Settings → Collaborators → Add people**). Once they accept, they open the app's address and sign in with GitHub. Their full name, written as the author of their posts, comes from their GitHub profile.
+- **Remove someone:** remove them from the repository's collaborators (or lower them to *Read*). They're logged out within the hour.
+- **Check:** the app's **Users** section (in the sidebar; on phones under *More*) lists everyone who can log in, with their permission on the repository.
 
-### Adding someone
+Nothing in `alasin.toml` changes and nothing needs deploying. Two more things:
 
-1. On GitHub, invite them to the site repository with **Write** access (the repository's **Settings → Collaborators → Add people**), and have them accept the invitation.
-2. Add them to `[users] allow`, e.g. `{ login = "their-login" }`, then run `npm run setup` (it looks up their numeric ID) and `npm run deploy` (add `-- --env <name>` for a second deployment).
-3. They open the app's address and sign in with GitHub. Their full name, written as the author of their posts, comes from their GitHub profile.
+- **The GitHub App must be public** (*Where can this GitHub App be installed?* → *Any account*; for an existing app, its settings → *Advanced* → *Make public*). GitHub shows a private app to nobody but its owner, so nobody else could even sign in. Making it public lets nobody else in: anyone without write access is refused and their token revoked, and the app reaches only the repositories it's installed on.
+- **A protected branch:** if `[github] branch` has rules that stop some writers from pushing, their saves fail with GitHub's message. Give them the right on GitHub, or use another branch.
 
-### Removing someone
-
-Delete them from `[users] allow` and deploy; it takes effect on their next request. Remove their access to the repository on GitHub too.
-
-### Checking who has access
-
-The app's **Users** section (in the sidebar; on phones under *More*) lists everyone who can log in, with their permission on the site repository. Anyone shown without write access hasn't been invited yet or hasn't accepted.
+**Narrowing it down (optional):** to let only some of the repository's writers in, list them in `[users] allow` in `alasin.toml` (for a second deployment, in `[env.<name>.users]`), run `npm run setup` (it looks up their numeric IDs) and `npm run deploy`. Listed people still need write access. `npm run setup` asks whether to keep a list you already have.
 
 ## Housekeeping
 
@@ -331,11 +324,11 @@ Secrets are rotated by hand, and Alasin reminds you when it's time. `npm run set
 | Rotate the GitHub App's client secret and private key | when reminded | see *Rotating secrets* below |
 | Update Alasin | when a release appears | see [Updating](#updating) |
 | Remove photos of drafts that no longer exist from the `DRAFTS` bucket | nightly, automatic | a Cron Trigger (`[drafts] cleanup_cron`, 03:17 UTC by default) with a read-only installation token of the GitHub App; waits `[drafts] cleanup_after_days` (7) and deletes nothing if the repository can't be read. Shows as `drafts_cleanup` in the Worker's logs |
-| Review who may log in | now and then | `[users] allow` in `alasin.toml`, then `npm run deploy` |
+| Review who may log in | now and then | the site repository's collaborators on GitHub (and `[users] allow`, if you use one); see [Users and access](#users-and-access) |
 
 ## Security
 
-- **Login:** GitHub App OAuth with PKCE and a single-use `state`. Only GitHub user IDs listed in `[users]` can log in, re-checked on every request.
+- **Login:** GitHub App OAuth with PKCE and a single-use `state`. Only people with write access to the site repository can log in (optionally only those listed in `[users] allow`, checked by GitHub user ID on every request); write access is confirmed at login and about once an hour.
 - **Sessions:** an encrypted, `HttpOnly`, `Secure`, `SameSite=Lax` `__Host-` cookie that refers to a server-side session in KV. Idle and absolute timeouts; logout deletes the session server-side.
 - **Tokens:** GitHub tokens never reach the browser. They are stored encrypted (AES-GCM) in KV and refreshed before expiry.
 - **Browser:** a strict Content-Security-Policy (no inline or third-party scripts, no `eval`; WebAssembly is allowed only for the bundled WebP encoder, needed because iOS browsers can't encode WebP), CSRF protection on every state-changing request, HSTS and other security headers. No analytics or trackers.

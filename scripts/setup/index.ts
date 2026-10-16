@@ -13,7 +13,7 @@ import { parse } from "smol-toml";
 import { ConfigError, selectEnvironment } from "../../src/shared/config/schema";
 import { parseArgs, repoRoot } from "../lib/args";
 import { displayPath, loadAlasinConfig } from "../lib/config";
-import { appendSection, setValue, type TomlValue } from "../lib/toml-edit";
+import { appendSection, removeValue, setValue, type TomlValue } from "../lib/toml-edit";
 import { normalizeUrl, urlProblem } from "../lib/urls";
 import { migrateAlasinToml } from "../lib/migrate";
 import { today } from "../../src/shared/housekeeping";
@@ -289,14 +289,48 @@ async function confirmDeployment() {
   show();
 }
 
+/** Removes a key from alasin.toml; with `base`, from the top-level table even when --env is given. */
+function removeAlasin(table: string, key: string, opts: { base?: boolean } = {}) {
+  const header = env && !opts.base ? `[env.${env}.${table}]` : `[${table}]`;
+  alasinText = removeValue(alasinText, header, key);
+  writeFileSync(args.configPath, alasinText);
+}
+
+const isPlaceholder = (u: { login: string; id: number }) => u.login === "octocat" && u.id === 583231;
+
 async function askUsers() {
-  step(`Allowed users${envLabel}`);
+  step(`Who can log in${envLabel}`);
+  const repo = `${String(get(effective(), "github.owner"))}/${String(get(effective(), "github.repo"))}`;
+  info(`Everyone with write access to ${repo} on GitHub can log in. Add people there: the repository's Settings → Collaborators.`);
+  const raw = alasinRaw();
+  const baseAllow = ((raw.users as Table | undefined)?.allow as { login: string; id: number }[] | undefined) ?? [];
+  const envAllow = env ? ((((raw.env as Table | undefined)?.[env] as Table | undefined)?.users as Table | undefined)?.allow as { login: string; id: number }[] | undefined) : undefined;
+  // The example's placeholder user is never a real list.
+  if (baseAllow.length && baseAllow.every(isPlaceholder)) {
+    removeAlasin("users", "allow", { base: true });
+    ok("Removed the example's placeholder user from [users]");
+  }
   const allow = (get(effective(), "users.allow") as { login: string; id: number }[] | undefined) ?? [];
-  const real = allow.filter((u) => !(u.login === "octocat" && u.id === 583231));
-  if (real.length && !(await confirm(`Allowed: ${real.map((u) => `@${u.login}`).join(", ")}. Change the list?`, false))) return;
-  const answer = await ask("GitHub usernames allowed to log in (comma-separated)", {
-    default: real.map((u) => u.login).join(", ") || undefined,
-  });
+  if (allow.length) {
+    const keep = await confirm(
+      `alasin.toml also lists ${allow.map((u) => `@${u.login}`).join(", ")}: only they may log in. Keep this extra limit?`,
+      false,
+    );
+    if (keep) {
+      info(dim("Each of them also needs write access to the repository."));
+      return;
+    }
+    if (env && envAllow) removeAlasin("users", "allow");
+    else if (!env) removeAlasin("users", "allow");
+    if (get(effective(), "users.allow")) {
+      warn(`The list in [users] also applies to [env.${env}]; remove it there by hand to let all writers of ${repo} in.`);
+      return;
+    }
+    ok("Removed the list: write access to the repository decides");
+    return;
+  }
+  if (!(await confirm("Limit it further to a list of GitHub users?", false))) return;
+  const answer = await ask("GitHub usernames allowed to log in (comma-separated)");
   const resolved: { login: string; id: number }[] = [];
   for (const login of answer.split(/[\s,]+/).filter(Boolean)) {
     const user = await gh.lookupUser(login);
@@ -306,7 +340,7 @@ async function askUsers() {
     ok(`@${user.login} → ID ${user.id}`);
   }
   setAlasin("users", "allow", resolved);
-  info(dim("Each of them needs write access to the site repository."));
+  info(dim("Each of them also needs write access to the repository."));
 }
 
 async function setupBuckets() {

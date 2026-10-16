@@ -40,8 +40,8 @@ export class FakeRepo {
   head = "";
   /** Tokens seen in Authorization headers. */
   readonly tokens: string[] = [];
-  /** Collaborator permissions by login (GET /collaborators/:login/permission); others have "none". */
-  readonly collaborators = new Map<string, string>();
+  /** Collaborators by login, with their permission and user ID; everyone else has "none". */
+  readonly collaborators = new Map<string, { permission: string; id: number }>();
   /** Runs once before the next ref update, e.g. to simulate a concurrent commit. */
   beforeRefUpdate?: () => Promise<void>;
 
@@ -196,7 +196,15 @@ export class FakeRepo {
     if (req.method === "GET" && path === `/git/ref/heads/${this.branch}`) return json({ object: { sha: this.head } });
     const collaborator = /^\/collaborators\/([^/]+)\/permission$/.exec(path);
     if (req.method === "GET" && collaborator) {
-      return json({ permission: this.collaborators.get(collaborator[1]!) ?? "none", role_name: this.collaborators.get(collaborator[1]!) ?? "" });
+      const role = this.collaborators.get(collaborator[1]!)?.permission ?? "none";
+      // Like GitHub: "permission" has only admin/write/read/none; role_name tells maintain and triage apart.
+      const permission = role === "maintain" ? "write" : role === "triage" ? "read" : role;
+      return json({ permission, role_name: role === "none" ? "" : role });
+    }
+    if (req.method === "GET" && path === "/collaborators") {
+      const page = Number(url.searchParams.get("page") ?? "1");
+      const writers = [...this.collaborators].filter(([, c]) => ["admin", "maintain", "write"].includes(c.permission));
+      return json(page === 1 ? writers.map(([login, c]) => ({ login, id: c.id, type: "User" })) : []);
     }
     if (req.method === "GET" && path === "/commits") {
       // The last commit on the branch that changed `path`.

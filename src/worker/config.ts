@@ -14,6 +14,7 @@ export function loadConfig(raw: string | undefined): AlasinConfig {
   return config;
 }
 
+/** Whether `[users] allow` lets this user in (no list: everyone with write access to the repository). */
 export function isAllowed(config: AlasinConfig, userId: number): boolean {
-  return config.users.allow.some((u) => u.id === userId);
+  return !config.users.allow || config.users.allow.some((u) => u.id === userId);
 }
