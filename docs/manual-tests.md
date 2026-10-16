@@ -165,6 +165,7 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 4.19 | One editor at a time | Open a post on device A, then the same post on device B (or another user): B shows "(name) is editing this", read-only (text, details, toolbar and saving off); the lists show "✎ (name) is editing" on that post |
 | 4.20 | Take over | On B, *Take over editing* → confirm: B can edit (the text is read again first); A shows "(name) took over editing" when it's next active, read-only, with its unsaved text kept |
 | 4.21 | Abandoned lock | With B showing the post read-only, close A's tab without leaving the editor (or put the phone to sleep): after about 3 minutes (`[editor] lock_expiry_seconds`) B becomes editable by itself, with the text read again |
+| 4.22 | Users | The *Users* section (sidebar; on phones under *More*) lists everyone in `[users]` with avatar, full name, login and permission on the site repository; someone listed but not invited shows "No access" |
 
 ### Test runs
 
@@ -193,3 +194,4 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 4.19 | ✅ | |
 | 4.20 | ❌ → ⏳ | A slight delay before the first device noticed; the editor now checks every 15 seconds (#102). In the editor the lock messages are now right, but the lists showed "is editing" late and kept it after editing ended: they checked only once a minute, now every 15 seconds and on returning to the app (#103). |
 | 4.21 | ❌ → ⏳ | The lock was freed, but the read-only editor kept showing *Take over editing* until the post was opened again; it now notices within 15 seconds and becomes editable, reading the text again (#102). Retest: right in the editor; the lists updated late, as in 4.20 (#103). |
+| 4.22 | ⏳ | |

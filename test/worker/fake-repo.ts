@@ -40,6 +40,8 @@ export class FakeRepo {
   head = "";
   /** Tokens seen in Authorization headers. */
   readonly tokens: string[] = [];
+  /** Collaborator permissions by login (GET /collaborators/:login/permission); others have "none". */
+  readonly collaborators = new Map<string, string>();
   /** Runs once before the next ref update, e.g. to simulate a concurrent commit. */
   beforeRefUpdate?: () => Promise<void>;
 
@@ -192,6 +194,10 @@ export class FakeRepo {
       return children.size ? json([...children.values()]) : json({ message: "Not Found" }, 404);
     }
     if (req.method === "GET" && path === `/git/ref/heads/${this.branch}`) return json({ object: { sha: this.head } });
+    const collaborator = /^\/collaborators\/([^/]+)\/permission$/.exec(path);
+    if (req.method === "GET" && collaborator) {
+      return json({ permission: this.collaborators.get(collaborator[1]!) ?? "none", role_name: this.collaborators.get(collaborator[1]!) ?? "" });
+    }
     if (req.method === "GET" && path === "/commits") {
       // The last commit on the branch that changed `path`.
       const file = url.searchParams.get("path") ?? "";

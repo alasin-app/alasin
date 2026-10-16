@@ -1845,3 +1845,24 @@ img {
   font-size: var(--footnote);
 }
 
+.list-note {
+  margin: 0 var(--gutter-right) 12px var(--gutter);
+  font-size: var(--footnote);
+}
+
+.user-row .avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+}
+
+.badge-ok {
+  background: color-mix(in srgb, var(--green) 18%, transparent);
+  color: var(--green);
+}
+
+.badge-warn {
+  background: color-mix(in srgb, var(--orange) 18%, transparent);
+  color: var(--orange);
+}
+

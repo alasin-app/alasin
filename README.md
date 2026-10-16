@@ -297,6 +297,28 @@ npm run deploy
 
 `npm run setup` keeps an existing `alasin.toml` in step with `alasin.example.toml`: it updates options that were renamed or removed, and adds sections that are new in this version, with their comments and default values, so new options are visible without changing what your configuration does. Everything else in the file, including your comments, stays as it is. It lists every change it makes. Add `-- --env <name>` for a second deployment.
 
+## Users and access
+
+Someone can use an Alasin deployment when all three are true:
+
+1. **They are listed** in `[users] allow` in `alasin.toml` (for a second deployment, in its `[env.<name>.users]`). Access is checked by numeric GitHub user ID on every request.
+2. **They can write to the site repository** on GitHub: Alasin commits with each user's own GitHub token, so saving and publishing need write access to `[github] owner/repo` (and to `[github] branch`, if it's protected).
+3. **The GitHub App is public** (*Where can this GitHub App be installed?* → *Any account*, under the app's settings → *Advanced* → *Make public*). GitHub shows a private app to nobody but its owner, so nobody else could even sign in. This doesn't let anyone else in: everyone not in `[users]` is refused and their token revoked, and the app reaches only the repositories it's installed on.
+
+### Adding someone
+
+1. On GitHub, invite them to the site repository with **Write** access (the repository's **Settings → Collaborators → Add people**), and have them accept the invitation.
+2. Add them to `[users] allow`, e.g. `{ login = "their-login" }`, then run `npm run setup` (it looks up their numeric ID) and `npm run deploy` (add `-- --env <name>` for a second deployment).
+3. They open the app's address and sign in with GitHub. Their full name, written as the author of their posts, comes from their GitHub profile.
+
+### Removing someone
+
+Delete them from `[users] allow` and deploy; it takes effect on their next request. Remove their access to the repository on GitHub too.
+
+### Checking who has access
+
+The app's **Users** section (in the sidebar; on phones under *More*) lists everyone who can log in, with their permission on the site repository. Anyone shown without write access hasn't been invited yet or hasn't accepted.
+
 ## Housekeeping
 
 Secrets are rotated by hand, and Alasin reminds you when it's time. `npm run setup` records in `alasin.toml` when each secret was last rotated (`[security] session_keys_rotated`, `github_secrets_rotated`). Once `[security] rotation_reminder_days` (default 180) have passed, `npm run deploy` prints a reminder with the exact steps, and the app's account sheet shows a *Housekeeping* section.
