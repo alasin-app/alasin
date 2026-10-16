@@ -128,29 +128,31 @@ describe("adding sections new in alasin.example.toml", () => {
 });
 
 
-describe("removed [users] author", () => {
-  it("drops author from the users, keeping everything else", () => {
-    const old = `[users]
-# \`author\` (optional) is written to new posts' author field (see [site] author_field).
-# Type: array of { login = string, id = integer, author = string }. Required, at least one.
+describe("removed [users]", () => {
+  it("removes [users] and [env.*.users] with their comments, keeping everything else", () => {
+    const head = currentExample.slice(0, currentExample.indexOf("# ─────────────────────────────────────────────────────────────────────────────\n# [media]"));
+    const tail = currentExample.slice(head.length);
+    const usersBlock = `# ─────────────────────────────────────────────────────────────────────────────
+# [users] — who may log in.
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# WARNING: everyone listed here can publish to the site.
+[users]
+
+# Type: array of { login = string, id = integer }.
 allow = [
-  { login = "octocat", id = 583231, author = "Mona Lisa", aliases = ["Mona"] },
-  { author = "Jane", login = "jane", id = 2 },
-  { login = "plain", id = 3 },
+  { login = "octocat", id = 583231, author = "Mona" },
 ]
 
-[env.dev.users]
-allow = [{ login = "octocat", id = 583231, author = 'Octo' }]
+
 `;
+    const old = `${head}${usersBlock}${tail.trimEnd()}\n\n[env.dev.users]\nallow = [{ login = "octocat", id = 583231 }]\n\n[env.dev.app]\nurl = "https://dev.example.com"\n`;
     const { text, changes } = migrateAlasinToml(old);
     expect(changes).toEqual([
-      '[users]: removed "author" from users (full names now come from GitHub profiles)',
-      '[env.dev.users]: removed "author" from users (full names now come from GitHub profiles)',
+      "[users]: removed (who can log in now follows write access to the site repository)",
+      "[env.dev.users]: removed (who can log in now follows write access to the site repository)",
     ]);
-    expect(text).toContain('  { login = "octocat", id = 583231, aliases = ["Mona"] },\n  { login = "jane", id = 2 },\n  { login = "plain", id = 3 },');
-    expect(text).toContain('allow = [{ login = "octocat", id = 583231 }]');
-    expect(text).not.toContain("author = string");
-    expect(text).toContain("full name is taken from their GitHub profile");
+    expect(text).toBe(`${head}${tail.trimEnd()}\n\n[env.dev.app]\nurl = "https://dev.example.com"\n`);
     expect(() => parse(text)).not.toThrow();
   });
 });

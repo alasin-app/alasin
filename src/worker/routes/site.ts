@@ -88,7 +88,7 @@ site.get("/", async (c) => {
     author: fullName({ id: session.uid }) ?? session.login,
     // Which author field values and git author names mean each user, to show them in the lists.
     users: people.map((u) => {
-      const all = [fullName(u), u.login, ...(u.aliases ?? [])].filter((n): n is string => !!n);
+      const all = [fullName(u), u.login].filter((n): n is string => !!n);
       return { login: u.login, id: u.id, names: [...new Set(all)] };
     }),
     categories,

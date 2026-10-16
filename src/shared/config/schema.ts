@@ -112,29 +112,6 @@ const github = z
   .strict()
   .describe("The site repository and the GitHub App used to log in. Secrets go in Worker secrets, never here.");
 
-const allowedUser = z.strictObject({
-  login: z.string().min(1).describe("GitHub username, for readability. Not used for access checks."),
-  id: z.number().int().positive().describe("Numeric GitHub user ID; this is what access is checked against."),
-  aliases: z
-    .array(z.string().min(1).max(100))
-    .max(20)
-    .optional()
-    .describe("Other values of the author field that mean this user, e.g. names from an older blog (`[\"Jane\"]`). Used to show the author in lists."),
-});
-
-const users = z
-  .object({
-    allow: z
-      .array(allowedUser)
-      .min(1, "list at least one user, or leave allow out")
-      .optional()
-      .describe(
-        "Optional. Everyone with write access to the site repository can log in; with this list, only those of them listed here (by numeric GitHub user ID). `npm run setup` resolves usernames to IDs.",
-      ),
-  })
-  .strict()
-  .describe("Who may log in: everyone with write access to the site repository on GitHub, optionally narrowed to a list.");
-
 const media = z
   .object({
     public_url: httpsOrLocalUrl
@@ -337,7 +314,6 @@ export const configSchema = z
     app,
     site,
     github,
-    users: users.prefault({}),
     media,
     drafts: drafts.prefault({}),
     archive: archive.prefault({}),
@@ -390,11 +366,6 @@ export const configSchema = z
           ctx.addIssue({ code: "custom", path: [section, "dir"], message: `must be separate from ${other}.dir ("${otherDir}")` });
         }
       }
-    });
-    const ids = new Set<number>();
-    (c.users.allow ?? []).forEach((u, i) => {
-      if (ids.has(u.id)) ctx.addIssue({ code: "custom", path: ["users", "allow", i, "id"], message: "is listed twice" });
-      ids.add(u.id);
     });
   });
 

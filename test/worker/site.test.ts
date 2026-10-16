@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MIT
+import { env } from "cloudflare:test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { parseConfig } from "../../src/shared/config/schema";
 import { ALLOWED_USER, testConfig } from "../fixtures";
@@ -10,6 +11,8 @@ let cookie: string;
 beforeEach(async () => {
   gh = fakeGitHub();
   ({ cookie } = await login(gh, ALLOWED_USER));
+  // The repository's writers are kept in KV for a while; each test starts fresh.
+  await env.KV.delete(`collaborators:${gh.repo.owner}/${gh.repo.name}`);
 });
 afterEach(() => {
   vi.restoreAllMocks();
@@ -53,15 +56,12 @@ describe("site settings", () => {
     expect(site.categories).toEqual([]);
   });
 
-  it("takes full names from GitHub profiles, so users need only login and id", async () => {
+  it("takes full names from GitHub profiles of the repository's writers", async () => {
     const other = { login: "jane", id: 424242 };
     gh.profiles.set(ALLOWED_USER.id, "Octo Cat");
     gh.profiles.set(other.id, "Jane Doe");
-    const config = parseConfig({
-      ...testConfig,
-      site: { ...testConfig.site, author_field: "author" },
-      users: { allow: [{ ...ALLOWED_USER, aliases: ["Mona"] }, other] },
-    });
+    gh.repo.collaborators.set(other.login, { permission: "write", id: other.id });
+    const config = parseConfig({ ...testConfig, site: { ...testConfig.site, author_field: "author" } });
     const get = async () =>
       (await (await call("/api/site", { cookie }, { ALASIN_CONFIG_JSON: JSON.stringify(config) })).json()) as Site & {
         users: { login: string; id: number; names: string[] }[];
@@ -69,7 +69,7 @@ describe("site settings", () => {
     const site = await get();
     expect(site).toMatchObject({ author: "Octo Cat", authorField: "author" });
     expect(site.users).toEqual([
-      { login: ALLOWED_USER.login, id: ALLOWED_USER.id, names: ["Octo Cat", ALLOWED_USER.login, "Mona"] },
+      { login: ALLOWED_USER.login, id: ALLOWED_USER.id, names: ["Octo Cat", ALLOWED_USER.login] },
       { login: "jane", id: 424242, names: ["Jane Doe", "jane"] },
     ]);
     // Kept for a day: no new lookups.

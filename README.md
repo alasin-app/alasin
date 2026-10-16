@@ -67,7 +67,7 @@ Starting from a state where everything in [PREREQUISITES.md](PREREQUISITES.md) i
 
 ### Creating the GitHub App manually
 
-Alasin logs users in with a **GitHub App** installed only on the site repository (the app itself is public, so that every listed user can sign in): it's used for login, for commits made with each user's own short-lived token, and for the daily cleanup's read-only token. Unlike an OAuth App, it can be limited to one repository and to exactly the permissions Alasin needs.
+Alasin logs users in with a **GitHub App** installed only on the site repository (the app itself is public, so that everyone with write access to the repository can sign in): it's used for login, for commits made with each user's own short-lived token, and for the daily cleanup's read-only token. Unlike an OAuth App, it can be limited to one repository and to exactly the permissions Alasin needs.
 
 `npm run setup` normally creates it. If that isn't possible, create it under **Settings → Developer settings → GitHub Apps → New GitHub App** (for an organisation: the organisation's **Settings → Developer settings**):
 
@@ -164,14 +164,6 @@ The site repository and the GitHub App used to log in. Secrets go in Worker secr
 | `app_id` | integer | **required** | `123456` | ID of the GitHub App used for login. Filled in by `npm run setup`. |
 | `client_id` | string | **required** | `"Iv23liAbCdEfGhIjKlMn"` | Client ID of the GitHub App. Filled in by `npm run setup`. |
 | `installation_id` | integer | — | — | Installation ID of the GitHub App on the site repository, used by the daily cleanup. Filled in by `npm run setup`. |
-
-### `[users]`
-
-Who may log in: everyone with write access to the site repository on GitHub, optionally narrowed to a list.
-
-| Option | Type | Default | Example | Description |
-| --- | --- | --- | --- | --- |
-| `allow` | array of { login, id, aliases } | — | — | Optional. Everyone with write access to the site repository can log in; with this list, only those of them listed here (by numeric GitHub user ID). `npm run setup` resolves usernames to IDs. |
 
 ### `[media]`
 
@@ -312,8 +304,6 @@ Nothing in `alasin.toml` changes and nothing needs deploying. Two more things:
 - **The GitHub App must be public** (*Where can this GitHub App be installed?* → *Any account*; for an existing app, its settings → *Advanced* → *Make public*). GitHub shows a private app to nobody but its owner, so nobody else could even sign in. Making it public lets nobody else in: anyone without write access is refused and their token revoked, and the app reaches only the repositories it's installed on.
 - **A protected branch:** if `[github] branch` has rules that stop some writers from pushing, their saves fail with GitHub's message. Give them the right on GitHub, or use another branch.
 
-**Narrowing it down (rarely needed):** to let only some of the repository's writers in, add `allow = [{ login = "…", id = … }]` to `[users]` in `alasin.toml` by hand (for a second deployment, in `[env.<name>.users]`; a user's numeric ID is the `id` at `https://api.github.com/users/<login>`) and run `npm run deploy`. Listed people still need write access. `npm run setup` asks whether to keep such a list.
-
 ## Housekeeping
 
 Secrets are rotated by hand, and Alasin reminds you when it's time. `npm run setup` records in `alasin.toml` when each secret was last rotated (`[security] session_keys_rotated`, `github_secrets_rotated`). Once `[security] rotation_reminder_days` (default 180) have passed, `npm run deploy` prints a reminder with the exact steps, and the app's account sheet shows a *Housekeeping* section.
@@ -324,11 +314,11 @@ Secrets are rotated by hand, and Alasin reminds you when it's time. `npm run set
 | Rotate the GitHub App's client secret and private key | when reminded | see *Rotating secrets* below |
 | Update Alasin | when a release appears | see [Updating](#updating) |
 | Remove photos of drafts that no longer exist from the `DRAFTS` bucket | nightly, automatic | a Cron Trigger (`[drafts] cleanup_cron`, 03:17 UTC by default) with a read-only installation token of the GitHub App; waits `[drafts] cleanup_after_days` (7) and deletes nothing if the repository can't be read. Shows as `drafts_cleanup` in the Worker's logs |
-| Review who may log in | now and then | the site repository's collaborators on GitHub (and `[users] allow`, if you use one); see [Users and access](#users-and-access) |
+| Review who may log in | now and then | the site repository's collaborators on GitHub; see [Users and access](#users-and-access) |
 
 ## Security
 
-- **Login:** GitHub App OAuth with PKCE and a single-use `state`. Only people with write access to the site repository can log in (optionally only those listed in `[users] allow`, checked by GitHub user ID on every request); write access is confirmed at login and about once an hour.
+- **Login:** GitHub App OAuth with PKCE and a single-use `state`. Only people with write access to the site repository can log in; it's confirmed with GitHub at login and about once an hour.
 - **Sessions:** an encrypted, `HttpOnly`, `Secure`, `SameSite=Lax` `__Host-` cookie that refers to a server-side session in KV. Idle and absolute timeouts; logout deletes the session server-side.
 - **Tokens:** GitHub tokens never reach the browser. They are stored encrypted (AES-GCM) in KV and refreshed before expiry.
 - **Browser:** a strict Content-Security-Policy (no inline or third-party scripts, no `eval`; WebAssembly is allowed only for the bundled WebP encoder, needed because iOS browsers can't encode WebP), CSRF protection on every state-changing request, HSTS and other security headers. No analytics or trackers.

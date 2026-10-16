@@ -157,46 +157,31 @@ function addMissingSections(lines: string[], example: string, changes: string[])
   }
 }
 
-// v0.11.0: the comment above [users] allow described the removed `author` option.
-const OLD_USERS_COMMENT = [
-  "# `author` (optional) is written to new posts' author field (see [site] author_field).",
-  "# Type: array of { login = string, id = integer, author = string }. Required, at least one.",
-];
-const NEW_USERS_COMMENT = [
-  "# Each user's full name is taken from their GitHub profile: it's written to the",
-  "# author field of their new posts (see [site] author_field) and used to show",
-  "# who wrote or last changed a post. Optional `aliases`: other author values",
-  "# that mean this user, e.g. names used on an older blog.",
-  "# Type: array of { login = string, id = integer, aliases = [string] }.",
-  '# Required, at least one. Example: { login = "octocat", id = 583231, aliases = ["Mona"] }',
-];
-
-// [users] allow `author` was removed: full names come from GitHub profiles.
-function migrateUserAuthor(lines: string[], changes: string[]): void {
-  const value = String.raw`author\s*=\s*(?:"(?:[^"\\]|\\.)*"|'[^']*')`;
-  const after = new RegExp(String.raw`\s*,\s*${value}`, "g");
-  const before = new RegExp(String.raw`${value}\s*,\s*`, "g");
-  let section = "";
-  for (let i = 0; i < lines.length; i++) {
-    const m = HEADER.exec(lines[i]!);
-    if (m) {
-      section = m[1]!;
-      continue;
-    }
-    if (!/^(env\.[^.]+\.)?users$/.test(section)) continue;
-    const line = lines[i]!.replace(after, "").replace(before, "");
-    if (line !== lines[i]) {
-      lines[i] = line;
-      if (!changes.some((c) => c.startsWith(`[${section}]: removed "author"`))) {
-        changes.push(`[${section}]: removed "author" from users (full names now come from GitHub profiles)`);
-      }
-    }
-  }
-  for (let i = 0; i + OLD_USERS_COMMENT.length <= lines.length; i++) {
-    if (OLD_USERS_COMMENT.every((l, k) => lines[i + k] === l)) {
-      lines.splice(i, OLD_USERS_COMMENT.length, ...NEW_USERS_COMMENT);
-      break;
-    }
+// [users] was removed: who can log in follows the site repository's
+// collaborators on GitHub. The whole table goes, with its banner comment
+// (also [env.<name>.users]).
+function removeUsers(lines: string[], changes: string[]): void {
+  for (let h = 0; h < lines.length; h++) {
+    const m = HEADER.exec(lines[h]!);
+    if (!m || !/^(env\.[^.]+\.)?users(\.allow)?$/.test(m[1]!.trim())) continue;
+    let end = h + 1;
+    while (end < lines.length && !HEADER.test(lines[end]!)) end++;
+    // The comments above the next table belong to it.
+    let keep = end;
+    while (keep - 1 > h && lines[keep - 1]!.trim().startsWith("#")) keep--;
+    while (keep - 1 > h && lines[keep - 1]!.trim() === "") keep--;
+    const start = commentBlockAbove(lines, h, -1);
+    lines.splice(start, keep - start);
+    // The blank lines where the table was: two before a section's banner, one before anything else.
+    let a = start;
+    while (a > 0 && lines[a - 1]!.trim() === "") a--;
+    let b = start;
+    while (b < lines.length && lines[b]!.trim() === "") b++;
+    const want = /^# ─/.test(lines[b] ?? "") ? 2 : 1;
+    if (b - a > want) lines.splice(a + want, b - a - want);
+    const table = m[1]!.trim().replace(/\.allow$/, "");
+    if (!changes.some((c) => c.startsWith(`[${table}]`))) changes.push(`[${table}]: removed (who can log in now follows write access to the site repository)`);
+    h = start - 1;
   }
 }
 
@@ -205,7 +190,7 @@ export function migrateAlasinToml(text: string, example?: string): Migration {
   const changes: string[] = [];
   migrateDrafts(lines, changes);
   migrateTimezone(lines, changes);
-  migrateUserAuthor(lines, changes);
+  removeUsers(lines, changes);
   if (example) addMissingSections(lines, example, changes);
   return { text: changes.length ? lines.join("\n") : text, changes };
 }

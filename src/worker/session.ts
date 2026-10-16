@@ -11,7 +11,6 @@ import type { Context, MiddlewareHandler } from "hono";
 import { z } from "zod";
 import type { AlasinConfig } from "../shared/config/schema";
 import type { AppEnv } from "./app";
-import { isAllowed } from "./config";
 import type { Env } from "./env";
 import { clearCookie, readCookie, serializeCookie, SESSION_COOKIE } from "./lib/cookies";
 import { importAesKey, open, randomToken, seal } from "./lib/crypto";
@@ -104,7 +103,7 @@ export async function readSession(c: Context<AppEnv>): Promise<Session | null> {
   const expired =
     now - s.createdAt > maxAgeMs(config) || now - s.lastSeenAt > config.security.session_idle_days * DAY;
   // The allowlist is re-checked on every request, so removing a user takes effect immediately.
-  if (expired || !isAllowed(config, s.uid)) {
+  if (expired) {
     c.executionCtx.waitUntil(c.env.KV.delete(kvKey(payload.sid)));
     return null;
   }

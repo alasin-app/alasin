@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 // Who can log in to this deployment: everyone with write access to the site
-// repository on GitHub, or (with [users] allow in alasin.toml) only those of
-// them listed there, each with their permission on the repository.
+// repository on GitHub, each with their permission on the repository.
 
 import { useEffect, useState } from "preact/hooks";
 import { api } from "../lib/api";
@@ -21,10 +20,10 @@ const CAN_WRITE: Permission[] = ["admin", "maintain", "write"];
 
 export function UsersList() {
   useLanguage();
-  const [data, setData] = useState<{ repository: string; branch: string; list: "repository" | "list"; users: User[] } | null>(null);
+  const [data, setData] = useState<{ repository: string; branch: string; users: User[] } | null>(null);
   const [error, setError] = useState(false);
   useEffect(() => {
-    api<{ repository: string; branch: string; list: "repository" | "list"; users: User[] }>("/api/users").then(setData, () => setError(true));
+    api<{ repository: string; branch: string; users: User[] }>("/api/users").then(setData, () => setError(true));
   }, []);
 
   if (error) return <p class="empty-state secondary">{t("error.generic")}</p>;
@@ -39,7 +38,7 @@ export function UsersList() {
   return (
     <>
       <p class="secondary sheet-note list-note">
-        {t(data.list === "list" ? "users.introList" : "users.introRepository", { repository: data.repository })}
+        {t("users.introRepository", { repository: data.repository })}
       </p>
       <ul class="grouped-list">
         {data.users.map((u) => {

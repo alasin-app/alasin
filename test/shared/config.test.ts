@@ -40,11 +40,8 @@ describe("config schema", () => {
     expect(() => parseConfig({ ...testConfig, media: { ...testConfig.media, path_pattern: "../{name}" } })).toThrow(ConfigError);
   });
 
-  it("requires at least one allowed user and no duplicate IDs", () => {
-    expect(() => parseConfig({ ...testConfig, users: { allow: [] } })).toThrow(/at least one/);
-    expect(() =>
-      parseConfig({ ...testConfig, users: { allow: [{ login: "a", id: 1 }, { login: "b", id: 1 }] } }),
-    ).toThrow(/twice/);
+  it("no longer has a [users] table: access follows the site repository", () => {
+    expect(() => parseConfig({ ...testConfig, users: { allow: [{ login: "a", id: 1 }] } })).toThrow(/users/);
   });
 
   it("keeps the drafts directory outside the content directories", () => {
