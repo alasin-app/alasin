@@ -82,6 +82,25 @@ function useSidebarCollapsed(): [boolean, () => void] {
   return [collapsed, toggle];
 }
 
+/** Media, with which photos are used brought up to date on opening it. */
+function MediaSection(props: { me: Me }) {
+  const { site, content } = useContent(props.me);
+  const used = useMemo(() => (content ? mediaUsage(content) : null), [content]);
+  if (!site) {
+    return (
+      <div class="empty-state" role="status">
+        <span class="spinner" aria-hidden="true" />
+      </div>
+    );
+  }
+  return (
+    <>
+      <p class="secondary list-note">{t("media.addFromPost")}</p>
+      <MediaLibrary site={site} used={used} />
+    </>
+  );
+}
+
 export function Shell(props: { me: Me; onLogout: () => void }) {
   useLanguage();
   const route = useRoute();
@@ -89,9 +108,8 @@ export function Shell(props: { me: Me; onLogout: () => void }) {
   const [collapsed, toggleSidebar] = useSidebarCollapsed();
   const newBuild = useNewBuild();
   // How many items are in the Bin, next to its name in the sidebar.
-  const { site, content } = useContent(props.me);
+  const { content } = useContent(props.me);
   const binCount = content?.items.filter((i) => i.state === "bin").length ?? 0;
-  const used = useMemo(() => (content ? mediaUsage(content) : null), [content]);
   // The editor belongs to Drafts, a published file to Posts (or Pages).
   const current: Section = route.name === "editor" ? "drafts" : route.name === "file" ? (route.path.includes("/pages/") ? "pages" : "posts") : route.name;
   const section = SECTIONS.find((s) => s.route === current);
@@ -196,16 +214,7 @@ export function Shell(props: { me: Me; onLogout: () => void }) {
             ) : current === "bin" ? (
               <BinList me={props.me} />
             ) : current === "media" ? (
-              site ? (
-                <>
-                  <p class="secondary list-note">{t("media.addFromPost")}</p>
-                  <MediaLibrary site={site} used={used} />
-                </>
-              ) : (
-                <div class="empty-state" role="status">
-                  <span class="spinner" aria-hidden="true" />
-                </div>
-              )
+              <MediaSection me={props.me} />
             ) : current === "users" ? (
               <UsersList />
             ) : current === "home" ? (

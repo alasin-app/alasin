@@ -68,7 +68,11 @@ export function useContent(me: Me): ContentState {
   };
 
   useEffect(() => {
-    const onChange = () => setUpdating(running !== undefined);
+    // Every section follows the shared list, whichever of them brought it up to date.
+    const onChange = () => {
+      setUpdating(running !== undefined);
+      if (latest) setContent(latest);
+    };
     listeners.add(onChange);
     onChange();
     void run(false);
