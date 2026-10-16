@@ -237,4 +237,3 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 5.3 | ⏳ | |
 | 5.4 | ⏳ | |
 | 5.5 | ⏳ | |
-
