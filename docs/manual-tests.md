@@ -100,7 +100,7 @@ Devices: Chrome on macOS (desktop), Chrome on iOS (WebKit, like all iOS browsers
 | 2.17 | ✅ | |
 | 2.18 | ✅ | Added after this run (#69); a YouTube link pasted on its own line now becomes the shortcode too (#70). |
 | 2.19 | ✅ | Added after this run; checked later. |
-| 2.20 | ❌ → ⏳ | Typing fast pushed some characters past the cursor; fixed (#122). |
+| 2.20 | ❌ → ✅ | Typing fast pushed some characters past the cursor; fixed (#122). |
 
 Also found during this run: reloading after a new deployment gave a blank page (old script names answered with the app page); fixed with real 404s, a no-store app page and a one-time automatic reload (#55).
 
