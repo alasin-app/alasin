@@ -14,13 +14,19 @@ import { type LocalDraft, listLocalDrafts } from "../lib/local-drafts";
 import { hrefFor, linkHandler } from "../lib/router";
 import { useLastUpdated } from "../lib/last-updated";
 import { useContent } from "../lib/use-content";
-import { ContentPlaceholder, ContentRow } from "./ContentList";
+import { authorUser, ContentPlaceholder, ContentRow } from "./ContentList";
 
-export function DraftsList(props: { me: Me }) {
+/**
+ * `mine`: only the signed-in user's drafts (by the author field; all drafts if
+ * the site has none) and what's on this device — for the home screen.
+ */
+export function DraftsList(props: { me: Me; mine?: boolean }) {
   useLanguage();
   const { site, content, error, refresh } = useContent(props.me);
   const [local, setLocal] = useState<LocalDraft[]>([]);
-  const drafts = (content?.items ?? []).filter((i) => i.state === "draft");
+  const drafts = (content?.items ?? []).filter(
+    (i) => i.state === "draft" && (!props.mine || !site?.authorField || authorUser(i.author, site)?.id === props.me.user.id),
+  );
   const updated = useLastUpdated(drafts);
   useEffect(() => {
     void listLocalDrafts(props.me.user.id).then(setLocal);
@@ -44,8 +50,8 @@ export function DraftsList(props: { me: Me }) {
   if (!drafts.length && !onlyHere.length && !changedFiles.length) {
     return (
       <div class="empty-state">
-        <h2 class="headline">{t("drafts.emptyTitle")}</h2>
-        <p class="secondary">{t("drafts.emptyBody")}</p>
+        <h2 class="headline">{props.mine ? t("home.noDraftsTitle") : t("drafts.emptyTitle")}</h2>
+        <p class="secondary">{props.mine ? t("home.noDraftsBody") : t("drafts.emptyBody")}</p>
       </div>
     );
   }
