@@ -10,8 +10,11 @@ export function NavBar(props: { title: string; leading?: ComponentChildren; trai
   useEffect(() => {
     const el = titleRef.current;
     if (!el || !("IntersectionObserver" in window)) return;
+    // On wide screens the bar lies over the top of the page (see app.css), so
+    // the large title is "gone" only once it has scrolled out of view.
+    const wide = window.matchMedia("(min-width: 768px)").matches;
     const io = new IntersectionObserver(([entry]) => setCollapsed(!entry!.isIntersecting), {
-      rootMargin: "-52px 0px 0px 0px",
+      rootMargin: wide ? "0px" : "-52px 0px 0px 0px",
       threshold: 0,
     });
     io.observe(el);

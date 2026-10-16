@@ -458,6 +458,22 @@ img {
     display: none;
   }
 
+  /* So the bar is empty until the page scrolls: it lies over the top of the
+     page instead of above it, and the large title starts at the top, level
+     with the sidebar's header. Scrolled, it shows the small title as usual. */
+  .nav-bar {
+    margin-bottom: calc(-1 * (var(--bar-height) + env(safe-area-inset-top)));
+    pointer-events: none;
+  }
+
+  .nav-bar.collapsed {
+    pointer-events: auto;
+  }
+
+  .large-title {
+    padding-top: calc(env(safe-area-inset-top) + 8px);
+  }
+
   .shell {
     transition: grid-template-columns 0.25s ease;
   }
