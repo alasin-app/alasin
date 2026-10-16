@@ -1936,6 +1936,14 @@ img {
 
 
 /* Media library: months, newest first, opened one at a time as needed. */
+.media-year {
+  margin-top: 20px;
+}
+
+.media-year:first-child {
+  margin-top: 8px;
+}
+
 .media-month-header {
   margin: 12px var(--gutter-right) 6px var(--gutter);
   font-size: var(--headline);

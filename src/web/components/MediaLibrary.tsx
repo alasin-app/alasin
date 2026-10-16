@@ -5,6 +5,7 @@
 // only added from a post or page; here they're found to look at or to reuse.
 
 import { Check, ChevronDown, ChevronRight } from "lucide-preact";
+import { Fragment } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { groupImages, type LibraryImage } from "../../shared/media-library";
 import { api } from "../lib/api";
@@ -181,9 +182,17 @@ export function MediaLibrary(props: { site: SiteSettings; selected?: string[]; o
   }
   return (
     <div class="media-library">
-      {months.map((m, i) => (
-        <Month key={m} site={props.site} prefix={m} initiallyOpen={i === 0} selected={props.selected} onToggle={props.onToggle} />
-      ))}
+      {months.map((m, i) => {
+        // A year heading wherever the year changes.
+        const year = MONTH.exec(m)![1]!;
+        const newYear = i === 0 || MONTH.exec(months[i - 1]!)![1] !== year;
+        return (
+          <Fragment key={m}>
+            {newYear && <h2 class="list-title media-year">{year}</h2>}
+            <Month site={props.site} prefix={m} initiallyOpen={i === 0} selected={props.selected} onToggle={props.onToggle} />
+          </Fragment>
+        );
+      })}
       <div ref={end} class="media-end">
         {(!years || years.length > 0) && <span class="spinner" aria-hidden="true" />}
       </div>
