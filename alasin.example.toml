@@ -133,7 +133,8 @@ public_url = "https://media.example.com/"
 # IMG_3438.JPG → img_3438; "-2", "-3"… is added only if that name is already
 # taken, since existing images are never overwritten), {ext} (from the image type).
 # WARNING: must match the layout already used in the bucket; Alasin never
-# restructures an existing bucket. Type: string. Default: "{yyyy}/{mm}/{dd}/{name}.{ext}".
+# restructures an existing bucket. The media library lists images by month when
+# it starts with {yyyy}/{mm}/. Type: string. Default: "{yyyy}/{mm}/{dd}/{name}.{ext}".
 path_pattern = "{yyyy}/{mm}/{dd}/{name}.{ext}"
 
 # How Markdown refers to a published image: this prefix followed by the R2 key.
@@ -146,7 +147,7 @@ content_prefix = "/img/"
 # Type: string. Default: "public, max-age=604800".
 cache_control = "public, max-age=604800"
 
-# Top-level prefixes of the bucket the media browser may list ("" = whole bucket).
+# Top-level prefixes of the bucket the media library may list ("" = whole bucket).
 # Type: array of strings. Default: [""]. Example: ["2025/", "2026/"]
 browse_prefixes = [""]
 

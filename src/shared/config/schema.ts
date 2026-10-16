@@ -121,7 +121,7 @@ const media = z
       .string()
       .default("{yyyy}/{mm}/{dd}/{name}.{ext}")
       .describe(
-        "R2 key pattern for published images. Placeholders: `{yyyy}`, `{mm}`, `{dd}` (from the post date), `{name}` (the original file name, lower-cased and URL-safe; `-2`, `-3`… is added only if that name is already taken), `{ext}` (from the image type). Must match the bucket's existing layout.",
+        "R2 key pattern for published images. Placeholders: `{yyyy}`, `{mm}`, `{dd}` (from the post date), `{name}` (the original file name, lower-cased and URL-safe; `-2`, `-3`… is added only if that name is already taken), `{ext}` (from the image type). Must match the bucket's existing layout. The media library lists images by month when it starts with `{yyyy}/{mm}/`.",
       )
       .refine((p) => p.includes("{name}") && !p.startsWith("/") && !p.includes(".."), {
         message: "must contain {name}, must not start with '/' and must not contain '..'",
@@ -139,7 +139,7 @@ const media = z
     browse_prefixes: z
       .array(z.string())
       .default([""])
-      .describe("Top-level prefixes of `MEDIA` the media browser may list. `\"\"` means the bucket root."),
+      .describe("Top-level prefixes of `MEDIA` the media library may list. `\"\"` means the bucket root."),
   })
   .strict()
   .describe("The site's existing public image bucket (`MEDIA` binding). Alasin never overwrites or deletes objects there.");
