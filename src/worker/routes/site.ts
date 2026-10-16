@@ -92,6 +92,7 @@ site.get("/", async (c) => {
     }),
     categories,
     gallery: { shortcode: config.editor.gallery_shortcode, paired: config.editor.gallery_paired },
+    locks: { heartbeatSeconds: config.editor.lock_heartbeat_seconds, expirySeconds: config.editor.lock_expiry_seconds },
     media: { publicUrl: config.media.public_url, contentPrefix: config.media.content_prefix },
     folders: {
       posts: config.site.posts_dir,

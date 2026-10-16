@@ -28,6 +28,8 @@ import { pastedVideo, shortcodeYoutubeId, youtubeThumbnail } from "../../shared/
 import { findGalleries, findShortcodes, galleryText, type GalleryBlock, type GalleryImage, standaloneImage } from "./blocks";
 
 export interface EditorOptions {
+  /** Start read-only. */
+  readOnly?: boolean;
   parent: HTMLElement;
   doc: string;
   rich: boolean;
@@ -540,6 +542,8 @@ export interface MarkdownEditor {
   view: EditorView;
   setText: (text: string) => void;
   setRich: (rich: boolean) => void;
+  /** No editing at all (someone else is editing): no typing, and widget buttons are hidden. */
+  setReadOnly: (readOnly: boolean) => void;
   /** Wraps the selection (or a sample word) in markers, e.g. ** for bold. */
   wrap: (before: string, after: string, sample: string) => void;
   /** Adds a prefix to the selected lines, e.g. "- ". */
@@ -555,6 +559,9 @@ export interface MarkdownEditor {
 
 export function createMarkdownEditor(opts: EditorOptions): MarkdownEditor {
   const live = new Compartment();
+  const lock = new Compartment();
+  const readOnlyExtensions = (ro: boolean): Extension =>
+    ro ? [EditorState.readOnly.of(true), EditorView.editable.of(false), EditorView.editorAttributes.of({ class: "cm-readonly" })] : [];
   let rich = opts.rich;
   const view = new EditorView({
     parent: opts.parent,
@@ -588,6 +595,7 @@ export function createMarkdownEditor(opts: EditorOptions): MarkdownEditor {
         placeholderExt(opts.placeholder),
         EditorView.contentAttributes.of({ autocapitalize: "sentences", autocorrect: "on", spellcheck: "true", "aria-multiline": "true" }),
         live.of(opts.rich ? richExtensions(opts) : []),
+        lock.of(readOnlyExtensions(opts.readOnly ?? false)),
         EditorView.updateListener.of((u) => {
           if (u.docChanged && !u.transactions.some((t) => t.annotation(External))) opts.onChange(u.state.doc.toString());
         }),
@@ -609,6 +617,9 @@ export function createMarkdownEditor(opts: EditorOptions): MarkdownEditor {
     setRich(next) {
       rich = next;
       view.dispatch({ effects: live.reconfigure(next ? richExtensions(opts) : []) });
+    },
+    setReadOnly(ro) {
+      view.dispatch({ effects: lock.reconfigure(readOnlyExtensions(ro)) });
     },
     wrap: (before, after, sample) => wrapSelection(view, before, after, sample),
     prefix: (p) => prefixLines(view, p),

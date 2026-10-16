@@ -12,6 +12,7 @@ import { parseDraft } from "../lib/draft-model";
 import { getLanguage, t, useLanguage } from "../lib/i18n";
 import { type LocalDraft, listLocalDrafts } from "../lib/local-drafts";
 import { hrefFor, linkHandler } from "../lib/router";
+import { lockKey, useLocks } from "../lib/edit-lock";
 import { useLastUpdated } from "../lib/last-updated";
 import { useContent } from "../lib/use-content";
 import { authorUser, ContentPlaceholder, ContentRow } from "./ContentList";
@@ -28,6 +29,7 @@ export function DraftsList(props: { me: Me; mine?: boolean }) {
     (i) => i.state === "draft" && (!props.mine || !site?.authorField || authorUser(i.author, site)?.id === props.me.user.id),
   );
   const updated = useLastUpdated(drafts);
+  const locks = useLocks();
   useEffect(() => {
     void listLocalDrafts(props.me.user.id).then(setLocal);
   }, []);
@@ -108,7 +110,7 @@ export function DraftsList(props: { me: Me; mine?: boolean }) {
       {drafts.length > 0 && (
         <ul class="grouped-list">
           {drafts.map((item) => (
-            <ContentRow item={item} site={site} showKind note={item.draftId && unsaved.has(item.draftId) ? t("drafts.unsaved") : undefined} updated={updated.get(item.path)} />
+            <ContentRow item={item} site={site} showKind note={item.draftId && unsaved.has(item.draftId) ? t("drafts.unsaved") : undefined} updated={updated.get(item.path)} editing={locks.get(lockKey(item))} />
           ))}
         </ul>
       )}

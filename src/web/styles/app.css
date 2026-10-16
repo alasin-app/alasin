@@ -1808,3 +1808,40 @@ img {
   font-variant-numeric: tabular-nums;
 }
 
+/* Someone else is editing: the text can't be changed, so its buttons go. */
+.cm-readonly .cm-md-gallery button,
+.cm-readonly .cm-md-image button {
+  display: none;
+}
+
+.form-fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.form-fieldset:disabled,
+.toolbar.is-disabled {
+  opacity: 0.55;
+}
+
+.lock-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.lock-banner .avatar-tiny {
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+}
+
+.row-editing {
+  display: block;
+  margin-top: 2px;
+  color: var(--orange);
+  font-size: var(--footnote);
+}
+

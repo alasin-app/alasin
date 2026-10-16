@@ -8,6 +8,7 @@ import { requireSession } from "../session";
 import { housekeepingDue } from "../../shared/housekeeping";
 import { content } from "./content";
 import { drafts } from "./drafts";
+import { locks } from "./locks";
 import { media } from "./media";
 import { site } from "./site";
 
@@ -51,6 +52,7 @@ api.get("/avatar/:id{[0-9]{1,12}}", async (c) => {
 
 api.route("/content", content);
 api.route("/drafts", drafts);
+api.route("/locks", locks);
 api.route("/draft-media", media);
 api.route("/site", site);
 
