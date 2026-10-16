@@ -17,7 +17,7 @@ Result marks: ✅ passed · ❌ failed (with the fix) · ⏳ not run yet.
 | 1.3 | Update | In the deploy clone: `git pull && npm install && npm run deploy -- --env dev`; the account sheet shows the new version |
 | 1.4 | Login page | Shows app name, icon and the environment badge; the browser offers to install the app |
 | 1.5 | Log in (allowed account) | *Sign in with GitHub* → authorize the GitHub App → the app opens with the user's GitHub avatar |
-| 1.6 | Log in (other account) | A GitHub account without write access to the site repository (or, with a `[users] allow` list, not on it) ends on "This GitHub account isn't allowed…" |
+| 1.6 | Log in (other account) | A GitHub account without write access to the site repository ends on "This GitHub account isn't allowed…" |
 | 1.7 | Account sheet | Avatar → name, `@login`, environment badge, *View site*, version, language switch (English/Suomi) |
 | 1.8 | Log out | *Log out* → confirmation action sheet → back on the login page; reloading stays logged out |
 | 1.9 | Desktop / iPad layout | Window ≥ 768 px: sidebar with all sections; badge and avatar only in the sidebar |
@@ -177,10 +177,10 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 4.19 | One editor at a time | Open a post on device A, then the same post on device B (or another user): B shows "(name) is editing this", read-only (text, details, toolbar and saving off); the lists show "✎ (name) is editing" on that post |
 | 4.20 | Take over | On B, *Take over editing* → confirm: B can edit (the text is read again first); A shows "(name) took over editing" when it's next active, read-only, with its unsaved text kept |
 | 4.21 | Abandoned lock | With B showing the post read-only, close A's tab without leaving the editor (or put the phone to sleep): after about 3 minutes (`[editor] lock_expiry_seconds`) B becomes editable by itself, with the text read again |
-| 4.22 | Users | The *Users* section (sidebar; on phones under *More*) lists everyone in `[users]` with avatar, full name, login and permission on the site repository; someone listed but not invited shows "No access" |
-| 4.23 | Access from the repository | With no `[users] allow`: a GitHub user with write access to the site repository can log in, one with read access or none gets "isn't allowed"; *Users* lists the repository's writers |
+| 4.22 | Users | The *Users* section (sidebar; on phones under *More*) lists everyone who can log in with avatar, full name, login and permission on the site repository |
+| 4.23 | Access from the repository | A GitHub user with write access to the site repository can log in, one with read access or none gets "isn't allowed"; *Users* lists the repository's writers |
 | 4.24 | Removed on GitHub | Remove a logged-in user from the repository's collaborators (or set *Read*): within about an hour, their next action logs them out |
-| 4.25 | Setup | `npm run setup` only says that access comes from the repository's collaborators, without questions; with an existing list it asks once whether to keep it, and *No* removes it |
+| 4.25 | Setup | `npm run setup` only says that access comes from the repository's collaborators, without questions, and removes a `[users]` table from an older `alasin.toml` |
 
 ### Test runs
 

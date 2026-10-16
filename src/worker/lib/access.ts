@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: MIT
 //
 // Who may use the deployment: everyone with write access to the site
-// repository on GitHub (write, maintain or admin), optionally narrowed by
-// `[users] allow`. Adding or removing a collaborator on GitHub is enough;
-// nothing in Alasin's configuration changes.
+// repository on GitHub (write, maintain or admin). Adding or removing a
+// collaborator on GitHub is enough; nothing in Alasin's configuration changes.
 
 import type { AlasinConfig } from "../../shared/config/schema";
 
@@ -38,18 +37,15 @@ export async function repoPermission(token: string, config: AlasinConfig, login:
 export interface Member {
   login: string;
   id: number;
-  aliases?: string[];
 }
 
 const CACHE_SECONDS = 600;
 
 /**
- * Who can log in: the `[users] allow` list if there is one, otherwise the
- * repository's collaborators with write access (asked with the signed-in
- * user's token, kept in KV for 10 minutes).
+ * Who can log in: the repository's collaborators with write access (asked
+ * with the signed-in user's token, kept in KV for 10 minutes).
  */
 export async function members(kv: KVNamespace, token: string, config: AlasinConfig): Promise<Member[]> {
-  if (config.users.allow) return config.users.allow;
   const { owner, repo } = config.github;
   const key = `collaborators:${owner}/${repo}`;
   const kept = await kv.get(key);

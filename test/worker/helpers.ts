@@ -134,6 +134,8 @@ export async function login(
   gh: FakeGitHub,
   user: { id: number; login: string },
   tokenOpts: { expires_in?: number; refresh_token?: string } = { expires_in: 28800, refresh_token: "ghr_testrefresh0000" },
+  /** Give the user write access to the site repository first (who can log in). */
+  opts: { writer?: boolean } = { writer: true },
 ): Promise<{ cookie: string; accessToken: string; callback: Response }> {
   const ip = freshIp();
   const start = await call("/auth/login", { ip });
@@ -143,7 +145,7 @@ export async function login(
   const accessToken = `ghu_testaccess${++tokenCounter}0000000`;
   gh.users.set(accessToken, { id: user.id, login: user.login, name: null });
   // Logging in needs write access to the site repository.
-  if (!gh.repo.collaborators.has(user.login)) gh.repo.collaborators.set(user.login, { permission: "write", id: user.id });
+  if (opts.writer !== false && !gh.repo.collaborators.has(user.login)) gh.repo.collaborators.set(user.login, { permission: "write", id: user.id });
   gh.nextTokens.push({ access_token: accessToken, ...tokenOpts });
   const callback = await call(`/auth/callback?code=testcode&state=${encodeURIComponent(state)}`, {
     ip,

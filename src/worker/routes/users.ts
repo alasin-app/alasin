@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 //
-// GET /api/users — who can log in to this deployment: the repository's
-// collaborators with write access (or the [users] allow list, if set), with
-// their full names from GitHub and their permission on the site repository.
+// GET /api/users — who can log in to this deployment: the site repository's
+// collaborators with write access, with their full names from GitHub and
+// their permission on the repository.
 
 import { Hono } from "hono";
 import type { AppEnv } from "../app";
@@ -27,5 +27,5 @@ users.get("/", async (c) => {
       you: u.id === c.get("session").uid,
     })),
   );
-  return c.json({ repository: `${owner}/${repo}`, branch: config.github.branch, list: config.users.allow ? "list" : "repository", users: list });
+  return c.json({ repository: `${owner}/${repo}`, branch: config.github.branch, users: list });
 });

@@ -9,7 +9,6 @@
 
 import { Hono, type Context } from "hono";
 import type { AppEnv } from "../app";
-import { isAllowed } from "../config";
 import { clearCookie, OAUTH_COOKIE, readCookie, serializeCookie, SESSION_COOKIE } from "../lib/cookies";
 import { randomToken, safeEqual, sha256Base64Url } from "../lib/crypto";
 import { canWrite, repoPermission } from "../lib/access";
@@ -100,8 +99,8 @@ auth.get("/callback", async (c) => {
     return redirectWithError(c, "github");
   }
 
-  // Who may log in: write access to the site repository (and, if set, the [users] allow list).
-  const permission = isAllowed(config, user.id) ? await repoPermission(tokens.accessToken, config, user.login) : "none";
+  // Who may log in: everyone with write access to the site repository.
+  const permission = await repoPermission(tokens.accessToken, config, user.login);
   if (!canWrite(permission)) {
     log({ rid, event: permission === null ? "login_access_unknown" : "login_rejected_not_allowed", uid: user.id });
     c.executionCtx.waitUntil(revokeToken({ ...credentials, accessToken: tokens.accessToken }).catch(() => undefined));

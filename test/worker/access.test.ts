@@ -13,9 +13,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-// No [users] allow: write access to the repository decides.
-const repoConfig = parseConfig({ ...testConfig, users: {} });
-const asRepo = { ALASIN_CONFIG_JSON: JSON.stringify(repoConfig) };
+const asRepo = { ALASIN_CONFIG_JSON: JSON.stringify(parseConfig(testConfig)) };
 
 /** Logs in like the helper, but under a given configuration and without granting access. */
 async function signIn(user: { id: number; login: string }, envOverrides: Record<string, string>) {
@@ -33,7 +31,7 @@ async function signIn(user: { id: number; login: string }, envOverrides: Record<
 }
 
 describe("access from the repository", () => {
-  it("lets in anyone with write access when there is no list, and nobody else", async () => {
+  it("lets in anyone with write access to the site repository, and nobody else", async () => {
     gh.repo.collaborators.set(STRANGER.login, { permission: "maintain", id: STRANGER.id });
     expect((await signIn(STRANGER, asRepo)).location).toBe("/");
     gh.repo.collaborators.set("reader", { permission: "read", id: 777 });
@@ -41,16 +39,6 @@ describe("access from the repository", () => {
     expect((await signIn({ login: "nobody", id: 778 }, asRepo)).location).toBe("/?login_error=not_allowed");
     // Refused sign-ins have their token revoked.
     expect(gh.revoked).toContain("ghu_access_nobody_000000");
-  });
-
-  it("with a list, also needs write access", async () => {
-    // ALLOWED_USER is listed in testConfig, but not a collaborator.
-    expect((await signIn(ALLOWED_USER, {})).location).toBe("/?login_error=not_allowed");
-    gh.repo.collaborators.set(ALLOWED_USER.login, { permission: "write", id: ALLOWED_USER.id });
-    expect((await signIn(ALLOWED_USER, {})).location).toBe("/");
-    // Write access without being listed isn't enough while the list is set.
-    gh.repo.collaborators.set(STRANGER.login, { permission: "admin", id: STRANGER.id });
-    expect((await signIn(STRANGER, {})).location).toBe("/?login_error=not_allowed");
   });
 
   it("logs out someone removed as a collaborator at the next hourly check", async () => {
