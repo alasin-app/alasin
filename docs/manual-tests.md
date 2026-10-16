@@ -115,6 +115,11 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 3.3 | Unsaved changes | Change the text, then *Publish* without saving: the change is saved first and is in the published file |
 | 3.4 | Address taken | Publish a draft whose address (slug) is already used by a post: refused with a message, the draft stays; change the slug and publish again |
 | 3.5 | Nothing overwritten | Compare the media bucket with the listing from the start: only new files were added; a photo whose name was taken got `-2` |
+| 3.6 | Unpublish | Open a published post → ••• → *Unpublish* → confirm: it opens as a draft (file moved to the drafts folder with `draft: true`, front matter otherwise as it was); publishing it again puts it back |
+| 3.7 | Archive | Open a published post → ••• → *Archive* → confirm: the file moves to `archive/` with its path, unchanged; it shows only under *Archived* in the list |
+| 3.8 | Republish | Under *Archived*, tap the post → *Republish*: back at its old path with a new `lastmod`, and opens in the editor |
+| 3.9 | Publish an old draft | Open a post marked `draft: true` in the content folders (e.g. from an older blog) → *Publish*: `draft: false`, `lastmod` and `url` set, in place |
+| 3.10 | Locked | While someone else edits a post, the menu is off for you (read-only), and a direct attempt is refused naming who is editing |
 
 ### Test runs
 
@@ -127,6 +132,11 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 3.3 | ✅ | |
 | 3.4 | ✅ | |
 | 3.5 | ✅ | Media bucket listing compared before and after: only new files. |
+| 3.6 | ⏳ | |
+| 3.7 | ⏳ | |
+| 3.8 | ⏳ | |
+| 3.9 | ⏳ | |
+| 3.10 | ⏳ | |
 
 ## Milestone 4 — lists and editing existing posts
 

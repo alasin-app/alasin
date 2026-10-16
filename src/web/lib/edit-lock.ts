@@ -38,7 +38,7 @@ function release(key: string, lockId: string): void {
 }
 
 /** Holds the edit lock for `key` (null: nothing to lock yet). */
-export function useEditLock(key: string | null, heartbeatSeconds: number): LockState & { takeOver: () => Promise<void> } {
+export function useEditLock(key: string | null, heartbeatSeconds: number): LockState & { takeOver: () => Promise<void>; lockId: string } {
   const lockId = useRef(crypto.randomUUID()).current;
   const [lock, setLock] = useState<LockState>({ state: "pending" });
   const current = useRef(lock);
@@ -80,7 +80,7 @@ export function useEditLock(key: string | null, heartbeatSeconds: number): LockS
     };
   }, [key]);
 
-  return { ...lock, takeOver: () => ask("acquire", true) };
+  return { ...lock, takeOver: () => ask("acquire", true), lockId };
 }
 
 /** The lock key of a listed post, page or draft. */

@@ -7,16 +7,17 @@
 import { ChevronDown, ChevronRight, RotateCw, Search as SearchIcon, X } from "lucide-preact";
 import { useMemo, useState } from "preact/hooks";
 import { categoryTree } from "../../shared/categories";
-import type { Me } from "../lib/api";
+import { api, ApiError, type Me } from "../lib/api";
 import { type ContentItem, type ItemKind, valueCounts } from "../lib/content-index";
 import { getLanguage, t, useLanguage } from "../lib/i18n";
-import { hrefFor, linkHandler, type Route } from "../lib/router";
+import { hrefFor, linkHandler, navigate, type Route } from "../lib/router";
 import { createSearch, snippet } from "../lib/search";
 import type { SiteSettings } from "../lib/site";
 import { type Holder, lockKey, useLocks } from "../lib/edit-lock";
 import { type LastUpdate, useLastUpdated } from "../lib/last-updated";
 import { useContent } from "../lib/use-content";
 import { PickerSheet } from "./PickerSheet";
+import { ActionSheet } from "./Sheet";
 
 type Filter = "all" | "draft" | "archived";
 
@@ -67,6 +68,8 @@ export function ContentRow(props: {
   updated?: LastUpdate;
   /** Who is editing it right now. */
   editing?: Holder;
+  /** For rows without a page of their own (archived): what tapping does. */
+  onActivate?: () => void;
 }) {
   const { item } = props;
   const route = routeFor(item);
@@ -93,6 +96,10 @@ export function ContentRow(props: {
         <a class="row row-link" href={hrefFor(route)} onClick={linkHandler(route)}>
           {inner}
         </a>
+      ) : props.onActivate ? (
+        <button type="button" class="row row-button-left" onClick={props.onActivate}>
+          {inner}
+        </button>
       ) : (
         <div class="row">{inner}</div>
       )}
@@ -130,6 +137,20 @@ export function ContentList(props: { me: Me; kind: ItemKind }) {
   const [authors, setAuthors] = useState<string[]>([]);
   const [tags, setTags] = useState<string[]>([]);
   const [picker, setPicker] = useState<"categories" | "authors" | "tags" | null>(null);
+  /** An archived item waiting for "Republish" to be confirmed, and any error. */
+  const [republishing, setRepublishing] = useState<ContentItem | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const republish = async (item: ContentItem) => {
+    setActionError(null);
+    try {
+      const res = await api<{ path: string }>("/api/lifecycle", { method: "POST", body: { action: "republish", path: item.path, sha: item.sha } });
+      refresh();
+      navigate({ name: "file", path: res.path });
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : t("error.generic"));
+    }
+  };
   /** Years whose posts are shown; the current year to begin with. */
   const [openYears, setOpenYears] = useState<Set<string>>(() => new Set([String(new Date().getFullYear())]));
 
@@ -249,6 +270,11 @@ export function ContentList(props: { me: Me; kind: ItemKind }) {
           )}
         </div>
         {content.stale && <p class="banner editor-banner">{t("content.offline")}</p>}
+        {actionError && (
+          <p class="banner banner-error editor-banner" role="alert">
+            {actionError}
+          </p>
+        )}
       </div>
 
       {shown.length === 0 ? (
@@ -274,7 +300,13 @@ export function ContentList(props: { me: Me; kind: ItemKind }) {
                     {m.label && <h3 class="list-section-header">{m.label}</h3>}
                     <ul class="grouped-list">
                       {m.items.map((item) => (
-                        <ContentRow item={item} site={site} updated={updated.get(item.path)} editing={locks.get(lockKey(item))} />
+                        <ContentRow
+                          item={item}
+                          site={site}
+                          updated={updated.get(item.path)}
+                          editing={locks.get(lockKey(item))}
+                          onActivate={item.state === "archived" ? () => setRepublishing(item) : undefined}
+                        />
                       ))}
                     </ul>
                   </>
@@ -285,11 +317,26 @@ export function ContentList(props: { me: Me; kind: ItemKind }) {
       ) : (
         <ul class="grouped-list">
           {shown.map((item) => (
-            <ContentRow item={item} site={site} query={query} updated={updated.get(item.path)} editing={locks.get(lockKey(item))} />
+            <ContentRow
+              item={item}
+              site={site}
+              query={query}
+              updated={updated.get(item.path)}
+              editing={locks.get(lockKey(item))}
+              onActivate={item.state === "archived" ? () => setRepublishing(item) : undefined}
+            />
           ))}
         </ul>
       )}
 
+      <ActionSheet
+        open={republishing !== null}
+        onClose={() => setRepublishing(null)}
+        title={republishing ? t("content.republishTitle", { title: republishing.title }) : ""}
+        message={t("content.republishMessage")}
+        actions={republishing ? [{ label: t("content.republish"), onSelect: () => void republish(republishing) }] : []}
+        cancelLabel={t("common.cancel")}
+      />
       <PickerSheet
         open={picker === "categories"}
         onClose={() => setPicker(null)}
