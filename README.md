@@ -289,7 +289,7 @@ npm run setup      # updates alasin.toml (see below)
 npm run deploy
 ```
 
-`npm run setup` keeps an existing `alasin.toml` in step with `alasin.example.toml`: it updates options that were renamed or removed, and adds sections that are new in this version, with their comments and default values, so new options are visible without changing what your configuration does. Everything else in the file, including your comments, stays as it is. It lists every change it makes. Add `-- --env <name>` for a second deployment.
+`npm run setup` keeps an existing `alasin.toml` in step with `alasin.example.toml`: it updates options that were renamed or removed, and adds sections and options that are new in this version, with their comments, set to their default values (or commented out), so new options are visible without changing what your configuration does. Everything else in the file, including your comments, stays as it is. It lists every change it makes. Add `-- --env <name>` for a second deployment.
 
 ## Users and access
 

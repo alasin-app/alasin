@@ -4,6 +4,9 @@
 // don't have to edit removed or renamed options by hand. Comments and all
 // other lines are kept. Each migration says what it changed.
 
+import { parse } from "smol-toml";
+import { parseConfig, selectEnvironment } from "../../src/shared/config/schema";
+
 export interface Migration {
   text: string;
   changes: string[];
@@ -185,12 +188,107 @@ function removeUsers(lines: string[], changes: string[]): void {
   }
 }
 
+/** A `key = value` line, or `# key = value` for an option that's commented out. */
+const KEY_LINE = /^(#\s*)?([A-Za-z_][A-Za-z0-9_-]*)\s*=/;
+
+interface ExampleOption {
+  key: string;
+  /** Its comments and the key line, as in the example. */
+  lines: string[];
+  commented: boolean;
+}
+
+/** The options of each top-level section of the example, in order. */
+function exampleOptions(ex: string[]): Map<string, ExampleOption[]> {
+  const out = new Map<string, ExampleOption[]>();
+  let section: string | null = null;
+  for (let i = 0; i < ex.length; i++) {
+    const h = HEADER.exec(ex[i]!);
+    if (h) {
+      section = h[1]!.trim().startsWith("env") ? null : h[1]!.trim();
+      if (section) out.set(section, out.get(section) ?? []);
+      continue;
+    }
+    if (!section) continue;
+    const m = KEY_LINE.exec(ex[i]!);
+    if (!m) continue;
+    // The comment lines right above it (not another commented-out option).
+    let start = i;
+    while (start > 0 && ex[start - 1]!.startsWith("#") && !KEY_LINE.test(ex[start - 1]!) && !/^# ─/.test(ex[start - 1]!)) start--;
+    out.get(section)!.push({ key: m[2]!, lines: ex.slice(start, i + 1), commented: !!m[1] });
+  }
+  return out;
+}
+
+/**
+ * Options of alasin.example.toml missing from a section the file already has
+ * are added, with their comments, after the option before them in the
+ * example. Commented-out options are always added; an active one only if the
+ * configuration means exactly the same with it (its value is the default), so
+ * required options with example values are never copied.
+ */
+function addMissingOptions(lines: string[], example: string, changes: string[], meaning: (text: string) => string | null): void {
+  const options = exampleOptions(example.split("\n"));
+  const before = meaning(lines.join("\n"));
+  for (const [section, list] of options) {
+    for (let k = 0; k < list.length; k++) {
+      const option = list[k]!;
+      // The section in the file (top-level, not [env.*]).
+      const header = lines.findIndex((l) => HEADER.exec(l)?.[1]!.trim() === section && !l.trim().startsWith("[["));
+      if (header === -1) continue;
+      let end = header + 1;
+      while (end < lines.length && !HEADER.test(lines[end]!)) end++;
+      const keyAt = (key: string) => {
+        for (let i = header + 1; i < end; i++) {
+          const m = KEY_LINE.exec(lines[i]!.trimStart());
+          if (m && m[2] === key) return i;
+        }
+        return -1;
+      };
+      if (keyAt(option.key) !== -1) continue;
+      // After the option before it in the example that the file has, or after the header.
+      let at = header + 1;
+      for (let p = k - 1; p >= 0; p--) {
+        const i = keyAt(list[p]!.key);
+        if (i === -1) continue;
+        at = i + 1;
+        // A multi-line array value.
+        let depth = (lines[i]!.match(/\[/g)?.length ?? 0) - (lines[i]!.match(/\]/g)?.length ?? 0);
+        while (depth > 0 && at < end) {
+          depth += (lines[at]!.match(/\[/g)?.length ?? 0) - (lines[at]!.match(/\]/g)?.length ?? 0);
+          at++;
+        }
+        break;
+      }
+      // An option without comments of its own (sharing the one above, e.g. a
+      // pair of commented-out lines) goes right under the one before it.
+      const insert = option.lines.length === 1 && at > header + 1 && KEY_LINE.test(lines[at - 1]!.trimStart()) ? [...option.lines] : ["", ...option.lines];
+      const next = [...lines.slice(0, at), ...insert, ...lines.slice(at)];
+      if (!option.commented && (before === null || meaning(next.join("\n")) !== before)) continue;
+      lines.splice(at, 0, ...insert);
+      changes.push(`added ${option.commented ? "the commented-out option" : "the option"} [${section}] ${option.key} from alasin.example.toml (${option.commented ? "not set" : "its default"}; no change in behaviour)`);
+    }
+  }
+}
+
+/** The configuration a file means, for comparing; null if it isn't valid. */
+function meaningOf(text: string): string | null {
+  try {
+    return JSON.stringify(parseConfig(selectEnvironment(parse(text) as Record<string, unknown>, undefined)));
+  } catch {
+    return null;
+  }
+}
+
 export function migrateAlasinToml(text: string, example?: string): Migration {
   const lines = text.split("\n");
   const changes: string[] = [];
   migrateDrafts(lines, changes);
   migrateTimezone(lines, changes);
   removeUsers(lines, changes);
-  if (example) addMissingSections(lines, example, changes);
+  if (example) {
+    addMissingSections(lines, example, changes);
+    addMissingOptions(lines, example, changes, meaningOf);
+  }
   return { text: changes.length ? lines.join("\n") : text, changes };
 }

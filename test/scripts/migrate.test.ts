@@ -156,3 +156,36 @@ allow = [
     expect(() => parse(text)).not.toThrow();
   });
 });
+
+describe("adding options new in alasin.example.toml to existing sections", () => {
+  const cut = (text: string, from: string, to: string) => {
+    const a = text.indexOf(from);
+    const b = text.indexOf(to, a) + to.length;
+    return text.slice(0, a) + text.slice(b);
+  };
+
+  it("adds them where the example has them, with their comments, without changing the configuration", () => {
+    let old = currentExample;
+    // Options added in later versions, as an older file wouldn't have them.
+    old = cut(old, "\n# The nightly cleanup removes", 'cleanup_cron = "17 3 * * *"\n');
+    old = cut(old, "\n# Front matter field set to the current time", "# page_url = \"/{slug}/\"\n");
+    old = cut(old, "\n# Categories can be nested", 'parent_field = "parent"\n');
+    old = cut(old, "\n# When the secrets were last rotated", '# github_secrets_rotated = "2026-01-15"\n');
+    const { text, changes } = migrateAlasinToml(old, currentExample);
+    expect(changes.join("\n")).toContain("[drafts] cleanup_after_days");
+    expect(changes.join("\n")).toContain("[site] lastmod_field");
+    expect(changes.join("\n")).toContain("the commented-out option [security] github_secrets_rotated");
+    expect(text).toBe(currentExample);
+  });
+
+  it("never copies an example value of a required option", () => {
+    const old = currentExample.replace('url = "https://alasin.example.com"\n', "");
+    const { text } = migrateAlasinToml(old, currentExample);
+    expect(text).not.toContain('url = "https://alasin.example.com"');
+  });
+
+  it("keeps the values a file sets, and adds nothing that would change them", () => {
+    const old = currentExample.replace("cleanup_after_days = 7", "cleanup_after_days = 1");
+    expect(migrateAlasinToml(old, currentExample)).toEqual({ text: old, changes: [] });
+  });
+});
