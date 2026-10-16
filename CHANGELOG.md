@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.0-pre.2](https://github.com/oh2th/alasin/compare/v1.0.0-pre1...v1.0.0-pre.2) (2026-10-16)
+
+
+### CI
+
+* release pre-releases as 1.0.0-pre.N ([#137](https://github.com/oh2th/alasin/issues/137)) ([4cc1e13](https://github.com/oh2th/alasin/commit/4cc1e13b2c0e680d97cce515be159a2cf0e12975))
+
 ## [1.0.0-pre1](https://github.com/oh2th/alasin/compare/v0.12.0...v1.0.0-pre1) (2026-10-16)
 
 
