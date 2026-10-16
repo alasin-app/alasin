@@ -230,7 +230,7 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 5.4 | Delete a used category | A used category → *Delete*: the warning names how many posts and pages use it; *Remove from N and delete* takes it out of all of them and removes the term page in one commit; other categories of those posts stay |
 | 5.5 | Subcategories | A category with subcategories offers no *Delete*, and says to delete those first |
 | 5.6 | Media by month | *Media* lists months as "Month YYYY" under a heading for each year, newest first, the newest open; each image once (no size variants), with a small thumbnail; tapping one opens the full image |
-| 5.7 | Loads as needed | Scrolling down lists older years' months; a month's images load only when it's opened (a closed month makes no request) |
+| 5.7 | Loads as needed | Scrolling down lists older years' months, each with its photo count (also *N of M* with *Used* or *Orphaned*) while still closed; thumbnails load only when a month is opened |
 | 5.8 | No adding in Media | *Media* has no way to add photos, only a note that photos are added from a post or page |
 | 5.9 | Pick from the library | In a post or page, the photo button → *From media library* → tap two photos (checked, in the order tapped) → *Add 2 photos*: a gallery of their existing addresses at the cursor; one photo → a single image; nothing is copied or uploaded |
 | 5.10 | Pick from this device | The photo button → *From this device*: the photo picker of iOS (Photos, camera, files) or the computer's file dialog, as before |

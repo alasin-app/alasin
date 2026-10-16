@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 // The published images (MEDIA), by month, newest first. The library can be
 // huge, so nothing is listed up front: the years first, the months of a year
-// when the list reaches it, and a month's images when it's opened. Images are
-// only added from a post or page; here they're found to look at or to reuse.
+// when the list reaches it (names only, for the counts), and the thumbnails of a
+// month when it's opened. Images are only added from a post or page; here
+// they're found to look at or to reuse.
 
 import { Check, ChevronDown, ChevronRight } from "lucide-preact";
 import { Fragment } from "preact";
@@ -14,6 +15,9 @@ import type { SiteSettings } from "../lib/site-types";
 
 interface Folders {
   folders: string[];
+}
+interface Year {
+  months: Record<string, LibraryImage[]> | null;
 }
 interface Files {
   files: { key: string }[];
@@ -50,6 +54,8 @@ type Filter = "all" | "used" | "orphaned";
 function Month(props: {
   site: SiteSettings;
   prefix: string;
+  /** The month's images when the year was listed at once; otherwise read when opened. */
+  images?: LibraryImage[];
   initiallyOpen: boolean;
   filter: Filter;
   used: ((key: string) => boolean) | null;
@@ -57,7 +63,8 @@ function Month(props: {
   onToggle?: (key: string) => void;
 }) {
   const [open, setOpen] = useState(props.initiallyOpen);
-  const [images, setImages] = useState<LibraryImage[] | null>(null);
+  const [read, setImages] = useState<LibraryImage[] | null>(null);
+  const images = props.images ?? read;
   const [failed, setFailed] = useState(false);
   useEffect(() => {
     if (!open || images) return;
@@ -130,7 +137,7 @@ export function MediaLibrary(props: { site: SiteSettings; used: ((key: string) =
   const { browse, byMonth } = props.site.media;
   /** Year folders whose months aren't listed yet, newest first. */
   const [years, setYears] = useState<string[] | null>(null);
-  const [months, setMonths] = useState<string[]>([]);
+  const [months, setMonths] = useState<{ prefix: string; images?: LibraryImage[] }[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const end = useRef<HTMLDivElement>(null);
@@ -145,14 +152,21 @@ export function MediaLibrary(props: { site: SiteSettings; used: ((key: string) =
       .catch(() => setError(true));
   }, [error]);
 
-  // The next year's months, whenever the end of the list comes into view.
+  // The next year's months, whenever the end of the list comes into view: the
+  // whole year's list at once (names only, no images), so every month has its
+  // count; a very large year a month at a time instead.
+  const yearMonths = async (year: string): Promise<{ prefix: string; images?: LibraryImage[] }[]> => {
+    const listed = await api<Year>(`/api/media/year?prefix=${encodeURIComponent(year)}`);
+    if (listed.months) return Object.keys(listed.months).map((prefix) => ({ prefix, images: listed.months![prefix] }));
+    return (await folders(year)).filter((f) => MONTH.test(f)).map((prefix) => ({ prefix }));
+  };
   const loadNext = () => {
     if (loading || !years?.length) return;
     setLoading(true);
     const [year, ...rest] = years;
-    folders(year!).then(
+    yearMonths(year!).then(
       (list) => {
-        setMonths((m) => [...m, ...list.filter((f) => MONTH.test(f)).sort().reverse()]);
+        setMonths((m) => [...m, ...list.sort((a, b) => b.prefix.localeCompare(a.prefix))]);
         setYears(rest);
         setLoading(false);
       },
@@ -207,12 +221,12 @@ export function MediaLibrary(props: { site: SiteSettings; used: ((key: string) =
       </div>
       {months.map((m, i) => {
         // A year heading wherever the year changes.
-        const year = MONTH.exec(m)![1]!;
-        const newYear = i === 0 || MONTH.exec(months[i - 1]!)![1] !== year;
+        const year = MONTH.exec(m.prefix)![1]!;
+        const newYear = i === 0 || MONTH.exec(months[i - 1]!.prefix)![1] !== year;
         return (
-          <Fragment key={m}>
+          <Fragment key={m.prefix}>
             {newYear && <h2 class="list-title media-year">{year}</h2>}
-            <Month site={props.site} prefix={m} initiallyOpen={i === 0} filter={filter} used={props.used} selected={props.selected} onToggle={props.onToggle} />
+            <Month site={props.site} prefix={m.prefix} images={m.images} initiallyOpen={i === 0} filter={filter} used={props.used} selected={props.selected} onToggle={props.onToggle} />
           </Fragment>
         );
       })}

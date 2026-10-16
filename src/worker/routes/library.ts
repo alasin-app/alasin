@@ -6,11 +6,14 @@
 //
 //   GET /api/media/folders?prefix=   sub-folders of a folder (e.g. "" → years, "2026/" → months)
 //   GET /api/media/files?prefix=&cursor=   images in a folder, up to 1000 per page
+//   GET /api/media/year?prefix=2026/   a year's images by month (keys only, variants grouped),
+//                                      so every month can show its count before it's opened
 //
 // Prefixes are limited to `[media] browse_prefixes`.
 
 import { Hono } from "hono";
 import type { AlasinConfig } from "../../shared/config/schema";
+import { groupImages, type LibraryImage } from "../../shared/media-library";
 import type { AppEnv } from "../app";
 
 const IMAGE = /\.(jpe?g|png|webp|gif|avif)$/i;
@@ -46,4 +49,27 @@ library.get("/files", async (c) => {
   const page = await c.env.MEDIA.list({ prefix, limit: 1000, ...(cursor ? { cursor } : {}) });
   const files = page.objects.filter((o) => IMAGE.test(o.key)).map((o) => ({ key: o.key, size: o.size, uploaded: o.uploaded.toISOString() }));
   return c.json({ prefix, files, cursor: page.truncated ? page.cursor : null });
+});
+
+/** A year beyond this many list pages (1000 keys each) is listed a month at a time instead. */
+const YEAR_PAGES = 50;
+
+library.get("/year", async (c) => {
+  const prefix = c.req.query("prefix") ?? "";
+  if (!/(?:^|\/)\d{4}\/$/.test(prefix) || !safe(prefix) || !inside(c.get("config"), prefix)) return c.json({ error: "invalid", message: "Not a year folder." }, 400);
+  const keys: string[] = [];
+  let cursor: string | undefined;
+  for (let page = 0; ; page++) {
+    if (page === YEAR_PAGES) return c.json({ prefix, months: null });
+    const listed = await c.env.MEDIA.list({ prefix, limit: 1000, ...(cursor ? { cursor } : {}) });
+    keys.push(...listed.objects.map((o) => o.key).filter((k) => IMAGE.test(k)));
+    if (!listed.truncated) break;
+    cursor = listed.cursor;
+  }
+  const months: Record<string, LibraryImage[]> = {};
+  for (const img of groupImages(keys)) {
+    const month = /^(\d{2})\//.exec(img.key.slice(prefix.length))?.[1];
+    if (month) (months[`${prefix}${month}/`] ??= []).push(img);
+  }
+  return c.json({ prefix, months });
 });

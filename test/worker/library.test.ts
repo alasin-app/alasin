@@ -35,11 +35,23 @@ describe("media library", () => {
     expect(res.cursor).toBeNull();
   });
 
+  it("lists a year by month, variants grouped, for the counts", async () => {
+    expect(await get("/api/media/year?prefix=2026/")).toEqual({
+      prefix: "2026/",
+      months: {
+        "2026/09/": [{ key: "2026/09/01/a.jpg", thumb: "2026/09/01/a.jpg" }],
+        "2026/10/": [{ key: "2026/10/16/b.jpg", thumb: "2026/10/16/b-480.webp" }],
+      },
+    });
+    expect((await call("/api/media/year?prefix=2026/10/", { cookie })).status).toBe(400);
+  });
+
   it("stays inside the browse prefixes", async () => {
     const limited = { ALASIN_CONFIG_JSON: JSON.stringify(parseConfig({ ...testConfig, media: { ...testConfig.media, browse_prefixes: ["2026/"] } })) };
     expect(((await get("/api/media/folders?prefix=", limited)) as { folders: string[] }).folders).toEqual(["2026/"]);
     expect(((await get("/api/media/folders?prefix=2026/", limited)) as { folders: string[] }).folders).toEqual(["2026/09/", "2026/10/"]);
     expect((await call("/api/media/files?prefix=site/", { cookie }, limited)).status).toBe(400);
     expect((await call("/api/media/files?prefix=../x", { cookie })).status).toBe(400);
+    expect((await call("/api/media/year?prefix=2025/", { cookie }, limited)).status).toBe(400);
   });
 });
