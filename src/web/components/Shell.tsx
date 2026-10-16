@@ -14,7 +14,7 @@ import { Editor } from "./Editor";
 import { settings } from "../lib/settings";
 import { AccountSheet } from "./AccountSheet";
 import { NavBar } from "./NavBar";
-import { useNewBuild } from "../lib/new-build";
+import { buildId, useNewBuild } from "../lib/new-build";
 
 type Icon = ComponentType<{ size?: number; "aria-hidden"?: "true" }>;
 
@@ -128,6 +128,11 @@ export function Shell(props: { me: Me; onLogout: () => void }) {
           >
             {collapsed ? <PanelLeftOpen size={22} aria-hidden="true" /> : <PanelLeftClose size={22} aria-hidden="true" />}
           </button>
+          {!collapsed && (
+            <span class="sidebar-build" title={t("account.version")}>
+              {props.me.version} · {buildId()}
+            </span>
+          )}
         </div>
       </aside>
 

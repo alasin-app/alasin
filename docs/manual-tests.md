@@ -163,17 +163,17 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 4.2 | ✅ | The author should show too (author names from the old blog need mapping to GitHub users). Loading felt slow. |
 | 4.3 | ✅ | |
 | 4.4 | ✅ | |
-| 4.5 | ❌ → ⏳ | The category filter allowed only one category; now several (#85). Choosing a category also showed the categories below it; it should match exactly (#92). |
+| 4.5 | ❌ → ✅ | The category filter allowed only one category; now several (#85). Choosing a category also showed the categories below it; now it matches exactly (#92). |
 | 4.6 | ✅ | |
 | 4.7 | ✅ | |
 | 4.8 | ✅ | Faster. The first load still takes a while, and will grow with the number of posts: keep an eye on it. |
 | 4.9 | ✅ | Authors show, also those who aren't users of the app. |
 | 4.10 | ✅ | |
-| 4.11 | ❌ → ⏳ | Slug and `url` changed, but the file kept its old name; the file is now renamed to match (#92). |
+| 4.11 | ❌ → ✅ | Slug and `url` changed, but the file kept its old name; the file is now renamed to match (#92). |
 | 4.12 | ✅ | |
-| 4.13 | ❌ → ⏳ | Reported: such a draft was listed as a draft on device A (#90). Then: no warning that the copy existed only on this device and that a published post already has its address, and no way to discard it (#92). |
+| 4.13 | ❌ → ✅ | Reported: such a draft was listed as a draft on device A (#90). Then: no warning that the copy existed only on this device and that a published post already has its address, and no way to discard it (#92). |
 | 4.14 | ✅ | |
 | 4.15 | ✅ | |
-| 4.16 | ⏳ | |
-| 4.17 | ⏳ | |
+| 4.16 | ✅ | The filter buttons should share the line with All / Drafts / Archived, wrapping only when the screen is too narrow (#95). |
+| 4.17 | ✅ | |
 | 4.18 | ⏳ | |

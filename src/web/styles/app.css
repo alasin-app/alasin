@@ -516,9 +516,12 @@ img {
   font-weight: 700;
 }
 
-/* The hide/show button, at the bottom of the sidebar. */
+/* The hide/show button and the running version, at the bottom of the sidebar. */
 .sidebar-footer {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   margin-top: auto;
   padding-top: 12px;
 }
@@ -1737,13 +1740,7 @@ img {
   font-weight: 700;
 }
 
-.filter-buttons {
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.filter-buttons .btn {
+.list-filters .btn {
   flex: none;
 }
 
@@ -1802,5 +1799,12 @@ img {
   .update-toast {
     bottom: 24px;
   }
+}
+
+.sidebar-build {
+  padding-right: 8px;
+  color: var(--secondary-label);
+  font-size: var(--caption2);
+  font-variant-numeric: tabular-nums;
 }
 

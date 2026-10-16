@@ -216,8 +216,7 @@ export function ContentList(props: { me: Me; kind: ItemKind }) {
               </button>
             ))}
           </div>
-        </div>
-        <div class="list-filters filter-buttons">
+
           {site.categories.length > 0 && (
             <button type="button" class={`btn btn-small ${categories.length ? "btn-tinted" : "btn-plain"}`} onClick={() => setPicker("categories")}>
               {categoryLabel}
