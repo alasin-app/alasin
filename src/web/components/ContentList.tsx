@@ -6,7 +6,7 @@
 
 import { ChevronDown, ChevronRight, RotateCw, Search as SearchIcon, X } from "lucide-preact";
 import { useMemo, useState } from "preact/hooks";
-import { categoryTree, withDescendants } from "../../shared/categories";
+import { categoryTree } from "../../shared/categories";
 import type { Me } from "../lib/api";
 import type { ContentItem, ItemKind } from "../lib/content-index";
 import { getLanguage, t, useLanguage } from "../lib/i18n";
@@ -125,11 +125,8 @@ export function ContentList(props: { me: Me; kind: ItemKind }) {
 
   const shown = useMemo(() => {
     let list = ofKind.filter((i) => (filter === "all" ? i.state !== "archived" : i.state === filter));
-    if (categories.length && site) {
-      // A category also shows the posts of the categories below it.
-      const wanted = withDescendants(site.categories, categories);
-      list = list.filter((i) => i.categories.some((c) => wanted.has(c)));
-    }
+    // Posts that have any of the chosen categories themselves (not the categories below them).
+    if (categories.length) list = list.filter((i) => i.categories.some((c) => categories.includes(c)));
     if (query.trim()) {
       const rank = new Map(search.find(query).map((p, n) => [p, n]));
       return list.filter((i) => rank.has(i.path)).sort((a, b) => rank.get(a.path)! - rank.get(b.path)!);

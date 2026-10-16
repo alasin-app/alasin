@@ -24,7 +24,7 @@ afterEach(() => {
 const POST = "content/posts/2019/trip.md";
 const original = `---\ntitle:   'Trip'\ndate: 2019-08-02T22:54:16+03:00\nslug: "trip"\nurl: "/2019/08/02/trip/"\n# comment\ndraft: false\nlastmod: 2021-07-31T17:00:10+03:00\n---\n\nOld text.\n`;
 
-const withUrls = parseConfig({ ...testConfig, site: { ...testConfig.site, post_url: "/{yyyy}/{mm}/{dd}/{slug}/" } });
+const withUrls = parseConfig({ ...testConfig, site: { ...testConfig.site, post_url: "/{yyyy}/{mm}/{dd}/{slug}/", post_filename: "{yyyy}/{slug}.md" } });
 
 function put(body: Record<string, unknown>, config = withUrls) {
   return call("/api/content/file", { ...mutating(cookie, body), method: "PUT" }, { ALASIN_CONFIG_JSON: JSON.stringify(config) });
@@ -54,12 +54,38 @@ describe("editing published posts", () => {
     expect(gh.repo.lastCommit().message).toBe("Update post: Trip");
   });
 
-  it("updates the url only when the address or date was changed", async () => {
+  it("renames the file and updates the url when the address or date was changed", async () => {
     await gh.repo.write(POST, original);
     const { sha } = await open();
     const edited = original.replace('slug: "trip"', 'slug: "summer-trip"');
-    await put({ path: POST, content: edited, sha, day: "2019-08-02", updateUrl: true });
-    expect(gh.repo.files().get(POST)).toContain('url: "/2019/08/02/summer-trip/"');
+    const res = await put({ path: POST, content: edited, sha, day: "2019-08-02", updateUrl: true });
+    expect(await res.json()).toMatchObject({ path: "content/posts/2019/summer-trip.md" });
+    const files = gh.repo.files();
+    expect(files.has(POST)).toBe(false);
+    expect(files.get("content/posts/2019/summer-trip.md")).toContain('url: "/2019/08/02/summer-trip/"');
+
+    // A new date in another year moves it to that year's folder.
+    const moved = (await open("content/posts/2019/summer-trip.md")).sha;
+    const redated = files.get("content/posts/2019/summer-trip.md")!.replace("date: 2019-08-02T22:54:16+03:00", "date: 2020-01-05T10:00:00Z");
+    await put({ path: "content/posts/2019/summer-trip.md", content: redated, sha: moved, day: "2020-01-05", updateUrl: true });
+    expect(gh.repo.files().get("content/posts/2020/summer-trip.md")).toContain('url: "/2020/01/05/summer-trip/"');
+  });
+
+  it("refuses an address another post already has", async () => {
+    await gh.repo.write(POST, original);
+    await gh.repo.write("content/posts/2019/taken.md", original);
+    const { sha } = await open();
+    const res = await put({ path: POST, content: original.replace('slug: "trip"', 'slug: "taken"'), sha, day: "2019-08-02", updateUrl: true });
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({ error: "exists" });
+    expect(gh.repo.files().has(POST)).toBe(true);
+  });
+
+  it("keeps the file where it is when only the text changes", async () => {
+    await gh.repo.write(POST, original);
+    const { sha } = await open();
+    const res = await put({ path: POST, content: original.replace("Old text.", "New."), sha, day: "2019-08-02" });
+    expect(await res.json()).toMatchObject({ path: POST });
   });
 
   it("copies photos added while editing to MEDIA, then clears them from DRAFTS", async () => {

@@ -29,7 +29,7 @@ import type { AppEnv } from "../app";
 import { GitHubError } from "../lib/github";
 import { copyDraftImages, MissingImageError } from "../lib/publish-media";
 import { ConflictError, Repo } from "../lib/repo";
-import { draftImageRefs, draftInfo, maintainedFields, parseDay, replaceImageUrls, withFields } from "../../shared/publish";
+import { contentPath, draftImageRefs, draftInfo, maintainedFields, parseDay, replaceImageUrls, withFields } from "../../shared/publish";
 import { isUlid } from "../../shared/ulid";
 import { logError } from "../lib/log";
 import { getUserToken } from "../session";
@@ -203,7 +203,11 @@ const saveBody = z.strictObject({
   sha: z.string().regex(SHA),
   /** The post's day in the author's time zone (YYYY-MM-DD), for image folders and the url. */
   day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  /** The address or date was changed: update the `url` field (if `[site] post_url`/`page_url` is set). */
+  /**
+   * The address or date was changed: the file moves to the name the content
+   * layout gives (`[site] post_filename` / `page_filename`), and the `url`
+   * field follows (if `[site] post_url` / `page_url` is set).
+   */
   updateUrl: z.boolean().optional(),
   /** Where photos added in this editing session were uploaded (DRAFTS/<editId>/), cleared after saving. */
   editId: z.string().refine(isUlid).optional(),
@@ -213,8 +217,9 @@ const saveBody = z.strictObject({
  * Saving a published post or page, like publishing: draft images it uses
  * (photos added while editing) are copied to MEDIA first, never overwriting;
  * then one commit replaces the file (which must be unchanged since it was
- * opened), with `lastmod` updated; only then are those images removed from
- * DRAFTS. Returns the saved text, which may differ from what was sent.
+ * opened), with `lastmod` updated, moving it if its address or date changed;
+ * only then are those images removed from DRAFTS. Returns the saved text,
+ * which may differ from what was sent, and the file's path.
  */
 content.put("/file", async (c) => {
   const length = Number(c.req.header("Content-Length") ?? "0");
@@ -248,8 +253,19 @@ content.put("/file", async (c) => {
     throw err;
   }
   const text = withFields(replaceImageUrls(parsed.data.content, urls), maintainedFields(config, kind, info, day, { url: updateUrl === true }));
+  // A new address or date: the file follows (not page bundles, whose folder holds other files).
+  const target = updateUrl && info.slug && !path.endsWith("/index.md") ? contentPath(config, kind, info.slug, day) : path;
+  const title = (info.title || path).replace(/\s+/g, " ");
   try {
-    const result = await (await repoFor(c)).commit([{ path, content: text, expectedSha: sha }], `Update ${kind}: ${(info.title || path).replace(/\s+/g, " ")}`);
+    const result = await (await repoFor(c)).commit(
+      target === path
+        ? [{ path, content: text, expectedSha: sha }]
+        : [
+            { path: target, content: text, expectedSha: null },
+            { path, content: null, expectedSha: sha },
+          ],
+      `Update ${kind}: ${title}`,
+    );
     // The photos added in this editing session now live in MEDIA. (Photos of
     // other drafts the text may refer to stay with their drafts.)
     if (parsed.data.editId) {
@@ -260,9 +276,12 @@ content.put("/file", async (c) => {
         logError({ rid: c.get("requestId"), event: "draft_media_cleanup_failed", uid: c.get("session").uid }, err);
       }
     }
-    return c.json({ path, content: text, sha: result.shas[path], commit: result.commit });
+    return c.json({ path: target, content: text, sha: result.shas[target], commit: result.commit });
   } catch (err) {
     if (err instanceof ConflictError) {
+      if (err.path === target && target !== path) {
+        return c.json({ error: "exists", message: `A ${kind} already exists at ${target}. Choose another address.` }, 409);
+      }
       return c.json({ error: "conflict", message: "This was changed somewhere else since you opened it. Reload it to see the latest version." }, 409);
     }
     throw err;
