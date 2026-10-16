@@ -1778,3 +1778,29 @@ img {
   font-size: var(--footnote);
 }
 
+/* A new build is deployed: offered at the bottom, above the tab bar. */
+.update-toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--tab-height) + env(safe-area-inset-bottom) + 12px);
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: max-content;
+  max-width: calc(100% - 32px);
+  padding: 10px 10px 10px 16px;
+  border-radius: 14px;
+  background: var(--elevated-bg);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  font-size: var(--footnote);
+  transform: translateX(-50%);
+  animation: fade-in 0.2s ease;
+}
+
+@media (min-width: 768px) {
+  .update-toast {
+    bottom: 24px;
+  }
+}
+

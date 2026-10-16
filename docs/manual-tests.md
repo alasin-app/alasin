@@ -151,6 +151,7 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 4.15 | My drafts on Home | *Home* lists your own drafts (by author), drafts only on this device and your unsaved changes to published posts; *Drafts* still lists everyone's |
 | 4.16 | Author and tag filters | In Posts and Pages, choose one or more authors and/or tags (the tag list can be searched; counts shown): only matching items show; all filters combine |
 | 4.17 | Tag suggestions | In the editor's Tags field, start typing: the site's tags that match appear (most used, and those starting with what you typed, first); tapping one completes it |
+| 4.18 | New version notice | Keep the app open (also on a phone, in the background), deploy a new build, come back to the app (or wait up to 10 minutes): "A new version of Alasin is available" with *Reload*; after reloading, unsaved text is still there |
 
 ### Test runs
 
@@ -175,3 +176,4 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 4.15 | ✅ | |
 | 4.16 | ⏳ | |
 | 4.17 | ⏳ | |
+| 4.18 | ⏳ | |

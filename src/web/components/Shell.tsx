@@ -14,6 +14,7 @@ import { Editor } from "./Editor";
 import { settings } from "../lib/settings";
 import { AccountSheet } from "./AccountSheet";
 import { NavBar } from "./NavBar";
+import { useNewBuild } from "../lib/new-build";
 
 type Icon = ComponentType<{ size?: number; "aria-hidden"?: "true" }>;
 
@@ -77,6 +78,7 @@ export function Shell(props: { me: Me; onLogout: () => void }) {
   const route = useRoute();
   const [accountOpen, setAccountOpen] = useState(false);
   const [collapsed, toggleSidebar] = useSidebarCollapsed();
+  const newBuild = useNewBuild();
   // The editor belongs to Drafts, a published file to Posts (or Pages).
   const current: Section = route.name === "editor" ? "drafts" : route.name === "file" ? (route.path.includes("/pages/") ? "pages" : "posts") : route.name;
   const section = SECTIONS.find((s) => s.route === current);
@@ -200,6 +202,15 @@ export function Shell(props: { me: Me; onLogout: () => void }) {
           </a>
         ))}
       </nav>
+
+      {newBuild && (
+        <div class="update-toast" role="status">
+          <span>{t("app.newVersion")}</span>
+          <button type="button" class="btn btn-filled btn-small" onClick={() => location.reload()}>
+            {t("app.reload")}
+          </button>
+        </div>
+      )}
 
       <AccountSheet open={accountOpen} onClose={() => setAccountOpen(false)} me={props.me} onLogout={props.onLogout} />
     </div>
