@@ -658,6 +658,8 @@ export function Editor(props: { me: Me; source: EditSource }) {
   const sameAddress = isDraft && f.slug ? publishedItems.find((i) => i.kind === type && i.slug === f.slug) : undefined;
   /** A published file marked draft: true (e.g. from an older blog): offered for publishing. */
   const fileIsDraft = !isDraft && state.doc.fields.get("draft") === true;
+  /** A draft that exists only on this device: deleting it discards it. */
+  const neverSaved = state.sha === null;
   const categories = categoryTree(state.site.categories);
   const categoryNode = (slug: string) => categories.find((c) => c.slug === slug);
 
@@ -967,18 +969,25 @@ export function Editor(props: { me: Me; source: EditSource }) {
                 { label: t("editor.archive"), onSelect: () => setConfirm("archive") },
               ]
             : []),
-          { label: t("editor.delete"), destructive: true, onSelect: () => setConfirm("delete") },
+          // A draft never saved to GitHub is only discarded on this device.
+          { label: neverSaved ? t("editor.discard") : t("editor.delete"), destructive: true, onSelect: () => setConfirm("delete") },
         ]}
         cancelLabel={t("common.cancel")}
       />
       <ActionSheet
         open={confirm !== null}
         onClose={() => setConfirm(null)}
-        title={confirm ? t(`editor.${confirm}Title`, { title: f.title.trim() }) : ""}
+        title={
+          confirm === "delete" && neverSaved
+            ? t("editor.discardTitle", { title: f.title.trim() || t("drafts.untitled") })
+            : confirm
+              ? t(`editor.${confirm}Title`, { title: f.title.trim() })
+              : ""
+        }
         message={
           confirm === "publish"
             ? t(type === "post" ? "editor.publishMessagePost" : "editor.publishMessagePage")
-            : confirm === "delete" && state.savedContent === null
+            : confirm === "delete" && neverSaved
               ? t("editor.deleteMessageLocal")
               : confirm
                 ? t(`editor.${confirm}Message`)
@@ -986,7 +995,7 @@ export function Editor(props: { me: Me; source: EditSource }) {
         }
         actions={
           confirm
-            ? [{ label: t(`editor.${confirm}`), destructive: confirm !== "publish", onSelect: () => void (confirm === "delete" ? moveToBin() : lifecycle(confirm)) }]
+            ? [{ label: confirm === "delete" && neverSaved ? t("editor.discard") : t(`editor.${confirm}`), destructive: confirm !== "publish", onSelect: () => void (confirm === "delete" ? moveToBin() : lifecycle(confirm)) }]
             : []
         }
         cancelLabel={t("common.cancel")}

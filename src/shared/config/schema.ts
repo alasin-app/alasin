@@ -171,6 +171,20 @@ const drafts = z
       .describe(
         "Directory in the site repository where draft posts and pages are committed until they are published. Must be outside Hugo's content directory, so drafts are never built. Draft images go to the `DRAFTS` R2 bucket, never into git.",
       ),
+    cleanup_after_days: z
+      .number()
+      .int()
+      .min(1)
+      .max(365)
+      .default(7)
+      .describe(
+        "The nightly cleanup removes a draft's photos from the `DRAFTS` bucket when no draft with that ID exists in the repository (drafts folder or Bin) and nothing in its folder changed for this many days, which protects drafts that exist only on someone's device and editing sessions in progress.",
+      ),
+    cleanup_cron: z
+      .string()
+      .regex(/^\S+( \S+){4}$/, "must be a cron expression with five fields")
+      .default("17 3 * * *")
+      .describe("When the nightly cleanup runs: a cron expression in UTC (Cloudflare Cron Triggers)."),
   })
   .strict()
   .describe("Unpublished drafts: their text is committed to the site repository, their images go to R2.");

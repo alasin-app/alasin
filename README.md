@@ -192,6 +192,8 @@ Unpublished drafts: their text is committed to the site repository, their images
 | Option | Type | Default | Example | Description |
 | --- | --- | --- | --- | --- |
 | `dir` | string | `"drafts"` | `"drafts"` | Directory in the site repository where draft posts and pages are committed until they are published. Must be outside Hugo's content directory, so drafts are never built. Draft images go to the `DRAFTS` R2 bucket, never into git. |
+| `cleanup_after_days` | integer | `7` | `7` | The nightly cleanup removes a draft's photos from the `DRAFTS` bucket when no draft with that ID exists in the repository (drafts folder or Bin) and nothing in its folder changed for this many days, which protects drafts that exist only on someone's device and editing sessions in progress. |
+| `cleanup_cron` | string | `"17 3 * * *"` | `"17 3 * * *"` | When the nightly cleanup runs: a cron expression in UTC (Cloudflare Cron Triggers). |
 
 ### `[archive]`
 
@@ -328,6 +330,7 @@ Secrets are rotated by hand, and Alasin reminds you when it's time. `npm run set
 | Rotate the session and token keys | when reminded | `npm run setup -- --rotate-keys` (everyone has to log in again) |
 | Rotate the GitHub App's client secret and private key | when reminded | see *Rotating secrets* below |
 | Update Alasin | when a release appears | see [Updating](#updating) |
+| Remove photos of drafts that no longer exist from the `DRAFTS` bucket | nightly, automatic | a Cron Trigger (`[drafts] cleanup_cron`, 03:17 UTC by default) with a read-only installation token of the GitHub App; waits `[drafts] cleanup_after_days` (7) and deletes nothing if the repository can't be read. Shows as `drafts_cleanup` in the Worker's logs |
 | Review who may log in | now and then | `[users] allow` in `alasin.toml`, then `npm run deploy` |
 
 ## Security
