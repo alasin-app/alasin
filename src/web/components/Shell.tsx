@@ -10,6 +10,7 @@ import { type DraftKind, hrefFor, linkHandler, navigate, type Section, useRoute 
 import { ulid } from "../../shared/ulid";
 import { ContentList } from "./ContentList";
 import { DraftsList } from "./DraftsList";
+import { MyPosts } from "./MyPosts";
 import { UsersList } from "./UsersList";
 import { BinList } from "./BinList";
 import { CategoriesManager } from "./CategoriesManager";
@@ -197,6 +198,7 @@ export function Shell(props: { me: Me; onLogout: () => void }) {
               <>
                 <h2 class="list-title">{t("home.myDrafts")}</h2>
                 <DraftsList me={props.me} mine />
+                <MyPosts me={props.me} />
               </>
             ) : current === "posts" || current === "pages" ? (
               <ContentList key={current} me={props.me} kind={current === "posts" ? "post" : "page"} />
