@@ -98,7 +98,7 @@ Devices: Chrome on macOS (desktop), Chrome on iOS (WebKit, like all iOS browsers
 | 2.16 | ✅ | The mode switch moved from above the details to a toolbar button (#63). |
 | 2.17 | ✅ | |
 | 2.18 | ✅ | Added after this run (#69); a YouTube link pasted on its own line now becomes the shortcode too (#70). |
-| 2.19 | ⏳ | Added after this run. |
+| 2.19 | ✅ | Added after this run; checked later. |
 
 Also found during this run: reloading after a new deployment gave a blank page (old script names answered with the app page); fixed with real 404s, a no-store app page and a one-time automatic reload (#55).
 
@@ -152,6 +152,9 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 4.16 | Author and tag filters | In Posts and Pages, choose one or more authors and/or tags (the tag list can be searched; counts shown): only matching items show; all filters combine |
 | 4.17 | Tag suggestions | In the editor's Tags field, start typing: the site's tags that match appear (most used, and those starting with what you typed, first); tapping one completes it |
 | 4.18 | New version notice | Keep the app open (also on a phone, in the background), deploy a new build, come back to the app (or wait up to 10 minutes): "A new version of Alasin is available" with *Reload*; after reloading, unsaved text is still there |
+| 4.19 | One editor at a time | Open a post on device A, then the same post on device B (or another user): B shows "<name> is editing this", read-only (text, details, toolbar and saving off); the lists show "✎ <name> is editing" on that post |
+| 4.20 | Take over | On B, *Take over editing* → confirm: B can edit (the text is read again first); A shows "<name> took over editing" when it's next active, read-only, with its unsaved text kept |
+| 4.21 | Abandoned lock | Close A's tab without leaving the editor (or put the phone to sleep): after about 3 minutes (`[editor] lock_expiry_seconds`), B can open the post for editing without taking over |
 
 ### Test runs
 
@@ -177,3 +180,6 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 4.16 | ✅ | The filter buttons should share the line with All / Drafts / Archived, wrapping only when the screen is too narrow (#95). |
 | 4.17 | ✅ | |
 | 4.18 | ✅ | |
+| 4.19 | ⏳ | |
+| 4.20 | ⏳ | |
+| 4.21 | ⏳ | |

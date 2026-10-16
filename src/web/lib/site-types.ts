@@ -12,6 +12,8 @@ export interface SiteSettings {
   users: { login: string; id: number; names: string[] }[];
   categories: Category[];
   gallery: { shortcode: string; paired: boolean };
+  /** Edit lock timing (`[editor]`). */
+  locks: { heartbeatSeconds: number; expirySeconds: number };
   /** How Markdown refers to published images, to show them in the editor. */
   media: { publicUrl: string; contentPrefix: string };
   /** Folders of the site repository, as configured. */

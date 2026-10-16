@@ -23,6 +23,7 @@ import { ulid } from "../../shared/ulid";
 import { valueCounts } from "../lib/content-index";
 import { useContent } from "../lib/use-content";
 import { TagsInput } from "./TagsInput";
+import { useEditLock } from "../lib/edit-lock";
 import { loadSite, type SiteSettings } from "../lib/site";
 import { ActionSheet, Sheet } from "./Sheet";
 
@@ -132,6 +133,12 @@ export function Editor(props: { me: Me; source: EditSource }) {
   const uploadId = useMemo(() => (source.kind === "draft" ? source.id : ulid()), []);
   const [state, setState] = useState<Loaded | null>(null);
   const type: DraftKind = state?.type ?? (source.kind === "draft" ? source.type : "post");
+  /** Bumped to read the file again (after taking over editing from someone else). */
+  const [reload, setReload] = useState(0);
+  // One editor at a time: read-only while someone else holds the lock.
+  const lock = useEditLock(state && !state.fate ? (source.kind === "draft" ? `draft:${source.id}` : `file:${source.path}`) : null, state?.site.locks?.heartbeatSeconds ?? 60);
+  const readOnly = lock.state === "other" || lock.state === "lost";
+  const [takeOverOpen, setTakeOverOpen] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>("idle");
   const [message, setMessage] = useState<string | null>(null);
@@ -219,7 +226,7 @@ export function Editor(props: { me: Me; source: EditSource }) {
       (err: unknown) => !cancelled && setLoadError(err instanceof NetworkError ? t("error.network") : t("error.generic")),
     );
     return () => void (cancelled = true);
-  }, [localId]);
+  }, [localId, reload]);
 
   const content = useMemo(() => (state ? serializeDraft(state.doc, state.site, { draft: isDraft }) : ""), [state]);
   const unsaved = state !== null && content !== state.savedContent;
@@ -325,7 +332,7 @@ export function Editor(props: { me: Me; source: EditSource }) {
 
   /** Commits the draft; the new blob SHA, or null if it wasn't saved. */
   const save = async (opts: { overwrite?: boolean } = {}): Promise<string | null> => {
-    if (!state || status === "saving" || status === "publishing") return null;
+    if (!state || status === "saving" || status === "publishing" || readOnly) return null;
     if (uploading) {
       setMessage(t("photos.waitForUploads"));
       return null;
@@ -503,6 +510,13 @@ export function Editor(props: { me: Me; source: EditSource }) {
     }
   };
 
+  /** Takes the lock from whoever has it; the text is read again, as they may have saved meanwhile. */
+  const takeOver = async () => {
+    const wasOther = lock.state === "other";
+    await lock.takeOver();
+    if (wasOther) setReload((n) => n + 1);
+  };
+
   const discardMine = async () => {
     await deleteLocalDraft(me.user.id, type, localId);
     back();
@@ -605,7 +619,7 @@ export function Editor(props: { me: Me; source: EditSource }) {
             type="button"
             class="btn btn-tinted btn-small"
             onClick={() => void save()}
-            disabled={status === "saving" || status === "publishing" || uploading || markdownError || !unsaved}
+            disabled={status === "saving" || status === "publishing" || uploading || markdownError || !unsaved || readOnly}
           >
             {isDraft ? t("editor.saveDraft") : t("editor.save")}
           </button>
@@ -619,7 +633,7 @@ export function Editor(props: { me: Me; source: EditSource }) {
                 titleRef.current?.focus();
               } else setPublishOpen(true);
             }}
-            disabled={status === "saving" || status === "publishing" || uploading || markdownError || conflict}
+            disabled={status === "saving" || status === "publishing" || uploading || markdownError || conflict || readOnly}
           >
             {t("editor.publish")}
           </button>
@@ -637,6 +651,23 @@ export function Editor(props: { me: Me; source: EditSource }) {
               </button>
               <button type="button" class="btn btn-plain btn-small destructive" onClick={() => void save({ overwrite: true })}>
                 {t("editor.keepMine")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {(lock.state === "other" || lock.state === "lost") && (
+        <div class="banner banner-info editor-banner lock-banner" role="status">
+          <img class="avatar-tiny" src={`/api/avatar/${lock.holder.uid}?s=40`} alt="" width={20} height={20} />
+          <div>
+            <p>
+              {lock.state === "other"
+                ? t("editor.lockedBy", { name: lock.holder.name ?? lock.holder.login })
+                : t("editor.lockTaken", { name: lock.holder.name ?? lock.holder.login })}
+            </p>
+            <div class="banner-actions">
+              <button type="button" class="btn btn-tinted btn-small" onClick={() => setTakeOverOpen(true)}>
+                {t("editor.takeOver")}
               </button>
             </div>
           </div>
@@ -674,6 +705,7 @@ export function Editor(props: { me: Me; source: EditSource }) {
           ref={titleRef}
           class="title-input"
           rows={1}
+          readOnly={readOnly}
           placeholder={t("editor.titlePlaceholder")}
           value={f.title}
           onInput={(e) => onTitle((e.target as HTMLTextAreaElement).value.replace(/\n/g, " "))}
@@ -691,6 +723,7 @@ export function Editor(props: { me: Me; source: EditSource }) {
           {t("editor.details")}
         </button>
         {detailsOpen && (
+          <fieldset class="form-fieldset" disabled={readOnly}>
           <ul class="grouped-list form-list">
             <li class="row">
               <label class="row-label" for="f-date">
@@ -763,11 +796,12 @@ export function Editor(props: { me: Me; source: EditSource }) {
               </button>
             </li>
           </ul>
+          </fieldset>
         )}
 
         </>)}
 
-        <div class="toolbar" role="toolbar" aria-label={t("editor.formatting")}>
+        <div class={`toolbar${readOnly ? " is-disabled" : ""}`} role="toolbar" aria-label={t("editor.formatting")} {...(readOnly ? { inert: true } : {})}>
           <button type="button" onClick={() => format("bold")} aria-label={t("editor.bold")}>
             <Bold size={20} aria-hidden="true" />
           </button>
@@ -847,12 +881,22 @@ export function Editor(props: { me: Me; source: EditSource }) {
         <BodyEditor
           value={mode === "rich" ? f.body : markdownText}
           rich={mode === "rich"}
+          readOnly={readOnly}
           site={state.site}
           onChange={(text) => (mode === "rich" ? setForm({ body: text }) : onMarkdownChange(text))}
           onReady={(ed) => (editorRef.current = ed)}
           onFiles={addPhotos}
         />
       </div>
+
+      <ActionSheet
+        open={takeOverOpen}
+        onClose={() => setTakeOverOpen(false)}
+        title={lock.state === "other" || lock.state === "lost" ? t("editor.takeOverTitle", { name: lock.holder.name ?? lock.holder.login }) : ""}
+        message={t("editor.takeOverMessage")}
+        actions={[{ label: t("editor.takeOver"), destructive: true, onSelect: () => void takeOver() }]}
+        cancelLabel={t("common.cancel")}
+      />
 
       <ActionSheet
         open={publishOpen}

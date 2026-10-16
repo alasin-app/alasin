@@ -13,6 +13,7 @@ import { getLanguage, t, useLanguage } from "../lib/i18n";
 import { hrefFor, linkHandler, type Route } from "../lib/router";
 import { createSearch, snippet } from "../lib/search";
 import type { SiteSettings } from "../lib/site";
+import { type Holder, lockKey, useLocks } from "../lib/edit-lock";
 import { type LastUpdate, useLastUpdated } from "../lib/last-updated";
 import { useContent } from "../lib/use-content";
 import { PickerSheet } from "./PickerSheet";
@@ -57,7 +58,16 @@ function Byline(props: { item: ContentItem; site: SiteSettings; updated?: LastUp
   );
 }
 
-export function ContentRow(props: { item: ContentItem; site: SiteSettings; query?: string; showKind?: boolean; note?: string; updated?: LastUpdate }) {
+export function ContentRow(props: {
+  item: ContentItem;
+  site: SiteSettings;
+  query?: string;
+  showKind?: boolean;
+  note?: string;
+  updated?: LastUpdate;
+  /** Who is editing it right now. */
+  editing?: Holder;
+}) {
   const { item } = props;
   const route = routeFor(item);
   const title = (slug: string) => props.site.categories.find((c) => c.slug === slug)?.title ?? slug;
@@ -69,6 +79,7 @@ export function ContentRow(props: { item: ContentItem; site: SiteSettings; query
         {item.title}
         <span class="row-subtitle">{[kind, date, ...item.categories.map(title), props.note].filter(Boolean).join(" · ")}</span>
         <Byline item={item} site={props.site} updated={props.updated} />
+        {props.editing && <span class="row-editing">{t("content.beingEdited", { name: props.editing.name ?? props.editing.login })}</span>}
         {props.query && <Highlighted text={item.text} query={props.query} />}
       </span>
       {item.state === "draft" && <span class="badge badge-draft">{t("drafts.badge")}</span>}
@@ -163,6 +174,7 @@ export function ContentList(props: { me: Me; kind: ItemKind }) {
   // Who last changed the rows on screen.
   const visible = props.kind === "post" && !searching ? groups.filter((g) => isOpen(g.year)).flatMap((g) => g.months.flatMap((m) => m.items)) : shown.slice(0, 100);
   const updated = useLastUpdated(visible);
+  const locks = useLocks();
 
   if (!site || !content) return <ContentPlaceholder error={error} refresh={refresh} />;
 
@@ -262,7 +274,7 @@ export function ContentList(props: { me: Me; kind: ItemKind }) {
                     {m.label && <h3 class="list-section-header">{m.label}</h3>}
                     <ul class="grouped-list">
                       {m.items.map((item) => (
-                        <ContentRow item={item} site={site} updated={updated.get(item.path)} />
+                        <ContentRow item={item} site={site} updated={updated.get(item.path)} editing={locks.get(lockKey(item))} />
                       ))}
                     </ul>
                   </>
@@ -273,7 +285,7 @@ export function ContentList(props: { me: Me; kind: ItemKind }) {
       ) : (
         <ul class="grouped-list">
           {shown.map((item) => (
-            <ContentRow item={item} site={site} query={query} updated={updated.get(item.path)} />
+            <ContentRow item={item} site={site} query={query} updated={updated.get(item.path)} editing={locks.get(lockKey(item))} />
           ))}
         </ul>
       )}
