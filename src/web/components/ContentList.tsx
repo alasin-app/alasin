@@ -8,14 +8,14 @@ import { ChevronDown, ChevronRight, RotateCw, Search as SearchIcon, X } from "lu
 import { useMemo, useState } from "preact/hooks";
 import { categoryTree } from "../../shared/categories";
 import type { Me } from "../lib/api";
-import type { ContentItem, ItemKind } from "../lib/content-index";
+import { type ContentItem, type ItemKind, valueCounts } from "../lib/content-index";
 import { getLanguage, t, useLanguage } from "../lib/i18n";
 import { hrefFor, linkHandler, type Route } from "../lib/router";
 import { createSearch, snippet } from "../lib/search";
 import type { SiteSettings } from "../lib/site";
 import { type LastUpdate, useLastUpdated } from "../lib/last-updated";
 import { useContent } from "../lib/use-content";
-import { Sheet } from "./Sheet";
+import { PickerSheet } from "./PickerSheet";
 
 type Filter = "all" | "draft" | "archived";
 
@@ -114,9 +114,11 @@ export function ContentList(props: { me: Me; kind: ItemKind }) {
   const { site, content, updating, error, refresh } = useContent(props.me);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
-  /** Categories to show (any of them); empty for all. */
+  /** Categories, authors and tags to show (any of each); empty for all. */
   const [categories, setCategories] = useState<string[]>([]);
-  const [categoryOpen, setCategoryOpen] = useState(false);
+  const [authors, setAuthors] = useState<string[]>([]);
+  const [tags, setTags] = useState<string[]>([]);
+  const [picker, setPicker] = useState<"categories" | "authors" | "tags" | null>(null);
   /** Years whose posts are shown; the current year to begin with. */
   const [openYears, setOpenYears] = useState<Set<string>>(() => new Set([String(new Date().getFullYear())]));
 
@@ -127,13 +129,18 @@ export function ContentList(props: { me: Me; kind: ItemKind }) {
     let list = ofKind.filter((i) => (filter === "all" ? i.state !== "archived" : i.state === filter));
     // Posts that have any of the chosen categories themselves (not the categories below them).
     if (categories.length) list = list.filter((i) => i.categories.some((c) => categories.includes(c)));
+    if (authors.length) list = list.filter((i) => authors.includes(i.author));
+    if (tags.length) list = list.filter((i) => i.tags.some((x) => tags.includes(x)));
     if (query.trim()) {
       const rank = new Map(search.find(query).map((p, n) => [p, n]));
       return list.filter((i) => rank.has(i.path)).sort((a, b) => rank.get(a.path)! - rank.get(b.path)!);
     }
     const time = (i: ContentItem) => (Number.isNaN(i.time) ? -Infinity : i.time);
     return props.kind === "post" ? list.sort((a, b) => time(b) - time(a)) : list.sort((a, b) => a.title.localeCompare(b.title));
-  }, [ofKind, filter, categories, query, search, site]);
+  }, [ofKind, filter, categories, authors, tags, query, search]);
+  const authorCounts = useMemo(() => valueCounts(ofKind, (i) => i.author), [ofKind]);
+  const tagCounts = useMemo(() => valueCounts(ofKind, (i) => i.tags), [ofKind]);
+  const filtering = categories.length > 0 || authors.length > 0 || tags.length > 0 || filter !== "all";
 
   const searching = query.trim() !== "";
   // Posts by year and month, newest first; while searching, in order of relevance without groups.
@@ -152,7 +159,7 @@ export function ContentList(props: { me: Me; kind: ItemKind }) {
     }
     return out;
   }, [shown, searching]);
-  const isOpen = (year: string) => openYears.has(year) || categories.length > 0 || filter !== "all";
+  const isOpen = (year: string) => openYears.has(year) || filtering;
   // Who last changed the rows on screen.
   const visible = props.kind === "post" && !searching ? groups.filter((g) => isOpen(g.year)).flatMap((g) => g.months.flatMap((m) => m.items)) : shown.slice(0, 100);
   const updated = useLastUpdated(visible);
@@ -160,12 +167,10 @@ export function ContentList(props: { me: Me; kind: ItemKind }) {
   if (!site || !content) return <ContentPlaceholder error={error} refresh={refresh} />;
 
   const tree = categoryTree(site.categories);
-  const categoryLabel =
-    categories.length === 0
-      ? t("content.anyCategory")
-      : categories.length === 1
-        ? (tree.find((c) => c.slug === categories[0])?.title ?? categories[0]!)
-        : t("content.categoriesCount", { n: String(categories.length) });
+  /** A filter button's label: "All …", the one chosen, or how many. */
+  const pickLabel = (list: string[], all: string, label: (v: string) => string) =>
+    list.length === 0 ? all : list.length === 1 ? label(list[0]!) : t("content.chosenCount", { n: String(list.length) });
+  const categoryLabel = pickLabel(categories, t("content.anyCategory"), (v) => tree.find((c) => c.slug === v)?.title ?? v);
   const filters: [Filter, string][] = [
     ["all", t("content.filterAll")],
     ["draft", t("content.filterDrafts")],
@@ -211,9 +216,23 @@ export function ContentList(props: { me: Me; kind: ItemKind }) {
               </button>
             ))}
           </div>
+        </div>
+        <div class="list-filters filter-buttons">
           {site.categories.length > 0 && (
-            <button type="button" class={`btn btn-small ${categories.length ? "btn-tinted" : "btn-plain"}`} onClick={() => setCategoryOpen(true)}>
+            <button type="button" class={`btn btn-small ${categories.length ? "btn-tinted" : "btn-plain"}`} onClick={() => setPicker("categories")}>
               {categoryLabel}
+              <ChevronDown size={16} aria-hidden="true" />
+            </button>
+          )}
+          {authorCounts.length > 0 && (
+            <button type="button" class={`btn btn-small ${authors.length ? "btn-tinted" : "btn-plain"}`} onClick={() => setPicker("authors")}>
+              {pickLabel(authors, t("content.anyAuthor"), (v) => v)}
+              <ChevronDown size={16} aria-hidden="true" />
+            </button>
+          )}
+          {tagCounts.length > 0 && (
+            <button type="button" class={`btn btn-small ${tags.length ? "btn-tinted" : "btn-plain"}`} onClick={() => setPicker("tags")}>
+              {pickLabel(tags, t("content.anyTag"), (v) => v)}
               <ChevronDown size={16} aria-hidden="true" />
             </button>
           )}
@@ -224,7 +243,7 @@ export function ContentList(props: { me: Me; kind: ItemKind }) {
       {shown.length === 0 ? (
         <div class="empty-state">
           <p class="secondary">
-            {searching || categories.length || filter !== "all" ? t("content.noMatches") : props.kind === "post" ? t("content.noPosts") : t("content.noPages")}
+            {searching || filtering ? t("content.noMatches") : props.kind === "post" ? t("content.noPosts") : t("content.noPages")}
           </p>
         </div>
       ) : props.kind === "post" && !searching ? (
@@ -260,34 +279,34 @@ export function ContentList(props: { me: Me; kind: ItemKind }) {
         </ul>
       )}
 
-      <Sheet open={categoryOpen} onClose={() => setCategoryOpen(false)} title={t("editor.categories")} doneLabel={t("account.done")}>
-        <ul class="grouped-list">
-          <li>
-            <button type="button" class="row row-button-left" onClick={() => setCategories([])} disabled={!categories.length}>
-              <span class="row-label">{t("content.anyCategory")}</span>
-            </button>
-          </li>
-        </ul>
-        <ul class="grouped-list">
-          {tree.map((c) => {
-            const checked = categories.includes(c.slug);
-            return (
-              <li>
-                <label class="row row-check" style={{ "--depth": c.depth }}>
-                  <span class="row-label" title={c.path.join(" › ")}>
-                    {c.title}
-                  </span>
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => setCategories((list) => (list.includes(c.slug) ? list.filter((x) => x !== c.slug) : [...list, c.slug]))}
-                  />
-                </label>
-              </li>
-            );
-          })}
-        </ul>
-      </Sheet>
+      <PickerSheet
+        open={picker === "categories"}
+        onClose={() => setPicker(null)}
+        title={t("editor.categories")}
+        allLabel={t("content.anyCategory")}
+        options={tree.map((c) => ({ value: c.slug, label: c.title, depth: c.depth, hint: c.path.join(" › ") }))}
+        selected={categories}
+        onChange={setCategories}
+      />
+      <PickerSheet
+        open={picker === "authors"}
+        onClose={() => setPicker(null)}
+        title={t("content.authors")}
+        allLabel={t("content.anyAuthor")}
+        options={authorCounts.map((a) => ({ value: a.value, label: a.value, count: a.count }))}
+        selected={authors}
+        onChange={setAuthors}
+      />
+      <PickerSheet
+        open={picker === "tags"}
+        onClose={() => setPicker(null)}
+        title={t("editor.tags")}
+        allLabel={t("content.anyTag")}
+        options={tagCounts.map((x) => ({ value: x.value, label: x.value, count: x.count }))}
+        selected={tags}
+        onChange={setTags}
+        searchable
+      />
     </div>
   );
 }

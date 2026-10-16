@@ -188,3 +188,13 @@ export function changedPaths(files: ChangedFile[], folders: Folders): { remove: 
   return { remove: [...remove], read: [...read] };
 }
 
+
+/** Each value of a list field (e.g. tags) or text field (e.g. author) with how many items have it, most used first. */
+export function valueCounts(items: ContentItem[], pick: (i: ContentItem) => string[] | string): { value: string; count: number }[] {
+  const counts = new Map<string, number>();
+  for (const i of items) {
+    const v = pick(i);
+    for (const x of new Set(Array.isArray(v) ? v : [v])) if (x) counts.set(x, (counts.get(x) ?? 0) + 1);
+  }
+  return [...counts].map(([value, count]) => ({ value, count })).sort((a, b) => b.count - a.count || a.value.localeCompare(b.value));
+}
