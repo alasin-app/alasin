@@ -69,7 +69,24 @@ const site = z
       .string()
       .regex(/^[A-Za-z_][A-Za-z0-9_-]*$/)
       .optional()
-      .describe("Front matter field for the author's name (from `[users] allow` `author`). Leave unset if the site doesn't use one."),
+      .describe("Front matter field for the author: new posts and pages get the user's full name from their GitHub profile, and the lists show who wrote each one. Leave unset if the site doesn't use one."),
+    lastmod_field: z
+      .string()
+      .regex(/^([A-Za-z_][A-Za-z0-9_-]*)?$/)
+      .default("lastmod")
+      .describe("Front matter field set to the current time whenever a post or page is published or saved. `\"\"` turns it off."),
+    post_url: z
+      .string()
+      .optional()
+      .refine((p) => p === undefined || (p.startsWith("/") && p.includes("{slug}")), { message: "must start with / and contain {slug}" })
+      .describe(
+        "If set, the `url` front matter field of published posts follows this pattern, e.g. `/{yyyy}/{mm}/{dd}/{slug}/`. Placeholders: `{slug}`, `{yyyy}`, `{mm}`, `{dd}` (the post date). Set on publishing, and updated when the address or date of a published post is changed. Leave unset if the site uses Hugo's permalinks instead.",
+      ),
+    page_url: z
+      .string()
+      .optional()
+      .refine((p) => p === undefined || (p.startsWith("/") && p.includes("{slug}")), { message: "must start with / and contain {slug}" })
+      .describe("Like `post_url`, for pages, e.g. `/{slug}/`."),
     front_matter_format: z
       .enum(["yaml", "toml"])
       .default("yaml")
@@ -94,22 +111,6 @@ const github = z
   })
   .strict()
   .describe("The site repository and the GitHub App used to log in. Secrets go in Worker secrets, never here.");
-
-const allowedUser = z.strictObject({
-  login: z.string().min(1).describe("GitHub username, for readability. Not used for access checks."),
-  id: z.number().int().positive().describe("Numeric GitHub user ID; this is what access is checked against."),
-  author: z.string().max(100).optional().describe("Value written to the author field of this user's new posts and pages."),
-});
-
-const users = z
-  .object({
-    allow: z
-      .array(allowedUser)
-      .min(1, "list at least one user")
-      .describe("GitHub users allowed to log in. `npm run setup` resolves usernames to numeric IDs."),
-  })
-  .strict()
-  .describe("Who may log in.");
 
 const media = z
   .object({
@@ -150,9 +151,45 @@ const drafts = z
       .describe(
         "Directory in the site repository where draft posts and pages are committed until they are published. Must be outside Hugo's content directory, so drafts are never built. Draft images go to the `DRAFTS` R2 bucket, never into git.",
       ),
+    cleanup_after_days: z
+      .number()
+      .int()
+      .min(1)
+      .max(365)
+      .default(7)
+      .describe(
+        "The nightly cleanup removes a draft's photos from the `DRAFTS` bucket when no draft with that ID exists in the repository (drafts folder or Bin) and nothing in its folder changed for this many days, which protects drafts that exist only on someone's device and editing sessions in progress.",
+      ),
+    cleanup_cron: z
+      .string()
+      .regex(/^\S+( \S+){4}$/, "must be a cron expression with five fields")
+      .default("17 3 * * *")
+      .describe("When the nightly cleanup runs: a cron expression in UTC (Cloudflare Cron Triggers)."),
   })
   .strict()
   .describe("Unpublished drafts: their text is committed to the site repository, their images go to R2.");
+
+const archive = z
+  .object({
+    dir: repoDir
+      .default("archive")
+      .describe(
+        "Directory in the site repository for archived posts and pages: taken off the site but kept, and can be republished. Each keeps its repository path under this directory (e.g. `archive/content/posts/…`). Must be outside Hugo's content directory.",
+      ),
+  })
+  .strict()
+  .describe("Archived posts and pages: off the site, kept in the site repository.");
+
+const bin = z
+  .object({
+    dir: repoDir
+      .default("bin")
+      .describe(
+        "Directory in the site repository for deleted items until the Bin is emptied. Each keeps the path it was deleted from, so it can be recovered to exactly that place. Must be outside Hugo's content directory. Alasin deletes files from the repository only inside this directory.",
+      ),
+  })
+  .strict()
+  .describe("The Bin: deleted posts, pages and drafts stay here, recoverable, until the Bin is emptied.");
 
 const images = z
   .object({
@@ -215,6 +252,13 @@ const categories = z
         "Where the category list lives: `term-pages` (`<dir>/<slug>/_index.md`), `data-file` (a TOML/YAML file listing them) or `front-matter` (only the values used in posts).",
       ),
     path: z.string().default("content/categories").describe("Directory of term pages, or path of the data file."),
+    parent_field: z
+      .string()
+      .regex(/^[A-Za-z_][A-Za-z0-9_-]*$/)
+      .default("parent")
+      .describe(
+        "Field naming a category's parent category (by slug), in its term page's front matter or its data file entry. Categories without it are top-level.",
+      ),
   })
   .strict()
   .describe("Categories.");
@@ -270,9 +314,10 @@ export const configSchema = z
     app,
     site,
     github,
-    users,
     media,
     drafts: drafts.prefault({}),
+    archive: archive.prefault({}),
+    bin: bin.prefault({}),
     images: images.prefault({}),
     editor: editor.prefault({}),
     categories: categories.prefault({}),
@@ -296,23 +341,31 @@ export const configSchema = z
         message: "must not be longer than security.session_max_days",
       });
     }
+    // Drafts, archive and Bin are separate folders that Hugo never builds.
     const inside = (dir: string, parent: string) => dir === parent || dir.startsWith(`${parent}/`) || parent.startsWith(`${dir}/`);
-    for (const key of ["posts_dir", "pages_dir"] as const) {
-      if (inside(c.drafts.dir, c.site[key])) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["drafts", "dir"],
-          message: `must be outside site.${key} ("${c.site[key]}"), or Hugo would publish drafts`,
-        });
+    const unbuilt = [
+      ["drafts", c.drafts.dir, "drafts"],
+      ["archive", c.archive.dir, "archived items"],
+      ["bin", c.bin.dir, "items in the Bin"],
+    ] as const;
+    unbuilt.forEach(([section, dir, what], i) => {
+      for (const key of ["posts_dir", "pages_dir"] as const) {
+        if (inside(dir, c.site[key])) {
+          ctx.addIssue({
+            code: "custom",
+            path: [section, "dir"],
+            message: `must be outside site.${key} ("${c.site[key]}"), or Hugo would publish ${what}`,
+          });
+        }
       }
-    }
-    if (c.drafts.dir === "content" || c.drafts.dir.startsWith("content/")) {
-      ctx.addIssue({ code: "custom", path: ["drafts", "dir"], message: "must be outside Hugo's content directory" });
-    }
-    const ids = new Set<number>();
-    c.users.allow.forEach((u, i) => {
-      if (ids.has(u.id)) ctx.addIssue({ code: "custom", path: ["users", "allow", i, "id"], message: "is listed twice" });
-      ids.add(u.id);
+      if (dir === "content" || dir.startsWith("content/")) {
+        ctx.addIssue({ code: "custom", path: [section, "dir"], message: "must be outside Hugo's content directory" });
+      }
+      for (const [other, otherDir] of unbuilt.slice(0, i)) {
+        if (inside(dir, otherDir)) {
+          ctx.addIssue({ code: "custom", path: [section, "dir"], message: `must be separate from ${other}.dir ("${otherDir}")` });
+        }
+      }
     });
   });
 

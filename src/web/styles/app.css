@@ -516,9 +516,12 @@ img {
   font-weight: 700;
 }
 
-/* The hide/show button, at the bottom of the sidebar. */
+/* The hide/show button and the running version, at the bottom of the sidebar. */
 .sidebar-footer {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   margin-top: auto;
   padding-top: 12px;
 }
@@ -603,6 +606,7 @@ img {
 .nav-trailing {
   display: flex;
   justify-content: flex-end;
+  gap: 8px;
 }
 
 .nav-inline-title {
@@ -1165,6 +1169,7 @@ img {
 
 .row-check {
   cursor: pointer;
+  padding-left: calc(16px + var(--depth, 0) * 20px);
 }
 
 .row-check input {
@@ -1573,3 +1578,310 @@ img {
   color: var(--label);
   font: inherit;
 }
+
+.published-check {
+  color: var(--green);
+}
+
+/* ---------- Post and page lists ---------- */
+
+.list-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0 var(--gutter-right) 16px var(--gutter);
+}
+
+.search-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.search-field {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 8px;
+  border-radius: 10px;
+  background: var(--fill-tertiary);
+  color: var(--secondary-label);
+}
+
+.search-field input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  color: var(--label);
+  font: inherit;
+  outline: none;
+}
+
+.search-field input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.search-clear {
+  display: inline-flex;
+  padding: 3px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--secondary-label);
+  color: var(--grouped-bg);
+  cursor: pointer;
+}
+
+.list-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 36px;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+.year-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: calc(100% - var(--gutter) - var(--gutter-right));
+  margin: 0 var(--gutter-right) 8px var(--gutter);
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: var(--label);
+  font: inherit;
+  font-size: var(--title3);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.year-header .secondary {
+  margin-left: auto;
+  font-size: var(--footnote);
+  font-weight: 400;
+}
+
+.list-section-header {
+  margin: 0 var(--gutter-right) 6px calc(var(--gutter) + 16px);
+  color: var(--secondary-label);
+  font-size: var(--footnote);
+  font-weight: 400;
+  text-transform: uppercase;
+}
+
+.row-snippet {
+  display: block;
+  margin-top: 2px;
+  color: var(--secondary-label);
+  font-size: var(--footnote);
+}
+
+.row-snippet mark {
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  color: var(--label);
+}
+
+.check-mark {
+  color: var(--accent);
+}
+
+.row-byline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  font-size: var(--footnote);
+}
+
+.avatar-tiny {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+}
+
+.fate-screen {
+  gap: 12px;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 24px var(--gutter);
+  text-align: center;
+}
+
+.button-column {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.list-title {
+  margin: 8px var(--gutter-right) 8px var(--gutter);
+  font-size: var(--title3);
+  font-weight: 700;
+}
+
+.list-filters .btn {
+  flex: none;
+}
+
+.sheet-search {
+  margin: 0 var(--gutter) 12px;
+}
+
+.tags-input {
+  flex: 2;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.tags-input .row-input {
+  width: 100%;
+}
+
+.tag-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.chip-button {
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--footnote);
+}
+
+/* A new build is deployed: offered at the bottom, above the tab bar. */
+.update-toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--tab-height) + env(safe-area-inset-bottom) + 12px);
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: max-content;
+  max-width: calc(100% - 32px);
+  padding: 10px 10px 10px 16px;
+  border-radius: 14px;
+  background: var(--elevated-bg);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  font-size: var(--footnote);
+  transform: translateX(-50%);
+  animation: fade-in 0.2s ease;
+}
+
+@media (min-width: 768px) {
+  .update-toast {
+    bottom: 24px;
+  }
+}
+
+.sidebar-build {
+  padding-right: 8px;
+  color: var(--secondary-label);
+  font-size: var(--caption2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Someone else is editing: the text can't be changed, so its buttons go. */
+.cm-readonly .cm-md-gallery button,
+.cm-readonly .cm-md-image button {
+  display: none;
+}
+
+.form-fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.form-fieldset:disabled,
+.toolbar.is-disabled {
+  opacity: 0.55;
+}
+
+.lock-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.lock-banner .avatar-tiny {
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+}
+
+.row-editing {
+  display: block;
+  margin-top: 2px;
+  color: var(--orange);
+  font-size: var(--footnote);
+}
+
+.list-note {
+  margin: 0 var(--gutter-right) 12px var(--gutter);
+  font-size: var(--footnote);
+}
+
+.user-row .avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+}
+
+.badge-ok {
+  background: color-mix(in srgb, var(--green) 18%, transparent);
+  color: var(--green);
+}
+
+.badge-warn {
+  background: color-mix(in srgb, var(--orange) 18%, transparent);
+  color: var(--orange);
+}
+
+.bin-controls .list-note {
+  margin: 0;
+}
+
+.bin-controls .btn {
+  align-self: flex-start;
+}
+
+.sidebar-count {
+  margin-left: auto;
+  color: var(--secondary-label);
+  font-size: var(--footnote);
+  font-variant-numeric: tabular-nums;
+}
+
+.sidebar-item.active .sidebar-count {
+  color: rgba(255, 255, 255, 0.8);
+}
+

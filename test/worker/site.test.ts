@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MIT
+import { env } from "cloudflare:test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { parseConfig } from "../../src/shared/config/schema";
 import { ALLOWED_USER, testConfig } from "../fixtures";
@@ -10,13 +11,15 @@ let cookie: string;
 beforeEach(async () => {
   gh = fakeGitHub();
   ({ cookie } = await login(gh, ALLOWED_USER));
+  // The repository's writers are kept in KV for a while; each test starts fresh.
+  await env.KV.delete(`collaborators:${gh.repo.owner}/${gh.repo.name}`);
 });
 afterEach(() => {
   vi.restoreAllMocks();
 });
 
 type Site = {
-  categories: { slug: string; title: string }[];
+  categories: { slug: string; title: string; parent?: string }[];
   images: { widths: number[]; quality: number; maxSize: number };
   author: string | null;
   authorField: string | null;
@@ -28,9 +31,11 @@ describe("site settings", () => {
     await gh.repo.write("content/categories/travel/_index.md", '---\ntitle: "Travel"\nslug: "travel"\n---\n');
     await gh.repo.write("content/categories/radio/_index.md", '---\ntitle: "Amateur radio"\n---\n');
     await gh.repo.write("content/categories/untitled/_index.md", "---\nslug: untitled\n---\n");
+    await gh.repo.write("content/categories/qrp/_index.md", '---\ntitle: "QRP"\nparent: "radio"\n---\n');
     const site = (await (await call("/api/site", { cookie })).json()) as Site;
     expect(site.categories).toEqual([
       { slug: "radio", title: "Amateur radio" },
+      { slug: "qrp", title: "QRP", parent: "radio" },
       { slug: "travel", title: "Travel" },
       { slug: "untitled", title: "untitled" },
     ]);
@@ -51,14 +56,25 @@ describe("site settings", () => {
     expect(site.categories).toEqual([]);
   });
 
-  it("gives the signed-in user's author name", async () => {
-    const config = parseConfig({
-      ...testConfig,
-      site: { ...testConfig.site, author_field: "author" },
-      users: { allow: [{ ...ALLOWED_USER, author: "Octo" }] },
-    });
-    const site = (await (await call("/api/site", { cookie }, { ALASIN_CONFIG_JSON: JSON.stringify(config) })).json()) as Site;
-    expect(site).toMatchObject({ author: "Octo", authorField: "author" });
+  it("takes full names from GitHub profiles of the repository's writers", async () => {
+    const other = { login: "jane", id: 424242 };
+    gh.profiles.set(ALLOWED_USER.id, "Octo Cat");
+    gh.profiles.set(other.id, "Jane Doe");
+    gh.repo.collaborators.set(other.login, { permission: "write", id: other.id });
+    const config = parseConfig({ ...testConfig, site: { ...testConfig.site, author_field: "author" } });
+    const get = async () =>
+      (await (await call("/api/site", { cookie }, { ALASIN_CONFIG_JSON: JSON.stringify(config) })).json()) as Site & {
+        users: { login: string; id: number; names: string[] }[];
+      };
+    const site = await get();
+    expect(site).toMatchObject({ author: "Octo Cat", authorField: "author" });
+    expect(site.users).toEqual([
+      { login: ALLOWED_USER.login, id: ALLOWED_USER.id, names: ["Octo Cat", ALLOWED_USER.login] },
+      { login: "jane", id: 424242, names: ["Jane Doe", "jane"] },
+    ]);
+    // Kept for a day: no new lookups.
+    gh.profiles.set(other.id, "Changed");
+    expect((await get()).users[1]!.names[0]).toBe("Jane Doe");
   });
 
   it("requires a session", async () => {

@@ -1,30 +1,47 @@
 // SPDX-License-Identifier: MIT
 //
-// Editing a draft: title, details (front matter as a form) and the text.
-// Typing autosaves on this device; "Save draft" commits to the site
-// repository. If the draft changed on GitHub meanwhile, the user chooses
-// which version to keep — nothing is overwritten silently.
+// Editing a draft or a published post or page: title, details (front matter
+// as a form) and the text. Typing autosaves on this device; saving commits to
+// the site repository. If the file changed on GitHub meanwhile, the user
+// chooses which version to keep — nothing is overwritten silently.
 
-import { Bold, Check, ChevronLeft, FileCode, Heading2, ImageOff, ImagePlus, Italic, Link, List, Quote, RotateCw, TvMinimalPlay, X } from "lucide-preact";
+import { Bold, Check, ChevronLeft, Ellipsis, FileCode, Heading2, ImageOff, ImagePlus, Italic, Link, List, Quote, RotateCw, TvMinimalPlay, X } from "lucide-preact";
 import { PhotoError, photosMarkdown, processPhoto, uploadPhoto } from "../lib/photos";
 import type { MarkdownEditor } from "../editor/markdown-editor";
 import { BodyEditor } from "./BodyEditor";
-import { dropDanglingBreaks } from "../lib/line-breaks";
-import { removeEmptyItems } from "../lib/markdown-cleanup";
 import { useVisibleTop } from "../lib/visual-viewport";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { fromLocalInput, slugify, toLocalInput } from "../../shared/frontmatter";
 import { youtubeId, youtubeShortcode } from "../../shared/youtube";
+import { categoryTree } from "../../shared/categories";
 import { api, ApiError, type Me, NetworkError } from "../lib/api";
-import { type DraftDoc, type DraftForm, newDraft, parseDraft, serializeDraft } from "../lib/draft-model";
+import { type DraftDoc, type DraftForm, newDraft, parseDraft, prepareSave, serializeDraft } from "../lib/draft-model";
 import { t, useLanguage } from "../lib/i18n";
 import { deleteLocalDraft, getLocalDraft, putLocalDraft } from "../lib/local-drafts";
 import { type DraftKind, navigate } from "../lib/router";
+import { ulid } from "../../shared/ulid";
+import { valueCounts } from "../lib/content-index";
+import { useContent } from "../lib/use-content";
+import { TagsInput } from "./TagsInput";
+import { useEditLock } from "../lib/edit-lock";
 import { loadSite, type SiteSettings } from "../lib/site";
 import { ActionSheet, Sheet } from "./Sheet";
 
+/** What is being edited: a draft, or a published post or page by its repository path. */
+export type EditSource = { kind: "draft"; type: DraftKind; id: string } | { kind: "file"; path: string };
+
+/** Where a draft went that this device saved earlier but is no longer in the drafts folder. */
+interface Fate {
+  state: "published" | "bin" | "deleted" | "unknown" | "draft";
+  path?: string;
+  exists?: boolean;
+}
+
 interface Loaded {
   site: SiteSettings;
+  type: DraftKind;
+  /** A draft saved from this device earlier was published or deleted elsewhere. */
+  fate?: Fate;
   doc: DraftDoc;
   /** Blob SHA of the GitHub version the edits are based on (null: not on GitHub yet). */
   sha: string | null;
@@ -35,7 +52,7 @@ interface Loaded {
   remote?: { content: string; sha: string };
 }
 
-type Status = "idle" | "saving" | "saved" | "error";
+type Status = "idle" | "saving" | "saved" | "publishing" | "error";
 
 interface Upload {
   token: string;
@@ -49,32 +66,87 @@ interface Upload {
 /** Placeholder address for an image still uploading (never saved: saving waits for uploads). */
 const placeholder = (token: string) => `alasin-upload:${token}`;
 
-async function load(me: Me, type: DraftKind, id: string): Promise<Loaded> {
+/** The kind of a published file, from the configured folders. */
+function kindOf(site: SiteSettings, path: string): DraftKind {
+  return path.startsWith(`${site.folders.pages}/`) ? "page" : "post";
+}
+
+/** The key of this device's autosaved copy. */
+const localIdOf = (source: EditSource) => (source.kind === "draft" ? source.id : `file:${source.path}`);
+
+/** Where the file is read from and saved to. */
+const fileUrl = (source: EditSource, type: DraftKind) =>
+  source.kind === "draft" ? `/api/drafts/${type}/${source.id}` : `/api/content/file?path=${encodeURIComponent(source.path)}`;
+
+async function load(me: Me, source: EditSource): Promise<Loaded> {
   const site = await loadSite();
+  const type = source.kind === "draft" ? source.type : kindOf(site, source.path);
+  const localId = localIdOf(source);
   let remote: { content: string; sha: string } | null = null;
   try {
-    remote = await api<{ content: string; sha: string }>(`/api/drafts/${type}/${id}`);
+    remote = await api<{ content: string; sha: string }>(fileUrl(source, type));
   } catch (err) {
     if (!(err instanceof ApiError && err.status === 404)) throw err;
   }
-  const local = await getLocalDraft(me.user.id, type, id);
-  const fromText = (text: string) => parseDraft(text, site) ?? newDraft(id, site);
+  const local = await getLocalDraft(me.user.id, type, localId);
+  const fromText = (text: string) => parseDraft(text, site) ?? newDraft(source.kind === "draft" ? source.id : ulid(), site);
+  if (!remote && source.kind === "file") throw new ApiError(404, "not_found", t("editor.fileGone"));
 
   if (remote && local && local.content !== remote.content) {
     if (local.baseSha === remote.sha) {
-      return { site, doc: fromText(local.content), sha: remote.sha, savedContent: remote.content, notice: "restored" };
+      return { site, type, doc: fromText(local.content), sha: remote.sha, savedContent: remote.content, notice: "restored" };
     }
-    return { site, doc: fromText(local.content), sha: local.baseSha, savedContent: local.savedContent, notice: "conflict", remote };
+    return { site, type, doc: fromText(local.content), sha: local.baseSha, savedContent: local.savedContent, notice: "conflict", remote };
   }
-  if (remote) return { site, doc: fromText(remote.content), sha: remote.sha, savedContent: remote.content, notice: null };
-  if (local) return { site, doc: fromText(local.content), sha: null, savedContent: null, notice: local.content ? "restored" : null };
-  return { site, doc: newDraft(id, site), sha: null, savedContent: null, notice: null };
+  if (remote) return { site, type, doc: fromText(remote.content), sha: remote.sha, savedContent: remote.content, notice: null };
+  if (local) {
+    // Saved to GitHub from this device before, but gone now: find out where it went.
+    let fate: Fate | undefined;
+    if (local.baseSha !== null && source.kind === "draft") {
+      fate = await api<Fate>(`/api/drafts/${type}/${source.id}/fate`).catch(() => undefined);
+      if (fate && (fate.state === "unknown" || fate.state === "draft")) fate = undefined;
+    }
+    return { site, type, doc: fromText(local.content), sha: null, savedContent: null, notice: local.content ? "restored" : null, fate };
+  }
+  return { site, type, doc: newDraft(localId, site), sha: null, savedContent: null, notice: null };
 }
 
-export function Editor(props: { me: Me; type: DraftKind; id: string }) {
+/**
+ * Draft photo addresses in `text` replaced by the published ones with the same
+ * name in `published` (photo.jpg → /img/…/photo.jpg or photo-2.jpg), for
+ * changes made to a draft that was meanwhile published elsewhere.
+ */
+function mapPublishedPhotos(text: string, published: string): string {
+  const urls = [...published.matchAll(/\]\(([^)\s]+)/g)].map((m) => m[1]!);
+  return text.replace(/\/api\/draft-media\/[0-9A-Z]{26}\/([a-z0-9_-]+)\.([a-z]+)/g, (whole, stem: string, ext: string) => {
+    const match = urls.find((u) => new RegExp(`/${stem}(-\\d+)?\\.${ext}$`).test(u));
+    return match ?? whole;
+  });
+}
+
+export function Editor(props: { me: Me; source: EditSource }) {
   useLanguage();
-  const { me, type, id } = props;
+  const { me, source } = props;
+  const isDraft = source.kind === "draft";
+  const localId = localIdOf(source);
+  /** Photos are uploaded under the draft's ID, or for a published file under an ID for this editing session. */
+  const uploadId = useMemo(() => (source.kind === "draft" ? source.id : ulid()), []);
   const [state, setState] = useState<Loaded | null>(null);
+  const type: DraftKind = state?.type ?? (source.kind === "draft" ? source.type : "post");
+  /** Bumped to read the file again (after taking over editing from someone else). */
+  const [reload, setReload] = useState(0);
+  // One editor at a time: read-only while someone else holds the lock.
+  const lock = useEditLock(
+    state && !state.fate ? (source.kind === "draft" ? `draft:${source.id}` : `file:${source.path}`) : null,
+    state?.site.locks?.heartbeatSeconds ?? 60,
+    // The lock came free: read the text again, as the other editor may have saved.
+    () => setReload((n) => n + 1),
+  );
+  const readOnly = lock.state === "other" || lock.state === "lost";
+  const [takeOverOpen, setTakeOverOpen] = useState(false);
+  /** The menu of a published file, and the action waiting for confirmation. */
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [confirm, setConfirm] = useState<"unpublish" | "archive" | "publish" | "delete" | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>("idle");
   const [message, setMessage] = useState<string | null>(null);
@@ -84,6 +156,9 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
   const [conflict, setConflict] = useState(false);
   const [coverOpen, setCoverOpen] = useState(false);
   const [videoOpen, setVideoOpen] = useState(false);
+  const [publishOpen, setPublishOpen] = useState(false);
+  /** Where the draft was published to, once it is. */
+  const [published, setPublished] = useState<string | null>(null);
   const [videoLink, setVideoLink] = useState("");
   const [videoError, setVideoError] = useState(false);
   const [uploads, setUploads] = useState<Upload[]>([]);
@@ -95,6 +170,13 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
   const [markdownError, setMarkdownError] = useState(false);
 
   useVisibleTop();
+
+  // The site's posts and pages (kept on the device, brought up to date in the
+  // background): published ones to warn about addresses already in use, and
+  // the tags in use to suggest while typing.
+  const { content: siteContent } = useContent(me);
+  const publishedItems = useMemo(() => siteContent?.items.filter((i) => i.state === "published") ?? [], [siteContent]);
+  const knownTags = useMemo(() => valueCounts(siteContent?.items ?? [], (i) => i.tags), [siteContent]);
 
   const uploading = uploads.some((u) => u.state === "processing" || u.state === "uploading");
   const [draftImages, setDraftImages] = useState<{ file: string; url: string; thumb: string }[] | null>(null);
@@ -123,16 +205,26 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
   const openCover = () => {
     setCoverOpen(true);
     setDraftImages(null);
-    api<{ images: { file: string; url: string; thumb: string }[] }>(`/api/draft-media/${id}`).then(
-      (r) => setDraftImages(r.images),
-      () => setDraftImages([]),
+    // Photos uploaded here, and (for a published file) the photos already in its text.
+    const inText = (): { file: string; url: string; thumb: string }[] => {
+      if (isDraft || !state) return [];
+      const { publicUrl, contentPrefix } = state.site.media;
+      const seen = new Set<string>();
+      return [...state.doc.form.body.matchAll(/!\[[^\]]*\]\(([^)\s]+)/g)]
+        .map((m) => m[1]!)
+        .filter((u) => u.startsWith(contentPrefix) && !seen.has(u) && seen.add(u))
+        .map((u) => ({ file: u.split("/").pop()!, url: u, thumb: publicUrl + u.slice(contentPrefix.length) }));
+    };
+    api<{ images: { file: string; url: string; thumb: string }[] }>(`/api/draft-media/${uploadId}`).then(
+      (r) => setDraftImages([...r.images, ...inText()]),
+      () => setDraftImages(inText()),
     );
   };
   const titleRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     let cancelled = false;
-    load(me, type, id).then(
+    load(me, source).then(
       (l) => {
         if (cancelled) return;
         setState(l);
@@ -142,9 +234,9 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
       (err: unknown) => !cancelled && setLoadError(err instanceof NetworkError ? t("error.network") : t("error.generic")),
     );
     return () => void (cancelled = true);
-  }, [type, id]);
+  }, [localId, reload]);
 
-  const content = useMemo(() => (state ? serializeDraft(state.doc, state.site) : ""), [state]);
+  const content = useMemo(() => (state ? serializeDraft(state.doc, state.site, { draft: isDraft }) : ""), [state]);
   const unsaved = state !== null && content !== state.savedContent;
 
   // Autosave on this device while typing.
@@ -154,7 +246,7 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
     const empty = state.savedContent === null && !state.doc.form.title.trim() && !state.doc.form.body.trim();
     if (empty) return;
     const timer = setTimeout(() => {
-      void putLocalDraft({ uid: me.user.id, type, id, content, baseSha: state.sha, savedContent: state.savedContent });
+      void putLocalDraft({ uid: me.user.id, type, id: localId, content, baseSha: state.sha, savedContent: state.savedContent });
     }, 600);
     return () => clearTimeout(timer);
   }, [content]);
@@ -193,7 +285,7 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
       patchUpload(u.token, { state: "processing", progress: 0, error: undefined });
       const image = await processPhoto(u.file, site);
       patchUpload(u.token, { state: "uploading" });
-      const done = await uploadPhoto(id, u.name, image, (p) => patchUpload(u.token, { progress: p }));
+      const done = await uploadPhoto(uploadId, u.name, image, (p) => patchUpload(u.token, { progress: p }));
       updateForm((f) => ({
         body: f.body.split(placeholder(u.token)).join(done.url),
         ...(f.cover ? {} : { cover: done.url }),
@@ -240,59 +332,111 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
 
   const onTitle = (title: string) => {
     const f = state!.doc.form;
-    // The slug follows the title until it's edited by hand.
-    const slugFollows = !f.slug || f.slug === slugify(f.title);
+    // A draft's slug follows the title until it's edited by hand. (A published
+    // post's address never changes by itself.)
+    const slugFollows = isDraft && (!f.slug || f.slug === slugify(f.title));
     setForm({ title, ...(slugFollows ? { slug: title.trim() ? slugify(title) : "" } : {}) });
   };
 
-  const save = async (opts: { overwrite?: boolean } = {}) => {
-    if (!state || status === "saving") return;
+  /** Commits the draft; the new blob SHA, or null if it wasn't saved. */
+  const save = async (opts: { overwrite?: boolean } = {}): Promise<string | null> => {
+    if (!state || status === "saving" || status === "publishing" || readOnly) return null;
     if (uploading) {
       setMessage(t("photos.waitForUploads"));
-      return;
+      return null;
     }
     if (!state.doc.form.title.trim()) {
       setMessage(t("editor.needTitle"));
       titleRef.current?.focus();
-      return;
+      return null;
     }
     setStatus("saving");
     setMessage(null);
-    // Tidy up list items and quote lines left empty while writing.
-    // (Markdown mode is raw: nothing is changed there.)
-    const body = mode === "rich" ? dropDanglingBreaks(removeEmptyItems(state.doc.form.body)) : state.doc.form.body;
-    const doc = body === state.doc.form.body ? state.doc : { ...state.doc, form: { ...state.doc.form, body } };
-    const toSave = serializeDraft(doc, state.site);
+    const { content: toSave, body } = prepareSave(state.doc, state.site, { rich: mode === "rich", saved: state.savedContent, draft: isDraft });
     let sha = state.sha;
     try {
       if (opts.overwrite) {
-        sha = (await api<{ sha: string }>(`/api/drafts/${type}/${id}`)).sha;
+        sha = (await api<{ sha: string }>(fileUrl(source, type))).sha;
       }
-      const res = await api<{ sha: string }>(`/api/drafts/${type}/${id}`, {
-        method: "PUT",
-        body: { content: toSave, sha, title: state.doc.form.title },
+      let saved = toSave;
+      if (source.kind === "draft") {
+        const res = await api<{ sha: string }>(fileUrl(source, type), {
+          method: "PUT",
+          body: { content: toSave, sha, title: state.doc.form.title },
+        });
+        sha = res.sha;
+      } else {
+        // The address or date changed: the url field follows (if the site keeps one).
+        const before = state.doc.raw ? (JSON.parse(state.doc.raw.formFields) as DraftForm) : null;
+        const res = await api<{ sha: string; content: string; path: string }>("/api/content/file", {
+          method: "PUT",
+          body: {
+            path: source.path,
+            content: toSave,
+            sha,
+            day: toLocalInput(state.doc.form.date).slice(0, 10) || undefined,
+            updateUrl: !!before && (before.slug !== state.doc.form.slug || before.date !== state.doc.form.date),
+            editId: uploadId,
+          },
+        });
+        // The Worker sets lastmod and turns new photos' addresses into public ones.
+        sha = res.sha;
+        saved = res.content;
+        if (res.path !== source.path) {
+          // Renamed to match the new address or date: continue editing it there.
+          await deleteLocalDraft(me.user.id, type, localId);
+          await putLocalDraft({ uid: me.user.id, type, id: `file:${res.path}`, content: saved, baseSha: sha, savedContent: saved });
+          setStatus("saved");
+          navigate({ name: "file", path: res.path }, { replace: true });
+          return sha;
+        }
+      }
+      setState((s) => {
+        if (!s) return s;
+        const typedMeanwhile = s.doc.form.body !== state.doc.form.body;
+        const reread = saved !== toSave && !typedMeanwhile ? parseDraft(saved, s.site) : null;
+        return {
+          ...s,
+          // Show the tidied (or saved) text, unless more was typed while saving.
+          doc: reread ?? (typedMeanwhile ? s.doc : { ...s.doc, form: { ...s.doc.form, body } }),
+          sha,
+          savedContent: saved,
+          notice: null,
+          remote: undefined,
+        };
       });
-      setState((s) =>
-        s
-          ? {
-              ...s,
-              // Show the tidied text, unless more was typed while saving.
-              doc: s.doc.form.body === state.doc.form.body ? { ...s.doc, form: { ...s.doc.form, body } } : s.doc,
-              sha: res.sha,
-              savedContent: toSave,
-              notice: null,
-              remote: undefined,
-            }
-          : s,
-      );
-      await putLocalDraft({ uid: me.user.id, type, id, content: toSave, baseSha: res.sha, savedContent: toSave });
+      await putLocalDraft({ uid: me.user.id, type, id: localId, content: saved, baseSha: sha, savedContent: saved });
       setConflict(false);
       setStatus("saved");
       setSavedAt(new Date());
+      return sha;
     } catch (err) {
       setStatus("error");
-      if (err instanceof ApiError && err.status === 409) setConflict(true);
+      if (err instanceof ApiError && err.status === 409 && err.code !== "exists") setConflict(true);
       else if (err instanceof NetworkError) setMessage(t("editor.offline"));
+      else setMessage(err instanceof ApiError ? err.message : t("error.generic"));
+      return null;
+    }
+  };
+
+  /** Saves any changes, then publishes the saved version. */
+  const publish = async () => {
+    if (!state || source.kind !== "draft") return;
+    const sha = unsaved || !state.sha ? await save() : state.sha;
+    if (!sha) return;
+    setStatus("publishing");
+    setMessage(null);
+    try {
+      const res = await api<{ path: string }>(`/api/drafts/${type}/${source.id}/publish`, {
+        method: "POST",
+        // The post's day as the author sees it, for folders named by date.
+        body: { sha, day: toLocalInput(state.doc.form.date).slice(0, 10) || undefined },
+      });
+      await deleteLocalDraft(me.user.id, type, localId);
+      setPublished(res.path);
+    } catch (err) {
+      setStatus("error");
+      if (err instanceof NetworkError) setMessage(t("editor.offline"));
       else setMessage(err instanceof ApiError ? err.message : t("error.generic"));
     }
   };
@@ -300,10 +444,10 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
   const useRemote = async () => {
     if (!state) return;
     try {
-      const remote = state.remote ?? (await api<{ content: string; sha: string }>(`/api/drafts/${type}/${id}`));
+      const remote = state.remote ?? (await api<{ content: string; sha: string }>(fileUrl(source, type)));
       const doc = parseDraft(remote.content, state.site) ?? state.doc;
       setState({ ...state, doc, sha: remote.sha, savedContent: remote.content, notice: null, remote: undefined });
-      await deleteLocalDraft(me.user.id, type, id);
+      await deleteLocalDraft(me.user.id, type, localId);
       setConflict(false);
       setStatus("idle");
     } catch {
@@ -355,7 +499,86 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
     setMode(next);
   };
 
-  const back = () => navigate({ name: "drafts" });
+  const back = () => navigate({ name: isDraft ? "drafts" : type === "page" ? "pages" : "posts" });
+
+  /** A draft published elsewhere: carry this device's changes over to the published file. */
+  const useMineInPublished = async (path: string) => {
+    if (!state) return;
+    try {
+      const pub = await api<{ content: string; sha: string }>(`/api/content/file?path=${encodeURIComponent(path)}`);
+      const doc = parseDraft(pub.content, state.site);
+      if (!doc) throw new Error("unreadable");
+      const form = { ...state.doc.form, body: mapPublishedPhotos(state.doc.form.body, pub.content), cover: mapPublishedPhotos(state.doc.form.cover, pub.content) };
+      const content = serializeDraft({ ...doc, form }, state.site, { draft: false });
+      await putLocalDraft({ uid: me.user.id, type, id: `file:${path}`, content, baseSha: pub.sha, savedContent: pub.content });
+      await deleteLocalDraft(me.user.id, type, localId);
+      navigate({ name: "file", path }, { replace: true });
+    } catch {
+      setMessage(t("error.generic"));
+    }
+  };
+
+  /** Moves a published file: unpublish (to a draft), archive, or publish one marked draft: true. */
+  const lifecycle = async (action: "unpublish" | "archive" | "publish") => {
+    if (!state || source.kind !== "file" || !state.sha) return;
+    if (unsaved) {
+      setMessage(t("editor.saveFirst"));
+      return;
+    }
+    setStatus("saving");
+    setMessage(null);
+    try {
+      const res = await api<{ path: string; draftId?: string }>("/api/lifecycle", {
+        method: "POST",
+        body: { action, path: source.path, sha: state.sha, lockId: lock.lockId, day: toLocalInput(state.doc.form.date).slice(0, 10) || undefined },
+      });
+      await deleteLocalDraft(me.user.id, type, localId);
+      setStatus("saved");
+      if (action === "unpublish" && res.draftId) navigate({ name: "editor", type, id: res.draftId }, { replace: true });
+      else if (action === "archive") back();
+      else setReload((n) => n + 1);
+    } catch (err) {
+      setStatus("error");
+      if (err instanceof ApiError && err.code === "conflict") setConflict(true);
+      else if (err instanceof NetworkError) setMessage(t("editor.offline"));
+      else setMessage(err instanceof ApiError ? err.message : t("error.generic"));
+    }
+  };
+
+  /** Moves the draft, post or page to the Bin (a draft never saved is only discarded on this device). */
+  const moveToBin = async () => {
+    if (!state) return;
+    if (state.sha === null) {
+      await discardMine();
+      return;
+    }
+    setStatus("saving");
+    setMessage(null);
+    try {
+      const path = source.kind === "draft" ? `${state.site.folders.drafts}/${type}s/${source.id}.md` : source.path;
+      await api("/api/bin/delete", { method: "POST", body: { path, sha: state.sha, lockId: lock.lockId } });
+      await deleteLocalDraft(me.user.id, type, localId);
+      setStatus("saved");
+      back();
+    } catch (err) {
+      setStatus("error");
+      if (err instanceof ApiError && err.code === "conflict") setConflict(true);
+      else if (err instanceof NetworkError) setMessage(t("editor.offline"));
+      else setMessage(err instanceof ApiError ? err.message : t("error.generic"));
+    }
+  };
+
+  /** Takes the lock from whoever has it; the text is read again, as they may have saved meanwhile. */
+  const takeOver = async () => {
+    const wasOther = lock.state === "other";
+    await lock.takeOver();
+    if (wasOther) setReload((n) => n + 1);
+  };
+
+  const discardMine = async () => {
+    await deleteLocalDraft(me.user.id, type, localId);
+    back();
+  };
 
   if (loadError) {
     return (
@@ -364,6 +587,48 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
         <button type="button" class="btn btn-tinted" onClick={back}>
           {t("editor.backToDrafts")}
         </button>
+      </div>
+    );
+  }
+  if (published) {
+    return (
+      <div class="center-screen" role="status">
+        <Check class="published-check" size={44} aria-hidden="true" />
+        <h2 class="headline">{t("editor.published")}</h2>
+        <p class="secondary">{t("editor.publishedBody", { path: published })}</p>
+        <button type="button" class="btn btn-tinted" onClick={back}>
+          {t("editor.backToDrafts")}
+        </button>
+      </div>
+    );
+  }
+  if (state?.fate) {
+    const { fate } = state;
+    const title = state.doc.form.title.trim() || t("drafts.untitled");
+    return (
+      <div class="center-screen fate-screen">
+        <h2 class="headline">{fate.state === "published" ? t("editor.publishedElsewhere", { title }) : t("editor.deletedElsewhere", { title })}</h2>
+        <p class="secondary">{t("editor.elsewhereBody")}</p>
+        {message && (
+          <p class="banner banner-error" role="alert">
+            {message}
+          </p>
+        )}
+        <div class="button-column">
+          {fate.state === "published" && fate.path && fate.exists && (
+            <button type="button" class="btn btn-filled" onClick={() => void useMineInPublished(fate.path!)}>
+              {t("editor.useMineInPublished")}
+            </button>
+          )}
+          {fate.state !== "published" && (
+            <button type="button" class="btn btn-tinted" onClick={() => setState({ ...state, fate: undefined })}>
+              {t("editor.keepAsNewDraft")}
+            </button>
+          )}
+          <button type="button" class="btn btn-plain destructive" onClick={() => void discardMine()}>
+            {t("editor.discardMine")}
+          </button>
+        </div>
       </div>
     );
   }
@@ -378,7 +643,9 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
 
   const f = state.doc.form;
   const statusText =
-    status === "saving"
+    status === "publishing"
+      ? t("editor.publishing")
+      : status === "saving"
       ? t("editor.saving")
       : unsaved
         ? state.savedContent === null
@@ -387,7 +654,14 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
         : savedAt
           ? t("editor.savedAt", { time: savedAt.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }) })
           : t("editor.savedOnGitHub");
-  const categoryTitle = (slug: string) => state.site.categories.find((c) => c.slug === slug)?.title ?? slug;
+  // A draft whose address a published post or page already has: publishing it would fail.
+  const sameAddress = isDraft && f.slug ? publishedItems.find((i) => i.kind === type && i.slug === f.slug) : undefined;
+  /** A published file marked draft: true (e.g. from an older blog): offered for publishing. */
+  const fileIsDraft = !isDraft && state.doc.fields.get("draft") === true;
+  /** A draft that exists only on this device: deleting it discards it. */
+  const neverSaved = state.sha === null;
+  const categories = categoryTree(state.site.categories);
+  const categoryNode = (slug: string) => categories.find((c) => c.slug === slug);
 
   return (
     <div class="editor">
@@ -395,7 +669,7 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
         <div class="nav-leading">
           <button type="button" class="btn-plain" onClick={back}>
             <ChevronLeft size={22} aria-hidden="true" />
-            {t("nav.drafts")}
+            {isDraft ? t("nav.drafts") : type === "page" ? t("nav.pages") : t("nav.posts")}
           </button>
         </div>
         <div class="nav-inline-title editor-status" role="status" aria-live="polite">
@@ -403,8 +677,36 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
           {statusText}
         </div>
         <div class="nav-trailing">
-          <button type="button" class="btn btn-filled btn-small" onClick={() => void save()} disabled={status === "saving" || uploading || markdownError || !unsaved}>
-            {t("editor.saveDraft")}
+          <button
+            type="button"
+            class="btn btn-tinted btn-small"
+            onClick={() => void save()}
+            disabled={status === "saving" || status === "publishing" || uploading || markdownError || !unsaved || readOnly}
+          >
+            {isDraft ? t("editor.saveDraft") : t("editor.save")}
+          </button>
+          {!isDraft && fileIsDraft && (
+            <button type="button" class="btn btn-filled btn-small" onClick={() => setConfirm("publish")} disabled={status === "saving" || readOnly || conflict}>
+              {t("editor.publish")}
+            </button>
+          )}
+          {isDraft && (
+          <button
+            type="button"
+            class="btn btn-filled btn-small"
+            onClick={() => {
+              if (!f.title.trim()) {
+                setMessage(t("editor.needTitlePublish"));
+                titleRef.current?.focus();
+              } else setPublishOpen(true);
+            }}
+            disabled={status === "saving" || status === "publishing" || uploading || markdownError || conflict || readOnly}
+          >
+            {t("editor.publish")}
+          </button>
+          )}
+          <button type="button" class="btn-plain icon-button" onClick={() => setMenuOpen(true)} disabled={status === "saving" || status === "publishing" || readOnly} aria-label={t("editor.more")} title={t("editor.more")}>
+            <Ellipsis size={22} aria-hidden="true" />
           </button>
         </div>
       </header>
@@ -424,6 +726,40 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
           </div>
         </div>
       )}
+      {(lock.state === "other" || lock.state === "lost") && (
+        <div class="banner banner-info editor-banner lock-banner" role="status">
+          <img class="avatar-tiny" src={`/api/avatar/${lock.holder.uid}?s=40`} alt="" width={20} height={20} />
+          <div>
+            <p>
+              {lock.state === "other"
+                ? t("editor.lockedBy", { name: lock.holder.name ?? lock.holder.login })
+                : t("editor.lockTaken", { name: lock.holder.name ?? lock.holder.login })}
+            </p>
+            <div class="banner-actions">
+              <button type="button" class="btn btn-tinted btn-small" onClick={() => setTakeOverOpen(true)}>
+                {t("editor.takeOver")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {sameAddress && (
+        <div class="banner banner-error editor-banner" role="alert">
+          <div>
+            <p>{t(state.savedContent === null ? "editor.onlyHereSameAddress" : "editor.sameAddress", { title: sameAddress.title })}</p>
+            <div class="banner-actions">
+              <button type="button" class="btn btn-tinted btn-small" onClick={() => navigate({ name: "file", path: sameAddress.path })}>
+                {t("editor.openPublished")}
+              </button>
+              {state.savedContent === null && (
+                <button type="button" class="btn btn-plain btn-small destructive" onClick={() => void discardMine()}>
+                  {t("editor.discardCopy")}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       {state.notice === "restored" && !conflict && <p class="banner banner-info editor-banner">{t("editor.restored")}</p>}
       {message && (
         <p class="banner banner-error editor-banner" role="alert">
@@ -432,11 +768,14 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
       )}
 
       <div class="editor-body">
-        <p class="eyebrow">{type === "post" ? t("editor.newPostLabel") : t("editor.newPageLabel")}</p>
+        <p class="eyebrow">
+          {isDraft ? (type === "post" ? t("editor.newPostLabel") : t("editor.newPageLabel")) : type === "post" ? t("editor.publishedPostLabel") : t("editor.publishedPageLabel")}
+        </p>
         <textarea
           ref={titleRef}
           class="title-input"
           rows={1}
+          readOnly={readOnly}
           placeholder={t("editor.titlePlaceholder")}
           value={f.title}
           onInput={(e) => onTitle((e.target as HTMLTextAreaElement).value.replace(/\n/g, " "))}
@@ -454,6 +793,7 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
           {t("editor.details")}
         </button>
         {detailsOpen && (
+          <fieldset class="form-fieldset" disabled={readOnly}>
           <ul class="grouped-list form-list">
             <li class="row">
               <label class="row-label" for="f-date">
@@ -488,7 +828,13 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
               <button type="button" class="row row-button-left" onClick={() => setCategoriesOpen(true)}>
                 <span class="row-label">{t("editor.categories")}</span>
                 <span class="row-value chips">
-                  {f.categories.length ? f.categories.map((c) => <span class="chip">{categoryTitle(c)}</span>) : t("editor.none")}
+                  {f.categories.length
+                    ? f.categories.map((c) => (
+                        <span class="chip" title={categoryNode(c)?.path.join(" › ")}>
+                          {categoryNode(c)?.title ?? c}
+                        </span>
+                      ))
+                    : t("editor.none")}
                 </span>
               </button>
             </li>
@@ -496,38 +842,36 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
               <label class="row-label" for="f-tags">
                 {t("editor.tags")}
               </label>
-              <input
-                id="f-tags"
-                class="row-input"
-                value={f.tags.join(", ")}
-                placeholder={t("editor.tagsPlaceholder")}
-                autocapitalize="off"
-                onChange={(e) =>
-                  setForm({
-                    tags: (e.target as HTMLInputElement).value
-                      .split(",")
-                      .map((x) => x.trim())
-                      .filter(Boolean),
-                  })
-                }
-              />
+              <TagsInput id="f-tags" value={f.tags} known={knownTags} onChange={(tags) => setForm({ tags })} />
             </li>
             <li>
               <button type="button" class="row row-button-left" onClick={openCover}>
                 <span class="row-label">{t("editor.cover")}</span>
                 {f.cover ? (
-                  <img class="cover-thumb" src={f.cover} alt="" width={44} height={44} />
+                  <img
+                    class="cover-thumb"
+                    src={
+                      // Published images are referred to by the site's own prefix (e.g. /img/…).
+                      state.site.media.contentPrefix.startsWith("/") && f.cover.startsWith(state.site.media.contentPrefix)
+                        ? state.site.media.publicUrl + f.cover.slice(state.site.media.contentPrefix.length)
+                        : f.cover
+                    }
+                    alt=""
+                    width={44}
+                    height={44}
+                  />
                 ) : (
                   <span class="row-value">{t("editor.none")}</span>
                 )}
               </button>
             </li>
           </ul>
+          </fieldset>
         )}
 
         </>)}
 
-        <div class="toolbar" role="toolbar" aria-label={t("editor.formatting")}>
+        <div class={`toolbar${readOnly ? " is-disabled" : ""}`} role="toolbar" aria-label={t("editor.formatting")} {...(readOnly ? { inert: true } : {})}>
           <button type="button" onClick={() => format("bold")} aria-label={t("editor.bold")}>
             <Bold size={20} aria-hidden="true" />
           </button>
@@ -607,12 +951,73 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
         <BodyEditor
           value={mode === "rich" ? f.body : markdownText}
           rich={mode === "rich"}
+          readOnly={readOnly}
           site={state.site}
           onChange={(text) => (mode === "rich" ? setForm({ body: text }) : onMarkdownChange(text))}
           onReady={(ed) => (editorRef.current = ed)}
           onFiles={addPhotos}
         />
       </div>
+
+      <ActionSheet
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        actions={[
+          ...(!isDraft && !fileIsDraft
+            ? [
+                { label: t("editor.unpublish"), onSelect: () => setConfirm("unpublish") },
+                { label: t("editor.archive"), onSelect: () => setConfirm("archive") },
+              ]
+            : []),
+          // A draft never saved to GitHub is only discarded on this device.
+          { label: neverSaved ? t("editor.discard") : t("editor.delete"), destructive: true, onSelect: () => setConfirm("delete") },
+        ]}
+        cancelLabel={t("common.cancel")}
+      />
+      <ActionSheet
+        open={confirm !== null}
+        onClose={() => setConfirm(null)}
+        title={
+          confirm === "delete" && neverSaved
+            ? t("editor.discardTitle", { title: f.title.trim() || t("drafts.untitled") })
+            : confirm
+              ? t(`editor.${confirm}Title`, { title: f.title.trim() })
+              : ""
+        }
+        message={
+          confirm === "publish"
+            ? t(type === "post" ? "editor.publishMessagePost" : "editor.publishMessagePage")
+            : confirm === "delete" && neverSaved
+              ? t("editor.deleteMessageLocal")
+              : confirm
+                ? t(`editor.${confirm}Message`)
+                : ""
+        }
+        actions={
+          confirm
+            ? [{ label: confirm === "delete" && neverSaved ? t("editor.discard") : t(`editor.${confirm}`), destructive: confirm !== "publish", onSelect: () => void (confirm === "delete" ? moveToBin() : lifecycle(confirm)) }]
+            : []
+        }
+        cancelLabel={t("common.cancel")}
+      />
+
+      <ActionSheet
+        open={takeOverOpen}
+        onClose={() => setTakeOverOpen(false)}
+        title={lock.state === "other" || lock.state === "lost" ? t("editor.takeOverTitle", { name: lock.holder.name ?? lock.holder.login }) : ""}
+        message={t("editor.takeOverMessage")}
+        actions={[{ label: t("editor.takeOver"), destructive: true, onSelect: () => void takeOver() }]}
+        cancelLabel={t("common.cancel")}
+      />
+
+      <ActionSheet
+        open={publishOpen}
+        onClose={() => setPublishOpen(false)}
+        title={t("editor.publishTitle", { title: f.title.trim() })}
+        message={t(type === "post" ? "editor.publishMessagePost" : "editor.publishMessagePage")}
+        actions={[{ label: t("editor.publish"), onSelect: () => void publish() }]}
+        cancelLabel={t("common.cancel")}
+      />
 
       <ActionSheet
         open={headingMenu}
@@ -709,12 +1114,15 @@ export function Editor(props: { me: Me; type: DraftKind; id: string }) {
           <p class="secondary sheet-note">{t("editor.noCategories")}</p>
         ) : (
           <ul class="grouped-list">
-            {state.site.categories.map((c) => {
+            {categories.map((c) => {
               const checked = f.categories.includes(c.slug);
               return (
                 <li>
-                  <label class="row row-check">
-                    <span class="row-label">{c.title}</span>
+                  {/* Nested categories are indented under their parent. */}
+                  <label class="row row-check" style={{ "--depth": c.depth }}>
+                    <span class="row-label" title={c.path.join(" › ")}>
+                      {c.title}
+                    </span>
                     <input
                       type="checkbox"
                       checked={checked}

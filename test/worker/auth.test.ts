@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: MIT
 import { env } from "cloudflare:test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { parseConfig } from "../../src/shared/config/schema";
 import { sha256Base64Url } from "../../src/worker/lib/crypto";
-import { ALLOWED_USER, APP_URL, STRANGER, testConfig } from "../fixtures";
+import { ALLOWED_USER, APP_URL, STRANGER } from "../fixtures";
 import { call, cookieValue, type FakeGitHub, fakeGitHub, freshIp, getSetCookies, login, mutating } from "./helpers";
 
 let gh: FakeGitHub;
@@ -75,8 +74,8 @@ describe("login", () => {
     expect(await sha256Base64Url(verifier)).toBe(authorize.searchParams.get("code_challenge"));
   });
 
-  it("rejects a valid GitHub login that is not on the allowlist, and revokes its token", async () => {
-    const { cookie, callback, accessToken } = await login(gh, STRANGER);
+  it("rejects a valid GitHub login without write access to the site repository, and revokes its token", async () => {
+    const { cookie, callback, accessToken } = await login(gh, STRANGER, undefined, { writer: false });
     expect(callback.status).toBe(302);
     expect(callback.headers.get("Location")).toBe("/?login_error=not_allowed");
     expect(cookie).toBe("");
@@ -114,6 +113,7 @@ describe("login", () => {
     const cookie = `__Host-alasin_oauth=${cookieValue(start, "__Host-alasin_oauth")}`;
     gh.nextTokens.push({ access_token: "ghu_once0000000000" });
     gh.users.set("ghu_once0000000000", { ...ALLOWED_USER, name: null });
+    gh.repo.collaborators.set(ALLOWED_USER.login, { permission: "write", id: ALLOWED_USER.id });
     const first = await call(`/auth/callback?code=c&state=${state}`, { ip, cookie });
     expect(first.headers.get("Location")).toBe("/");
     const replay = await call(`/auth/callback?code=c&state=${state}`, { ip, cookie });
@@ -163,14 +163,6 @@ describe("sessions", () => {
     // Replaying the old cookie no longer works.
     expect((await call("/api/me", { cookie })).status).toBe(401);
     expect(gh.revoked).toContain(accessToken);
-  });
-
-  it("re-checks the allowlist on every request", async () => {
-    const { cookie } = await login(gh, ALLOWED_USER);
-    expect((await call("/api/me", { cookie })).status).toBe(200);
-    const without = parseConfig({ ...testConfig, users: { allow: [{ login: "hubot", id: 480938 }] } });
-    const res = await call("/api/me", { cookie }, { ALASIN_CONFIG_JSON: JSON.stringify(without) });
-    expect(res.status).toBe(401);
   });
 
   it("expires idle sessions and sessions past their maximum age", async () => {

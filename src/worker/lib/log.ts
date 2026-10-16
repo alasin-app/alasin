@@ -17,6 +17,10 @@ export interface LogFields {
   ms?: number;
   event?: string;
   error?: string;
+  /** Counts of the nightly cleanup. */
+  folders?: number;
+  removedFolders?: number;
+  removedObjects?: number;
 }
 
 export function log(fields: LogFields): void {

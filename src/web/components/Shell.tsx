@@ -1,18 +1,23 @@
 // SPDX-License-Identifier: MIT
 // App frame: a sidebar split view on iPad and desktop, a tab bar on iPhone.
 
-import { ChevronRight, Ellipsis, FileText, House, Image, Newspaper, PanelLeftClose, PanelLeftOpen, PenLine, Plus, Tags } from "lucide-preact";
+import { ChevronRight, Ellipsis, FileText, House, Image, Newspaper, PanelLeftClose, PanelLeftOpen, PenLine, Plus, Tags, Trash2, Users } from "lucide-preact";
 import type { ComponentType } from "preact";
 import { useState } from "preact/hooks";
 import type { Me } from "../lib/api";
 import { type MessageKey, t, useLanguage } from "../lib/i18n";
 import { type DraftKind, hrefFor, linkHandler, navigate, type Section, useRoute } from "../lib/router";
 import { ulid } from "../../shared/ulid";
+import { ContentList } from "./ContentList";
 import { DraftsList } from "./DraftsList";
+import { UsersList } from "./UsersList";
+import { BinList } from "./BinList";
 import { Editor } from "./Editor";
 import { settings } from "../lib/settings";
 import { AccountSheet } from "./AccountSheet";
 import { NavBar } from "./NavBar";
+import { buildId, useNewBuild } from "../lib/new-build";
+import { useContent } from "../lib/use-content";
 
 type Icon = ComponentType<{ size?: number; "aria-hidden"?: "true" }>;
 
@@ -23,6 +28,8 @@ const SECTIONS: { route: Section; label: MessageKey; icon: Icon }[] = [
   { route: "drafts", label: "nav.drafts", icon: PenLine },
   { route: "categories", label: "nav.categories", icon: Tags },
   { route: "media", label: "nav.media", icon: Image },
+  { route: "bin", label: "nav.bin", icon: Trash2 },
+  { route: "users", label: "nav.users", icon: Users },
 ];
 
 const TABS: { route: Section; label: MessageKey; icon: Icon }[] = [
@@ -32,7 +39,7 @@ const TABS: { route: Section; label: MessageKey; icon: Icon }[] = [
   { route: "more", label: "nav.more", icon: Ellipsis },
 ];
 
-const MORE: Section[] = ["pages", "posts", "categories"];
+const MORE: Section[] = ["pages", "posts", "categories", "bin", "users"];
 
 export function EnvBadge() {
   return settings.environment ? <span class="badge badge-env">{settings.environment}</span> : null;
@@ -76,15 +83,19 @@ export function Shell(props: { me: Me; onLogout: () => void }) {
   const route = useRoute();
   const [accountOpen, setAccountOpen] = useState(false);
   const [collapsed, toggleSidebar] = useSidebarCollapsed();
-  // The editor belongs to the Drafts section.
-  const current: Section = route.name === "editor" ? "drafts" : route.name;
+  const newBuild = useNewBuild();
+  // How many items are in the Bin, next to its name in the sidebar.
+  const { content } = useContent(props.me);
+  const binCount = content?.items.filter((i) => i.state === "bin").length ?? 0;
+  // The editor belongs to Drafts, a published file to Posts (or Pages).
+  const current: Section = route.name === "editor" ? "drafts" : route.name === "file" ? (route.path.includes("/pages/") ? "pages" : "posts") : route.name;
   const section = SECTIONS.find((s) => s.route === current);
   const title = current === "more" ? t("nav.more") : t(section?.label ?? "nav.home");
   const tabActive = (r: Section) => r === current || (r === "more" && MORE.includes(current));
   const create = (type: DraftKind) => navigate({ name: "editor", type, id: ulid() });
 
   return (
-    <div class={`shell${route.name === "editor" ? " editing" : ""}${collapsed ? " sidebar-collapsed" : ""}`}>
+    <div class={`shell${route.name === "editor" || route.name === "file" ? " editing" : ""}${collapsed ? " sidebar-collapsed" : ""}`}>
       <aside class="sidebar" aria-label={settings.appName}>
         <div class="sidebar-header">
           {collapsed ? (
@@ -109,6 +120,7 @@ export function Shell(props: { me: Me; onLogout: () => void }) {
                 >
                   <s.icon size={22} aria-hidden="true" />
                   <span class={collapsed ? "visually-hidden" : undefined}>{t(s.label)}</span>
+                  {s.route === "bin" && binCount > 0 && !collapsed && <span class="sidebar-count">{binCount}</span>}
                 </a>
               </li>
             ))}
@@ -125,12 +137,19 @@ export function Shell(props: { me: Me; onLogout: () => void }) {
           >
             {collapsed ? <PanelLeftOpen size={22} aria-hidden="true" /> : <PanelLeftClose size={22} aria-hidden="true" />}
           </button>
+          {!collapsed && (
+            <span class="sidebar-build" title={t("account.version")}>
+              {props.me.version} · {buildId()}
+            </span>
+          )}
         </div>
       </aside>
 
       <main class="content" id="main">
         {route.name === "editor" ? (
-          <Editor key={route.id} me={props.me} type={route.type} id={route.id} />
+          <Editor key={route.id} me={props.me} source={{ kind: "draft", type: route.type, id: route.id }} />
+        ) : route.name === "file" ? (
+          <Editor key={route.path} me={props.me} source={{ kind: "file", path: route.path }} />
         ) : (
           <>
             <NavBar
@@ -167,6 +186,17 @@ export function Shell(props: { me: Me; onLogout: () => void }) {
               </ul>
             ) : current === "drafts" ? (
               <DraftsList me={props.me} />
+            ) : current === "bin" ? (
+              <BinList me={props.me} />
+            ) : current === "users" ? (
+              <UsersList />
+            ) : current === "home" ? (
+              <>
+                <h2 class="list-title">{t("home.myDrafts")}</h2>
+                <DraftsList me={props.me} mine />
+              </>
+            ) : current === "posts" || current === "pages" ? (
+              <ContentList key={current} me={props.me} kind={current === "posts" ? "post" : "page"} />
             ) : (
               <div class="empty-state">
                 <h2 class="headline">{t("empty.title")}</h2>
@@ -190,6 +220,15 @@ export function Shell(props: { me: Me; onLogout: () => void }) {
           </a>
         ))}
       </nav>
+
+      {newBuild && (
+        <div class="update-toast" role="status">
+          <span>{t("app.newVersion")}</span>
+          <button type="button" class="btn btn-filled btn-small" onClick={() => location.reload()}>
+            {t("app.reload")}
+          </button>
+        </div>
+      )}
 
       <AccountSheet open={accountOpen} onClose={() => setAccountOpen(false)} me={props.me} onLogout={props.onLogout} />
     </div>

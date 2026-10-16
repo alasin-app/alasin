@@ -6,6 +6,7 @@ import type { Me } from "../lib/api";
 import { getLanguage, LANGUAGES, type MessageKey, setLanguage, t, useLanguage } from "../lib/i18n";
 import { settings } from "../lib/settings";
 import { ActionSheet, Sheet } from "./Sheet";
+import { buildId } from "../lib/new-build";
 
 export function AccountSheet(props: { open: boolean; onClose: () => void; me: Me; onLogout: () => void }) {
   useLanguage();
@@ -35,7 +36,9 @@ export function AccountSheet(props: { open: boolean; onClose: () => void; me: Me
           </li>
           <li class="row">
             <span class="row-label">{t("account.version")}</span>
-            <span class="row-value">{me.version}</span>
+            <span class="row-value">
+              {me.version} ({buildId()})
+            </span>
           </li>
         </ul>
 

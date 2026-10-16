@@ -6,6 +6,8 @@
 //   - ">" between two quote lines separates paragraphs inside a quote;
 //   - "-" right under a paragraph line makes that line a heading (setext);
 //   - nothing inside fenced code blocks is touched.
+// Lines exactly as they were in the last saved version are never touched
+// either, so opening and saving an existing post changes nothing.
 
 const EMPTY_ITEM = /^\s*(?:[-*+]|\d{1,9}[.)])\s*$/;
 const EMPTY_QUOTE = /^\s*>\s*$/;
@@ -13,7 +15,7 @@ const LIST_ITEM = /^\s*(?:[-*+]|\d{1,9}[.)])\s+\S/;
 const QUOTE = /^\s*>/;
 const FENCE = /^\s*(```|~~~)/;
 
-export function removeEmptyItems(body: string): string {
+export function removeEmptyItems(body: string, keep?: Set<string>): string {
   const lines = body.split("\n");
   const out: string[] = [];
   let fence: string | null = null;
@@ -38,7 +40,8 @@ export function removeEmptyItems(body: string): string {
     const next = lines[i + 1] ?? "";
     const prevIsParagraph = prev.trim() !== "" && !LIST_ITEM.test(prev) && !EMPTY_ITEM.test(prev) && !QUOTE.test(prev);
     const remove =
-      (EMPTY_ITEM.test(line) && !prevIsParagraph) || (EMPTY_QUOTE.test(line) && !(QUOTE.test(prev) && QUOTE.test(next)));
+      !keep?.has(line) &&
+      ((EMPTY_ITEM.test(line) && !prevIsParagraph) || (EMPTY_QUOTE.test(line) && !(QUOTE.test(prev) && QUOTE.test(next))));
     if (remove) {
       removedBetweenBlanks = prev.trim() === "" && next.trim() === "";
       continue;

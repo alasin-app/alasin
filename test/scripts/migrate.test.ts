@@ -79,3 +79,113 @@ describe("alasin.toml migration", () => {
     expect(text).toBe(currentExample);
   });
 });
+
+describe("adding sections new in alasin.example.toml", () => {
+  /** The example without the given sections (banner, comments and values). */
+  function without(names: string[]): string {
+    let text = currentExample;
+    for (const name of names) {
+      const start = text.indexOf(`# ─────────────────────────────────────────────────────────────────────────────\n# [${name}]`);
+      const next = text.indexOf("# ─────────────────────────────────────────────────────────────────────────────\n# [", start + 10);
+      text = text.slice(0, start) + text.slice(next);
+    }
+    return text;
+  }
+  const config = (text: string) => parseConfig(selectEnvironment(parse(text) as Record<string, unknown>, undefined));
+
+  it("restores missing sections exactly as the example has them, in place", () => {
+    const old = without(["archive", "bin"]);
+    const { text, changes } = migrateAlasinToml(old, currentExample);
+    expect(changes).toEqual([
+      "added [archive] from alasin.example.toml (defaults; no change in behaviour)",
+      "added [bin] from alasin.example.toml (defaults; no change in behaviour)",
+    ]);
+    expect(text).toBe(currentExample);
+  });
+
+  it("adds a missing last section before the [env.*] tables and keeps them", () => {
+    const old = `${without(["security"]).trimEnd()}\n\n[env.dev.app]\nurl = "https://dev.example.com"\n`;
+    const { text } = migrateAlasinToml(old, currentExample);
+    expect(text.indexOf("\n[security]\n")).toBeGreaterThan(text.indexOf("\n[ui]\n"));
+    expect(text.indexOf("\n[security]\n")).toBeLessThan(text.indexOf("\n[env.dev.app]\n"));
+    expect(text.endsWith('[env.dev.app]\nurl = "https://dev.example.com"\n')).toBe(true);
+    // Also before the commented [env.<name>] introduction.
+    expect(text.indexOf("\n[security]\n")).toBeLessThan(text.indexOf("# [env.<name>] —"));
+    expect(text.match(/# \[env\.<name>\] —/g)).toHaveLength(1);
+  });
+
+  it("never changes what the configuration means: every optional section's example values are its defaults", () => {
+    const optional = ["drafts", "archive", "bin", "images", "editor", "categories", "preview", "ui", "security"];
+    const old = without(optional);
+    const { text, changes } = migrateAlasinToml(old, currentExample);
+    expect(changes).toHaveLength(optional.length);
+    expect(config(text)).toEqual(config(old));
+  });
+
+  it("leaves a complete file alone", () => {
+    expect(migrateAlasinToml(currentExample, currentExample)).toEqual({ text: currentExample, changes: [] });
+  });
+});
+
+
+describe("removed [users]", () => {
+  it("removes [users] and [env.*.users] with their comments, keeping everything else", () => {
+    const head = currentExample.slice(0, currentExample.indexOf("# ─────────────────────────────────────────────────────────────────────────────\n# [media]"));
+    const tail = currentExample.slice(head.length);
+    const usersBlock = `# ─────────────────────────────────────────────────────────────────────────────
+# [users] — who may log in.
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# WARNING: everyone listed here can publish to the site.
+[users]
+
+# Type: array of { login = string, id = integer }.
+allow = [
+  { login = "octocat", id = 583231, author = "Mona" },
+]
+
+
+`;
+    const old = `${head}${usersBlock}${tail.trimEnd()}\n\n[env.dev.users]\nallow = [{ login = "octocat", id = 583231 }]\n\n[env.dev.app]\nurl = "https://dev.example.com"\n`;
+    const { text, changes } = migrateAlasinToml(old);
+    expect(changes).toEqual([
+      "[users]: removed (who can log in now follows write access to the site repository)",
+      "[env.dev.users]: removed (who can log in now follows write access to the site repository)",
+    ]);
+    expect(text).toBe(`${head}${tail.trimEnd()}\n\n[env.dev.app]\nurl = "https://dev.example.com"\n`);
+    expect(() => parse(text)).not.toThrow();
+  });
+});
+
+describe("adding options new in alasin.example.toml to existing sections", () => {
+  const cut = (text: string, from: string, to: string) => {
+    const a = text.indexOf(from);
+    const b = text.indexOf(to, a) + to.length;
+    return text.slice(0, a) + text.slice(b);
+  };
+
+  it("adds them where the example has them, with their comments, without changing the configuration", () => {
+    let old = currentExample;
+    // Options added in later versions, as an older file wouldn't have them.
+    old = cut(old, "\n# The nightly cleanup removes", 'cleanup_cron = "17 3 * * *"\n');
+    old = cut(old, "\n# Front matter field set to the current time", "# page_url = \"/{slug}/\"\n");
+    old = cut(old, "\n# Categories can be nested", 'parent_field = "parent"\n');
+    old = cut(old, "\n# When the secrets were last rotated", '# github_secrets_rotated = "2026-01-15"\n');
+    const { text, changes } = migrateAlasinToml(old, currentExample);
+    expect(changes.join("\n")).toContain("[drafts] cleanup_after_days");
+    expect(changes.join("\n")).toContain("[site] lastmod_field");
+    expect(changes.join("\n")).toContain("the commented-out option [security] github_secrets_rotated");
+    expect(text).toBe(currentExample);
+  });
+
+  it("never copies an example value of a required option", () => {
+    const old = currentExample.replace('url = "https://alasin.example.com"\n', "");
+    const { text } = migrateAlasinToml(old, currentExample);
+    expect(text).not.toContain('url = "https://alasin.example.com"');
+  });
+
+  it("keeps the values a file sets, and adds nothing that would change them", () => {
+    const old = currentExample.replace("cleanup_after_days = 7", "cleanup_after_days = 1");
+    expect(migrateAlasinToml(old, currentExample)).toEqual({ text: old, changes: [] });
+  });
+});

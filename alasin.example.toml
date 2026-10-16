@@ -63,10 +63,22 @@ page_filename = "{slug}.md"
 # Front matter field holding a post's cover image. Type: string. Default: "image".
 cover_field = "image"
 
-# Front matter field for the author's name, filled from `author` in [users]
-# for new posts and pages. Leave unset if the site doesn't use one.
+# Front matter field for the author. New posts and pages get the user's full
+# name from their GitHub profile, and the lists show who wrote each one.
+# Leave unset if the site doesn't use one.
 # Type: string. Optional. Example: "author"
 # author_field = "author"
+
+# Front matter field set to the current time whenever a post or page is
+# published or saved. "" turns it off. Type: string. Default: "lastmod".
+lastmod_field = "lastmod"
+
+# If set, the `url` field of published posts and pages follows these patterns
+# (set on publishing, updated when the address or date of a published one is
+# changed). Placeholders: {slug}, {yyyy}, {mm}, {dd} (the post date). Leave
+# unset if the site uses Hugo's permalinks instead. Type: string. Optional.
+# post_url = "/{yyyy}/{mm}/{dd}/{slug}/"
+# page_url = "/{slug}/"
 
 # Front matter format for NEW files: "yaml" (---) or "toml" (+++). Existing
 # files always keep their own format. Type: string. Default: "yaml".
@@ -102,24 +114,6 @@ client_id = "Iv23liAbCdEfGhIjKlMn"
 # of abandoned draft images. Optional; filled in by `npm run setup`.
 # Type: integer. Example: 12345678
 # installation_id = 12345678
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# [users] — who may log in.
-# ─────────────────────────────────────────────────────────────────────────────
-#
-# WARNING: everyone listed here can publish to the site. Access is checked by
-# the numeric GitHub user ID (usernames can change and be re-registered); the
-# login is only for readability. `npm run setup` looks up the IDs for you.
-# Each user also needs write access to the site repository on GitHub.
-# Removing a user takes effect on their next request after deploying.
-[users]
-
-# `author` (optional) is written to new posts' author field (see [site] author_field).
-# Type: array of { login = string, id = integer, author = string }. Required, at least one.
-allow = [
-  { login = "octocat", id = 583231 },
-]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -176,6 +170,46 @@ browse_prefixes = [""]
 # saving a draft doesn't rebuild the site.
 # Type: string. Default: "drafts".
 dir = "drafts"
+
+# The nightly cleanup removes a draft's photos from the DRAFTS bucket when no
+# draft with that ID exists in the repository (drafts folder or Bin) and
+# nothing in its folder changed for this many days. The wait protects drafts
+# that exist only on someone's device and editing sessions in progress.
+# Type: integer (1–365). Default: 7.
+cleanup_after_days = 7
+
+# When the cleanup runs: a cron expression in UTC. Default: "17 3 * * *".
+cleanup_cron = "17 3 * * *"
+
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# [archive] — posts and pages taken off the site but kept.
+# ─────────────────────────────────────────────────────────────────────────────
+[archive]
+
+# Folder for archived posts and pages in the site repository. Each keeps its
+# repository path under it (e.g. archive/content/posts/…) and can be
+# republished. Must be outside Hugo's content directory and separate from
+# [drafts] and [bin].
+# Type: string. Default: "archive".
+dir = "archive"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# [bin] — deleted items, recoverable until the Bin is emptied.
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Deleting a post, page or draft moves it here; nothing is removed until the
+# Bin is emptied. Images already published to MEDIA are never deleted.
+[bin]
+
+# Folder for the Bin in the site repository. Each item keeps the path it was
+# deleted from (e.g. bin/content/posts/…), so it can be recovered to exactly
+# that place. Must be outside Hugo's content directory and separate from
+# [drafts] and [archive]. Alasin deletes files only inside this folder.
+# Type: string. Default: "bin".
+dir = "bin"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -266,6 +300,11 @@ storage = "term-pages"
 
 # Directory of term pages, or path of the data file. Type: string. Default: "content/categories".
 path = "content/categories"
+
+# Categories can be nested: this field of a category's term page (or data file
+# entry) names its parent category by slug, e.g. parent: "travel". The editor
+# shows the categories as a tree. Type: string. Default: "parent".
+parent_field = "parent"
 
 
 # ─────────────────────────────────────────────────────────────────────────────

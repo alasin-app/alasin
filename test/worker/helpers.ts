@@ -62,6 +62,8 @@ export interface FakeGitHub {
   users: Map<string, { id: number; login: string; name: string | null }>;
   nextTokens: { access_token: string; expires_in?: number; refresh_token?: string; refresh_token_expires_in?: number }[];
   failRefresh: boolean;
+  /** Public profile names by user ID (GET /user/:id). */
+  profiles: Map<number, string | null>;
   /** The site repository (owner/name/branch from the test config). */
   repo: FakeRepo;
 }
@@ -74,6 +76,7 @@ export function fakeGitHub(): FakeGitHub {
     users: new Map(),
     nextTokens: [],
     failRefresh: false,
+    profiles: new Map(),
     repo: new FakeRepo("example-owner", "example-site", "main"),
   };
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -91,6 +94,11 @@ export function fakeGitHub(): FakeGitHub {
       const token = req.headers.get("Authorization")?.replace(/^Bearer /, "") ?? "";
       const user = gh.users.get(token);
       return user ? Response.json(user) : new Response("{}", { status: 401 });
+    }
+    const profile = /^\/user\/(\d+)$/.exec(url.pathname);
+    if (url.hostname === "api.github.com" && profile) {
+      const id = Number(profile[1]);
+      return gh.profiles.has(id) ? Response.json({ id, name: gh.profiles.get(id) }) : new Response("{}", { status: 404 });
     }
     if (url.pathname.startsWith("/applications/") && req.method === "DELETE") {
       gh.revoked.push(((await req.json()) as { access_token: string }).access_token);
@@ -126,6 +134,8 @@ export async function login(
   gh: FakeGitHub,
   user: { id: number; login: string },
   tokenOpts: { expires_in?: number; refresh_token?: string } = { expires_in: 28800, refresh_token: "ghr_testrefresh0000" },
+  /** Give the user write access to the site repository first (who can log in). */
+  opts: { writer?: boolean } = { writer: true },
 ): Promise<{ cookie: string; accessToken: string; callback: Response }> {
   const ip = freshIp();
   const start = await call("/auth/login", { ip });
@@ -134,6 +144,8 @@ export async function login(
   const oauthCookie = cookieValue(start, "__Host-alasin_oauth")!;
   const accessToken = `ghu_testaccess${++tokenCounter}0000000`;
   gh.users.set(accessToken, { id: user.id, login: user.login, name: null });
+  // Logging in needs write access to the site repository.
+  if (opts.writer !== false && !gh.repo.collaborators.has(user.login)) gh.repo.collaborators.set(user.login, { permission: "write", id: user.id });
   gh.nextTokens.push({ access_token: accessToken, ...tokenOpts });
   const callback = await call(`/auth/callback?code=testcode&state=${encodeURIComponent(state)}`, {
     ip,

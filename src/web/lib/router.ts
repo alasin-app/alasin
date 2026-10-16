@@ -4,10 +4,10 @@
 import { useEffect, useState } from "preact/hooks";
 import { isUlid } from "../../shared/ulid";
 
-export type Section = "home" | "pages" | "posts" | "drafts" | "categories" | "media" | "more";
+export type Section = "home" | "pages" | "posts" | "drafts" | "categories" | "media" | "bin" | "users" | "more";
 export type DraftKind = "post" | "page";
 
-export type Route = { name: Section } | { name: "editor"; type: DraftKind; id: string };
+export type Route = { name: Section } | { name: "editor"; type: DraftKind; id: string } | { name: "file"; path: string };
 
 const SECTION_PATHS: Record<Section, string> = {
   home: "/",
@@ -16,6 +16,8 @@ const SECTION_PATHS: Record<Section, string> = {
   drafts: "/drafts",
   categories: "/categories",
   media: "/media",
+  bin: "/bin",
+  users: "/users",
   more: "/more",
 };
 
@@ -23,12 +25,23 @@ export function parseRoute(pathname: string): Route {
   const path = pathname.replace(/\/+$/, "") || "/";
   const m = /^\/drafts\/(post|page)\/([0-9A-Z]{26})$/.exec(path);
   if (m && isUlid(m[2]!)) return { name: "editor", type: m[1] as DraftKind, id: m[2]! };
+  // A published post or page: /edit/<repository path>
+  if (path.startsWith("/edit/")) {
+    try {
+      const file = path.slice("/edit/".length).split("/").map(decodeURIComponent).join("/");
+      if (file.endsWith(".md") && !file.split("/").includes("..")) return { name: "file", path: file };
+    } catch {
+      // Malformed address: the home section.
+    }
+  }
   const section = (Object.entries(SECTION_PATHS) as [Section, string][]).find(([, p]) => p === path);
   return { name: section?.[0] ?? "home" };
 }
 
 export function hrefFor(route: Route): string {
-  return route.name === "editor" ? `/drafts/${route.type}/${route.id}` : SECTION_PATHS[route.name];
+  if (route.name === "editor") return `/drafts/${route.type}/${route.id}`;
+  if (route.name === "file") return `/edit/${route.path.split("/").map(encodeURIComponent).join("/")}`;
+  return SECTION_PATHS[route.name];
 }
 
 const listeners = new Set<() => void>();

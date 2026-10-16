@@ -14,6 +14,3 @@ export function loadConfig(raw: string | undefined): AlasinConfig {
   return config;
 }
 
-export function isAllowed(config: AlasinConfig, userId: number): boolean {
-  return config.users.allow.some((u) => u.id === userId);
-}

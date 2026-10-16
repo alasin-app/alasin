@@ -67,7 +67,7 @@ Starting from a state where everything in [PREREQUISITES.md](PREREQUISITES.md) i
 
 ### Creating the GitHub App manually
 
-Alasin logs users in with a **GitHub App** installed only on the site repository: it's used for login, for commits made with each user's own short-lived token, and for the daily cleanup's read-only token. Unlike an OAuth App, it can be limited to one repository and to exactly the permissions Alasin needs.
+Alasin logs users in with a **GitHub App** installed only on the site repository (the app itself is public, so that everyone with write access to the repository can sign in): it's used for login, for commits made with each user's own short-lived token, and for the daily cleanup's read-only token. Unlike an OAuth App, it can be limited to one repository and to exactly the permissions Alasin needs.
 
 `npm run setup` normally creates it. If that isn't possible, create it under **Settings → Developer settings → GitHub Apps → New GitHub App** (for an organisation: the organisation's **Settings → Developer settings**):
 
@@ -78,7 +78,7 @@ Alasin logs users in with a **GitHub App** installed only on the site repository
 - **Request user authorization (OAuth) during installation:** off.
 - **Webhook:** uncheck **Active**.
 - **Repository permissions:** **Contents: Read and write**, **Metadata: Read-only**. Nothing else.
-- **Where can this GitHub App be installed?** **Only on this account**.
+- **Where can this GitHub App be installed?** **Any account**. With *Only on this account*, GitHub shows everyone except the app's owner a 404 page instead of the sign-in, so nobody else could log in. Making it public is safe: Alasin lets in only people with write access to the site repository (everyone else's sign-in is refused and their token revoked), and the app can reach only the repositories it's installed on — install it only on the site repository.
 
 Create it, then:
 
@@ -109,6 +109,17 @@ npm run deploy -- --env dev
 
 Each environment is its own Worker with its own URL, `DRAFTS` bucket, KV namespace, Durable Object, rate limits, secrets and (recommended) its own GitHub App. Settings that differ go in an `[env.dev]` table in `alasin.toml` and `wrangler.toml`; setup adds them. A dev deployment shows a badge (e.g. "DEV") everywhere in the app. Workers preview URLs aren't used for this, because they share production's bindings and secrets.
 
+### Check your existing posts first
+
+Before editing existing posts and pages with Alasin, check that it keeps them exactly as they are. With a checkout of your site repository:
+
+```sh
+npm run roundtrip -- ../my-hugo-site            # content directory "content"
+npm run roundtrip -- ../my-hugo-site site/content
+```
+
+It opens every Markdown file with the editor's own code and saves it without changes, in memory only. Every file must come back byte for byte; any that doesn't is listed with the first line that would change. Please report those as issues.
+
 ## Configuration reference
 
 Every option of `alasin.toml`. The commented [`alasin.example.toml`](alasin.example.toml) explains each one in more detail; Worker bindings and rate limits are in [`wrangler.example.toml`](wrangler.example.toml).
@@ -135,7 +146,10 @@ The Hugo site and its content layout.
 | `post_filename` | string | `"{slug}.md"` | `"{slug}.md"` | File name pattern for new posts, relative to `posts_dir`. Placeholders: `{slug}`, `{yyyy}`, `{mm}`, `{dd}`. Must end in `.md`. |
 | `page_filename` | string | `"{slug}.md"` | `"{slug}.md"` | File name pattern for new pages, relative to `pages_dir`. Placeholder: `{slug}`. Must end in `.md`. |
 | `cover_field` | string | `"image"` | `"image"` | Front matter field holding a post's cover image. |
-| `author_field` | string | — | — | Front matter field for the author's name (from `[users] allow` `author`). Leave unset if the site doesn't use one. |
+| `author_field` | string | — | — | Front matter field for the author: new posts and pages get the user's full name from their GitHub profile, and the lists show who wrote each one. Leave unset if the site doesn't use one. |
+| `lastmod_field` | string | `"lastmod"` | `"lastmod"` | Front matter field set to the current time whenever a post or page is published or saved. `""` turns it off. |
+| `post_url` | string | — | — | If set, the `url` front matter field of published posts follows this pattern, e.g. `/{yyyy}/{mm}/{dd}/{slug}/`. Placeholders: `{slug}`, `{yyyy}`, `{mm}`, `{dd}` (the post date). Set on publishing, and updated when the address or date of a published post is changed. Leave unset if the site uses Hugo's permalinks instead. |
+| `page_url` | string | — | — | Like `post_url`, for pages, e.g. `/{slug}/`. |
 | `front_matter_format` | one of "yaml", "toml" | `"yaml"` | `"yaml"` | Front matter format for new files. Existing files keep the format they already use. |
 
 ### `[github]`
@@ -150,14 +164,6 @@ The site repository and the GitHub App used to log in. Secrets go in Worker secr
 | `app_id` | integer | **required** | `123456` | ID of the GitHub App used for login. Filled in by `npm run setup`. |
 | `client_id` | string | **required** | `"Iv23liAbCdEfGhIjKlMn"` | Client ID of the GitHub App. Filled in by `npm run setup`. |
 | `installation_id` | integer | — | — | Installation ID of the GitHub App on the site repository, used by the daily cleanup. Filled in by `npm run setup`. |
-
-### `[users]`
-
-Who may log in.
-
-| Option | Type | Default | Example | Description |
-| --- | --- | --- | --- | --- |
-| `allow` | array of { login, id, author } | **required** | `[{"login" = "octocat", "id" = 583231}]` | GitHub users allowed to log in. `npm run setup` resolves usernames to numeric IDs. |
 
 ### `[media]`
 
@@ -178,6 +184,24 @@ Unpublished drafts: their text is committed to the site repository, their images
 | Option | Type | Default | Example | Description |
 | --- | --- | --- | --- | --- |
 | `dir` | string | `"drafts"` | `"drafts"` | Directory in the site repository where draft posts and pages are committed until they are published. Must be outside Hugo's content directory, so drafts are never built. Draft images go to the `DRAFTS` R2 bucket, never into git. |
+| `cleanup_after_days` | integer | `7` | `7` | The nightly cleanup removes a draft's photos from the `DRAFTS` bucket when no draft with that ID exists in the repository (drafts folder or Bin) and nothing in its folder changed for this many days, which protects drafts that exist only on someone's device and editing sessions in progress. |
+| `cleanup_cron` | string | `"17 3 * * *"` | `"17 3 * * *"` | When the nightly cleanup runs: a cron expression in UTC (Cloudflare Cron Triggers). |
+
+### `[archive]`
+
+Archived posts and pages: off the site, kept in the site repository.
+
+| Option | Type | Default | Example | Description |
+| --- | --- | --- | --- | --- |
+| `dir` | string | `"archive"` | `"archive"` | Directory in the site repository for archived posts and pages: taken off the site but kept, and can be republished. Each keeps its repository path under this directory (e.g. `archive/content/posts/…`). Must be outside Hugo's content directory. |
+
+### `[bin]`
+
+The Bin: deleted posts, pages and drafts stay here, recoverable, until the Bin is emptied.
+
+| Option | Type | Default | Example | Description |
+| --- | --- | --- | --- | --- |
+| `dir` | string | `"bin"` | `"bin"` | Directory in the site repository for deleted items until the Bin is emptied. Each keeps the path it was deleted from, so it can be recovered to exactly that place. Must be outside Hugo's content directory. Alasin deletes files from the repository only inside this directory. |
 
 ### `[images]`
 
@@ -218,6 +242,7 @@ Categories.
 | --- | --- | --- | --- | --- |
 | `storage` | one of "term-pages", "data-file", "front-matter" | `"term-pages"` | `"term-pages"` | Where the category list lives: `term-pages` (`<dir>/<slug>/_index.md`), `data-file` (a TOML/YAML file listing them) or `front-matter` (only the values used in posts). |
 | `path` | string | `"content/categories"` | `"content/categories"` | Directory of term pages, or path of the data file. |
+| `parent_field` | string | `"parent"` | `"parent"` | Field naming a category's parent category (by slug), in its term page's front matter or its data file entry. Categories without it are top-level. |
 
 ### `[preview]`
 
@@ -260,9 +285,24 @@ Read the release notes first and follow any upgrade steps they list. Then:
 git fetch --tags
 git checkout vX.Y.Z
 npm install
-npm run setup      # updates alasin.toml if options were renamed or removed
+npm run setup      # updates alasin.toml (see below)
 npm run deploy
 ```
+
+`npm run setup` keeps an existing `alasin.toml` in step with `alasin.example.toml`: it updates options that were renamed or removed, and adds sections and options that are new in this version, with their comments, set to their default values (or commented out), so new options are visible without changing what your configuration does. Everything else in the file, including your comments, stays as it is. It lists every change it makes. Add `-- --env <name>` for a second deployment.
+
+## Users and access
+
+**Everyone with write access to the site repository on GitHub can use the deployment** (write, maintain or admin). Alasin asks GitHub at every login and again about once an hour during a session, so you manage people in one place, on GitHub:
+
+- **Add someone:** invite them to the site repository with **Write** access (the repository's **Settings → Collaborators → Add people**). Once they accept, they open the app's address and sign in with GitHub. Their full name, written as the author of their posts, comes from their GitHub profile.
+- **Remove someone:** remove them from the repository's collaborators (or lower them to *Read*). They're logged out within the hour.
+- **Check:** the app's **Users** section (in the sidebar; on phones under *More*) lists everyone who can log in, with their permission on the repository.
+
+Nothing in `alasin.toml` changes and nothing needs deploying. Two more things:
+
+- **The GitHub App must be public** (*Where can this GitHub App be installed?* → *Any account*; for an existing app, its settings → *Advanced* → *Make public*). GitHub shows a private app to nobody but its owner, so nobody else could even sign in. Making it public lets nobody else in: anyone without write access is refused and their token revoked, and the app reaches only the repositories it's installed on.
+- **A protected branch:** if `[github] branch` has rules that stop some writers from pushing, their saves fail with GitHub's message. Give them the right on GitHub, or use another branch.
 
 ## Housekeeping
 
@@ -273,15 +313,16 @@ Secrets are rotated by hand, and Alasin reminds you when it's time. `npm run set
 | Rotate the session and token keys | when reminded | `npm run setup -- --rotate-keys` (everyone has to log in again) |
 | Rotate the GitHub App's client secret and private key | when reminded | see *Rotating secrets* below |
 | Update Alasin | when a release appears | see [Updating](#updating) |
-| Review who may log in | now and then | `[users] allow` in `alasin.toml`, then `npm run deploy` |
+| Remove photos of drafts that no longer exist from the `DRAFTS` bucket | nightly, automatic | a Cron Trigger (`[drafts] cleanup_cron`, 03:17 UTC by default) with a read-only installation token of the GitHub App; waits `[drafts] cleanup_after_days` (7) and deletes nothing if the repository can't be read. Shows as `drafts_cleanup` in the Worker's logs |
+| Review who may log in | now and then | the site repository's collaborators on GitHub; see [Users and access](#users-and-access) |
 
 ## Security
 
-- **Login:** GitHub App OAuth with PKCE and a single-use `state`. Only GitHub user IDs listed in `[users]` can log in, re-checked on every request.
+- **Login:** GitHub App OAuth with PKCE and a single-use `state`. Only people with write access to the site repository can log in; it's confirmed with GitHub at login and about once an hour.
 - **Sessions:** an encrypted, `HttpOnly`, `Secure`, `SameSite=Lax` `__Host-` cookie that refers to a server-side session in KV. Idle and absolute timeouts; logout deletes the session server-side.
 - **Tokens:** GitHub tokens never reach the browser. They are stored encrypted (AES-GCM) in KV and refreshed before expiry.
 - **Browser:** a strict Content-Security-Policy (no inline or third-party scripts, no `eval`; WebAssembly is allowed only for the bundled WebP encoder, needed because iOS browsers can't encode WebP), CSRF protection on every state-changing request, HSTS and other security headers. No analytics or trackers.
-- **Data:** drafts are committed to a `drafts/` folder of the site repository (keep it private). Images never go into git: draft images are in a private R2 bucket, published images in your public bucket, where the app never overwrites or deletes anything.
+- **Data:** drafts, archived items and the Bin are folders of the site repository (`drafts/`, `archive/`, `bin/`; keep it private), and the app deletes files from the repository only when the Bin is emptied. Images never go into git: draft images are in a private R2 bucket, published images in your public bucket, where the app never overwrites or deletes anything.
 - **Logs** contain request IDs, routes, status codes and GitHub user IDs only.
 
 **Rotating secrets** (per deployment; add `-- --env dev` for the dev app):

@@ -12,6 +12,8 @@
 //   GET  /api/drafts                 list drafts
 //   GET  /api/drafts/:type/:id       read one
 //   PUT  /api/drafts/:type/:id       save (commit) one, optimistic on the blob SHA
+//   POST /api/drafts/:type/:id/publish  publish one (see below)
+//   GET  /api/drafts/:type/:id/fate     where a draft went that is no longer in the drafts folder
 
 import { Hono, type Context } from "hono";
 import { z } from "zod";
@@ -19,6 +21,9 @@ import { isUlid } from "../../shared/ulid";
 import type { AlasinConfig } from "../../shared/config/schema";
 import type { AppEnv } from "../app";
 import { ConflictError, Repo } from "../lib/repo";
+import { copyDraftImages, MissingImageError } from "../lib/publish-media";
+import { contentPath, draftImageRefs, draftInfo, maintainedFields, parseDay, publishedText } from "../../shared/publish";
+import { logError } from "../lib/log";
 import { getUserToken } from "../session";
 
 export const DRAFT_TYPES = ["post", "page"] as const;
@@ -113,3 +118,117 @@ drafts.put("/:type/:id", async (c) => {
     throw err;
   }
 });
+
+const publishBody = z.strictObject({
+  /** Blob SHA of the saved draft being published: unsaved changes are never published. */
+  sha: z.string().regex(/^[0-9a-f]{40}$/),
+  /** The post's day in the author's time zone (YYYY-MM-DD), for folders named by date. */
+  day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+});
+
+/**
+ * Publishing, safe to retry after a failure at any step:
+ *
+ * 1. Copy the draft images the text uses (and their resized variants) to
+ *    MEDIA, under names that are free there; nothing is ever overwritten.
+ * 2. In one commit, add the published file at its content path (which must
+ *    not exist yet) and remove the draft file (which must be unchanged).
+ * 3. Only after that commit, delete the draft's images from DRAFTS.
+ *
+ * If step 1 or 2 fails, the draft is untouched; a retry reuses the copies.
+ */
+drafts.post("/:type/:id/publish", async (c) => {
+  const p = params(c);
+  if (!p) return c.json({ error: "not_found", message: "No such draft." }, 404);
+  const parsed = publishBody.safeParse(await c.req.json().catch(() => undefined));
+  if (!parsed.success) return c.json({ error: "invalid", message: "Invalid request." }, 400);
+
+  const { success } = await c.env.RL_COMMIT.limit({ key: `commit:${c.get("session").uid}` });
+  if (!success) return c.json({ error: "rate_limited", message: "Too many saves. Wait a moment and try again." }, 429);
+
+  const config = c.get("config");
+  const repo = await repoFor(c);
+  const source = draftPath(config, p.type, p.id);
+  const file = await repo.getFile(source);
+  if (!file) {
+    return c.json({ error: "not_found", message: "This draft no longer exists. It may have been published or deleted already." }, 404);
+  }
+  if (file.sha !== parsed.data.sha) {
+    return c.json({ error: "conflict", message: "This draft was changed somewhere else since you opened it. Reload it to see the latest version." }, 409);
+  }
+  const info = draftInfo(file.content);
+  if (!info) return c.json({ error: "invalid", message: "The draft's front matter can't be read." }, 422);
+  if (!info.title) return c.json({ error: "no_title", message: "Give the draft a title before publishing." }, 422);
+  const day = parseDay(parsed.data.day) ?? parseDay(info.date) ?? parseDay(new Date().toISOString())!;
+  const target = contentPath(config, p.type, info.slug, day);
+
+  let urls: Map<string, string>;
+  try {
+    urls = await copyDraftImages(c.env.DRAFTS, c.env.MEDIA, draftImageRefs(file.content), day, {
+      pathPattern: config.media.path_pattern,
+      contentPrefix: config.media.content_prefix,
+      cacheControl: config.media.cache_control,
+    });
+  } catch (err) {
+    if (err instanceof MissingImageError) {
+      return c.json({ error: "missing_image", message: `An image in the text (${err.file}) no longer exists. Remove it and try again.` }, 422);
+    }
+    throw err;
+  }
+
+  const content = publishedText(file.content, urls, maintainedFields(config, p.type, info, day, { url: true }));
+  const kind = p.type === "post" ? "post" : "page";
+  try {
+    const result = await repo.commit(
+      [
+        { path: target, content, expectedSha: null },
+        { path: source, content: null, expectedSha: file.sha },
+      ],
+      `Publish ${kind}: ${info.title.replace(/\s+/g, " ")}`,
+    );
+    // The draft's images now live in MEDIA (those it used) or are no longer needed.
+    try {
+      const listed = await c.env.DRAFTS.list({ prefix: `${p.id}/`, limit: 1000 });
+      if (listed.objects.length) await c.env.DRAFTS.delete(listed.objects.map((o) => o.key));
+    } catch (err) {
+      // Left for the daily orphan cleanup.
+      logError({ rid: c.get("requestId"), event: "draft_media_cleanup_failed", uid: c.get("session").uid }, err);
+    }
+    return c.json({ path: target, commit: result.commit });
+  } catch (err) {
+    if (err instanceof ConflictError) {
+      return err.path === target
+        ? c.json({ error: "exists", message: `A ${kind} already exists at ${target}. Change the slug and try again.` }, 409)
+        : c.json({ error: "conflict", message: "This draft was changed somewhere else since you opened it. Reload it to see the latest version." }, 409);
+    }
+    throw err;
+  }
+});
+
+/**
+ * A draft this device saved earlier is gone from the drafts folder: it was
+ * published, moved to the Bin or deleted, maybe from another device. The last
+ * commit that touched the draft file tells which, and where it went.
+ */
+drafts.get("/:type/:id/fate", async (c) => {
+  const p = params(c);
+  if (!p) return c.json({ error: "not_found", message: "No such draft." }, 404);
+  const config = c.get("config");
+  const repo = await repoFor(c);
+  const source = draftPath(config, p.type, p.id);
+  if (await repo.getFile(source)) return c.json({ state: "draft" });
+  const change = await repo.lastChangeOf(source);
+  if (!change) return c.json({ state: "unknown" });
+  const moved = change.files.find((f) => f.previous_filename === source);
+  if (moved?.filename.startsWith(`${config.bin.dir}/`)) return c.json({ state: "bin", path: moved.filename });
+  const dir = p.type === "post" ? config.site.posts_dir : config.site.pages_dir;
+  const published = moved?.filename.startsWith(`${dir}/`)
+    ? moved.filename
+    : change.files.find((f) => f.status === "added" && f.filename.startsWith(`${dir}/`) && f.filename.endsWith(".md"))?.filename;
+  if (published) {
+    const exists = (await repo.getFile(published)) !== null;
+    return c.json({ state: "published", path: published, exists });
+  }
+  return c.json({ state: "deleted" });
+});
+

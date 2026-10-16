@@ -10,6 +10,8 @@ import type { SiteSettings } from "../lib/site";
 export function BodyEditor(props: {
   value: string;
   rich: boolean;
+  /** Someone else is editing: shown, not editable. */
+  readOnly?: boolean;
   site: SiteSettings;
   onChange: (text: string) => void;
   onReady: (editor: MarkdownEditor | null) => void;
@@ -23,8 +25,8 @@ export function BodyEditor(props: {
   onChange.current = props.onChange;
   onFiles.current = props.onFiles;
   /** Value and mode at the time CodeMirror finishes loading. */
-  const latest = useRef({ value: props.value, rich: props.rich });
-  latest.current = { value: props.value, rich: props.rich };
+  const latest = useRef({ value: props.value, rich: props.rich, readOnly: props.readOnly ?? false });
+  latest.current = { value: props.value, rich: props.rich, readOnly: props.readOnly ?? false };
 
   useEffect(() => {
     let cancelled = false;
@@ -39,6 +41,7 @@ export function BodyEditor(props: {
       parent: host.current!,
       doc: latest.current.value,
       rich: latest.current.rich,
+      readOnly: latest.current.readOnly,
       styleNonce: settings.styleNonce || undefined,
       gallery: gallery.shortcode,
       placeholder: t("editor.bodyPlaceholder"),
@@ -93,6 +96,7 @@ export function BodyEditor(props: {
 
   useEffect(() => editor.current?.setText(props.value), [props.value]);
   useEffect(() => editor.current?.setRich(props.rich), [props.rich]);
+  useEffect(() => editor.current?.setReadOnly(props.readOnly ?? false), [props.readOnly]);
 
   return <div ref={host} class="md-editor" aria-label={t("editor.text")} />;
 }

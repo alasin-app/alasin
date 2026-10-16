@@ -6,9 +6,14 @@ import { Hono } from "hono";
 import type { AppEnv } from "../app";
 import { requireSession } from "../session";
 import { housekeepingDue } from "../../shared/housekeeping";
+import { bin } from "./bin";
+import { content } from "./content";
 import { drafts } from "./drafts";
+import { lifecycle } from "./lifecycle";
+import { locks } from "./locks";
 import { media } from "./media";
 import { site } from "./site";
+import { users } from "./users";
 
 export const api = new Hono<AppEnv>();
 
@@ -48,8 +53,13 @@ api.get("/avatar/:id{[0-9]{1,12}}", async (c) => {
   return c.body(body, 200, { "Content-Type": type, "Cache-Control": "private, max-age=86400" });
 });
 
+api.route("/bin", bin);
+api.route("/content", content);
 api.route("/drafts", drafts);
+api.route("/lifecycle", lifecycle);
+api.route("/locks", locks);
 api.route("/draft-media", media);
 api.route("/site", site);
+api.route("/users", users);
 
 api.all("*", (c) => c.json({ error: "not_found", message: "No such API route." }, 404));

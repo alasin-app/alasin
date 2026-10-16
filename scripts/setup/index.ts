@@ -189,7 +189,7 @@ function ensureFiles() {
   }
   alasinText = readText(args.configPath);
   wranglerText = readText(args.wranglerPath);
-  const migration = migrateAlasinToml(alasinText);
+  const migration = migrateAlasinToml(alasinText, readText(join(repoRoot, "alasin.example.toml")));
   if (migration.changes.length) {
     alasinText = migration.text;
     writeFileSync(args.configPath, alasinText);
@@ -289,24 +289,11 @@ async function confirmDeployment() {
   show();
 }
 
-async function askUsers() {
-  step(`Allowed users${envLabel}`);
-  const allow = (get(effective(), "users.allow") as { login: string; id: number }[] | undefined) ?? [];
-  const real = allow.filter((u) => !(u.login === "octocat" && u.id === 583231));
-  if (real.length && !(await confirm(`Allowed: ${real.map((u) => `@${u.login}`).join(", ")}. Change the list?`, false))) return;
-  const answer = await ask("GitHub usernames allowed to log in (comma-separated)", {
-    default: real.map((u) => u.login).join(", ") || undefined,
-  });
-  const resolved: { login: string; id: number }[] = [];
-  for (const login of answer.split(/[\s,]+/).filter(Boolean)) {
-    const user = await gh.lookupUser(login);
-    if (!user) throw new Error(`GitHub user "${login}" doesn't exist.`);
-    if (user.type !== "User") throw new Error(`"${login}" is a ${user.type}, not a user account.`);
-    resolved.push({ login: user.login, id: user.id });
-    ok(`@${user.login} → ID ${user.id}`);
-  }
-  setAlasin("users", "allow", resolved);
-  info(dim("Each of them needs write access to the site repository."));
+/** Access isn't configured in Alasin: it follows the site repository's collaborators. */
+function explainAccess() {
+  step(`Who can log in${envLabel}`);
+  const repo = `${String(get(effective(), "github.owner"))}/${String(get(effective(), "github.repo"))}`;
+  info(`Everyone with write access to ${repo} on GitHub can log in. Add or remove people there: the repository's Settings → Collaborators.`);
 }
 
 async function setupBuckets() {
@@ -566,7 +553,7 @@ async function main() {
   await checkPrerequisites();
   await askSiteValues();
   await confirmDeployment();
-  await askUsers();
+  explainAccess();
   await setupBuckets();
   setupKv();
   setupDomain();

@@ -6,6 +6,7 @@
 
 import {
   applyChanges,
+  setFields,
   type Fields,
   type FrontMatterFormat,
   joinFile,
@@ -15,6 +16,8 @@ import {
   utcIso,
 } from "../../shared/frontmatter";
 import type { SiteSettings } from "./site-types";
+import { dropDanglingBreaks } from "./line-breaks";
+import { removeEmptyItems } from "./markdown-cleanup";
 
 export interface DraftForm {
   title: string;
@@ -36,7 +39,7 @@ export interface DraftDoc {
    * The front matter text as read, kept as is while no form field changes,
    * so opening and saving (or switching to Markdown and back) changes nothing.
    */
-  raw?: { frontMatter: string; formFields: string; leading: string };
+  raw?: { frontMatter: string; formFields: string; leading: string; body: string };
 }
 
 /** The form fields that live in front matter, for detecting changes. */
@@ -75,26 +78,70 @@ export function parseDraft(text: string, site: SiteSettings): DraftDoc | null {
     cover: str(fields.get(site.coverField)),
     body: split.body.slice(leading.length),
   };
-  return { format: split.format, fields, form, raw: { frontMatter: split.raw, formFields: formFields(form), leading } };
+  return { format: split.format, fields, form, raw: { frontMatter: split.raw, formFields: formFields(form), leading, body: form.body } };
 }
 
-/** The file text to commit. */
-export function serializeDraft(doc: DraftDoc, site: SiteSettings): string {
-  const f = doc.form;
-  const body = f.body === "" || f.body.endsWith("\n") ? f.body : `${f.body}\n`;
-  // Unchanged form: the front matter text exactly as it was.
-  if (doc.raw && doc.raw.formFields === formFields(f)) return joinFile(doc.format, doc.raw.frontMatter, doc.raw.leading + body);
-  const fields = new Map(doc.fields);
-  applyChanges(fields, [
+/** Form fields and the front matter keys they are written to ("cover" is `[site] cover_field`). */
+const FORM_KEYS: [Exclude<keyof DraftForm, "body">, string][] = [
+  ["title", "title"],
+  ["date", "date"],
+  ["slug", "slug"],
+  ["categories", "categories"],
+  ["tags", "tags"],
+  ["cover", "cover"],
+];
+
+/** The front matter values of the form. `draft` is set only for drafts (published files keep theirs). */
+function formChanges(f: DraftForm, site: SiteSettings, draft?: boolean): [string, unknown][] {
+  return [
     ["title", f.title.trim()],
     ["date", f.date],
     ["slug", f.slug],
-    ["draft", true],
+    ...(draft ? ([["draft", true]] as [string, unknown][]) : []),
     ["categories", f.categories.length ? f.categories : undefined],
     ["tags", f.tags.length ? f.tags : undefined],
     [site.coverField, f.cover ? f.cover : undefined],
-  ]);
+  ];
+}
+
+/** The file text to commit. */
+export function serializeDraft(doc: DraftDoc, site: SiteSettings, opts: { draft?: boolean } = { draft: true }): string {
+  const f = doc.form;
+  // A changed text ends with a newline; an unchanged one stays exactly as it was.
+  const body = f.body === "" || f.body.endsWith("\n") || f.body === doc.raw?.body ? f.body : `${f.body}\n`;
+  // Unchanged form: the front matter text exactly as it was.
+  if (doc.raw && doc.raw.formFields === formFields(f)) return joinFile(doc.format, doc.raw.frontMatter, doc.raw.leading + body);
+  const changes = formChanges(f, site, opts.draft);
+  // An existing file: only the changed fields' lines change.
+  if (doc.raw) {
+    const before = JSON.parse(doc.raw.formFields) as Omit<DraftForm, "body">;
+    const changed = changes.filter(([key]) => {
+      const field = FORM_KEYS.find(([, k]) => (k === "cover" ? site.coverField : k) === key);
+      return !field || JSON.stringify(before[field[0]]) !== JSON.stringify(f[field[0]]);
+    });
+    return joinFile(doc.format, setFields(doc.format, doc.raw.frontMatter, changed), doc.raw.leading + body);
+  }
+  const fields = new Map(doc.fields);
+  applyChanges(fields, changes);
   // draftId last for new files, unchanged position otherwise.
-  if (!fields.has("draftId")) throw new Error("draft without draftId");
+  if (opts.draft && !fields.has("draftId")) throw new Error("draft without draftId");
   return joinFile(doc.format, stringifyFields(doc.format, fields), `\n${body}`);
+}
+
+/**
+ * What saving commits, and the body to show afterwards. In rich text mode,
+ * list items and quote lines left empty while writing and line breaks with
+ * nothing after them are tidied away, but only on lines changed since the
+ * last saved version (`saved`), so an untouched file saves unchanged. The
+ * Markdown mode is raw: nothing is changed there.
+ */
+export function prepareSave(
+  doc: DraftDoc,
+  site: SiteSettings,
+  opts: { rich: boolean; saved: string | null; draft?: boolean },
+): { content: string; body: string } {
+  const keep = opts.saved === null ? undefined : new Set(opts.saved.split("\n"));
+  const body = opts.rich ? dropDanglingBreaks(removeEmptyItems(doc.form.body, keep), keep) : doc.form.body;
+  const tidied = body === doc.form.body ? doc : { ...doc, form: { ...doc.form, body } };
+  return { content: serializeDraft(tidied, site, { draft: opts.draft ?? true }), body };
 }

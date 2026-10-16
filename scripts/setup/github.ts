@@ -72,7 +72,10 @@ export async function createAppWithManifest(opts: {
           name: opts.name,
           url: opts.appUrl,
           description: "Login and commits for the Alasin editor.",
-          public: false,
+          // Public: GitHub hides a private app from everyone but its owner, so
+          // other users couldn't even sign in. Who may log in is decided by
+          // write access to the site repository, and the app only reaches the repository it's installed on.
+          public: true,
           redirect_url: `http://127.0.0.1:${port}/callback`,
           callback_urls: opts.callbackUrls,
           request_oauth_on_install: false,
