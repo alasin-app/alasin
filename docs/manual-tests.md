@@ -191,5 +191,5 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 4.17 | ✅ | |
 | 4.18 | ✅ | |
 | 4.19 | ✅ | |
-| 4.20 | ✅ | A slight delay before the first device noticed; it now checks every 15 seconds (#102). |
-| 4.21 | ❌ → ⏳ | The lock was freed, but the read-only editor kept showing *Take over editing* until the post was opened again; it now notices within 15 seconds and becomes editable, reading the text again (#102). |
+| 4.20 | ❌ → ⏳ | A slight delay before the first device noticed; the editor now checks every 15 seconds (#102). In the editor the lock messages are now right, but the lists showed "is editing" late and kept it after editing ended: they checked only once a minute, now every 15 seconds and on returning to the app (#103). |
+| 4.21 | ❌ → ⏳ | The lock was freed, but the read-only editor kept showing *Take over editing* until the post was opened again; it now notices within 15 seconds and becomes editable, reading the text again (#102). Retest: right in the editor; the lists updated late, as in 4.20 (#103). |

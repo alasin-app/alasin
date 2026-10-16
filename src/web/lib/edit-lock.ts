@@ -132,18 +132,26 @@ export function lockKey(item: { path: string; draftId?: string }): string {
   return item.draftId && item.path.endsWith(`/${item.draftId}.md`) ? `draft:${item.draftId}` : `file:${item.path}`;
 }
 
-/** Who is editing what right now (by lock key), refreshed every minute while shown. */
+/** Who is editing what right now (by lock key): checked every 15 seconds while shown, and on coming back to the app. */
 export function useLocks(): Map<string, Holder> {
   const [locks, setLocks] = useState<Map<string, Holder>>(new Map());
   useEffect(() => {
-    const load = () =>
+    const load = () => {
+      if (document.visibilityState !== "visible") return;
       api<{ locks: (Holder & { key: string })[] }>("/api/locks").then(
         (r) => setLocks(new Map(r.locks.map((l) => [l.key, l]))),
         () => undefined,
       );
-    void load();
-    const timer = setInterval(() => document.visibilityState === "visible" && void load(), 60_000);
-    return () => clearInterval(timer);
+    };
+    load();
+    const timer = setInterval(load, CHECK_MS);
+    document.addEventListener("visibilitychange", load);
+    window.addEventListener("focus", load);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", load);
+      window.removeEventListener("focus", load);
+    };
   }, []);
   return locks;
 }
