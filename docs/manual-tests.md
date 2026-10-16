@@ -120,6 +120,11 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 3.8 | Republish | Under *Archived*, tap the post → *Republish*: back at its old path with a new `lastmod`, and opens in the editor |
 | 3.9 | Publish an old draft | Open a post marked `draft: true` in the content folders (e.g. from an older blog) → *Publish*: `draft: false`, `lastmod` and `url` set, in place |
 | 3.10 | Locked | While someone else edits a post, the menu is off for you (read-only), and a direct attempt is refused naming who is editing |
+| 3.11 | Delete | In the editor, ••• → *Delete* → confirm, for a published post, a draft and (from the *Archived* list) an archived post: each moves to `bin/` under its old path, off the site; the *Bin* shows them with what they were and who deleted them when; the sidebar shows the count |
+| 3.12 | Never-saved draft | *Delete* on a draft that was never saved to GitHub says it exists only on this device and discards it (nothing goes to the Bin) |
+| 3.13 | Recover | In the *Bin*, tap an item → *Recover*: it's back at its old path (a draft opens in the editor, a post too); for a published post whose address was used again meanwhile, *Recover with a new name* puts it next to it with `-2` |
+| 3.14 | Delete permanently | In the *Bin*, an item → *Delete permanently* → confirm: gone from the repository; a deleted draft's photos are removed from the drafts bucket; the media bucket is unchanged |
+| 3.15 | Empty Bin | *Empty Bin* → confirm with the number of items: one commit removes them all |
 
 ### Test runs
 
@@ -137,6 +142,11 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 3.8 | ✅ | |
 | 3.9 | ✅ | |
 | 3.10 | ✅ | |
+| 3.11 | ⏳ | |
+| 3.12 | ⏳ | |
+| 3.13 | ⏳ | |
+| 3.14 | ⏳ | |
+| 3.15 | ⏳ | |
 
 ## Milestone 4 — lists and editing existing posts
 

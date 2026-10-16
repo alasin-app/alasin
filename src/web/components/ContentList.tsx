@@ -141,6 +141,16 @@ export function ContentList(props: { me: Me; kind: ItemKind }) {
   const [republishing, setRepublishing] = useState<ContentItem | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
+  const deleteArchived = async (item: ContentItem) => {
+    setActionError(null);
+    try {
+      await api("/api/bin/delete", { method: "POST", body: { path: item.path, sha: item.sha } });
+      refresh();
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : t("error.generic"));
+    }
+  };
+
   const republish = async (item: ContentItem) => {
     setActionError(null);
     try {
@@ -334,7 +344,14 @@ export function ContentList(props: { me: Me; kind: ItemKind }) {
         onClose={() => setRepublishing(null)}
         title={republishing ? t("content.republishTitle", { title: republishing.title }) : ""}
         message={t("content.republishMessage")}
-        actions={republishing ? [{ label: t("content.republish"), onSelect: () => void republish(republishing) }] : []}
+        actions={
+          republishing
+            ? [
+                { label: t("content.republish"), onSelect: () => void republish(republishing) },
+                { label: t("editor.delete"), destructive: true, onSelect: () => void deleteArchived(republishing) },
+              ]
+            : []
+        }
         cancelLabel={t("common.cancel")}
       />
       <PickerSheet

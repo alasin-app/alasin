@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // App frame: a sidebar split view on iPad and desktop, a tab bar on iPhone.
 
-import { ChevronRight, Ellipsis, FileText, House, Image, Newspaper, PanelLeftClose, PanelLeftOpen, PenLine, Plus, Tags, Users } from "lucide-preact";
+import { ChevronRight, Ellipsis, FileText, House, Image, Newspaper, PanelLeftClose, PanelLeftOpen, PenLine, Plus, Tags, Trash2, Users } from "lucide-preact";
 import type { ComponentType } from "preact";
 import { useState } from "preact/hooks";
 import type { Me } from "../lib/api";
@@ -11,11 +11,13 @@ import { ulid } from "../../shared/ulid";
 import { ContentList } from "./ContentList";
 import { DraftsList } from "./DraftsList";
 import { UsersList } from "./UsersList";
+import { BinList } from "./BinList";
 import { Editor } from "./Editor";
 import { settings } from "../lib/settings";
 import { AccountSheet } from "./AccountSheet";
 import { NavBar } from "./NavBar";
 import { buildId, useNewBuild } from "../lib/new-build";
+import { useContent } from "../lib/use-content";
 
 type Icon = ComponentType<{ size?: number; "aria-hidden"?: "true" }>;
 
@@ -26,6 +28,7 @@ const SECTIONS: { route: Section; label: MessageKey; icon: Icon }[] = [
   { route: "drafts", label: "nav.drafts", icon: PenLine },
   { route: "categories", label: "nav.categories", icon: Tags },
   { route: "media", label: "nav.media", icon: Image },
+  { route: "bin", label: "nav.bin", icon: Trash2 },
   { route: "users", label: "nav.users", icon: Users },
 ];
 
@@ -36,7 +39,7 @@ const TABS: { route: Section; label: MessageKey; icon: Icon }[] = [
   { route: "more", label: "nav.more", icon: Ellipsis },
 ];
 
-const MORE: Section[] = ["pages", "posts", "categories", "users"];
+const MORE: Section[] = ["pages", "posts", "categories", "bin", "users"];
 
 export function EnvBadge() {
   return settings.environment ? <span class="badge badge-env">{settings.environment}</span> : null;
@@ -81,6 +84,9 @@ export function Shell(props: { me: Me; onLogout: () => void }) {
   const [accountOpen, setAccountOpen] = useState(false);
   const [collapsed, toggleSidebar] = useSidebarCollapsed();
   const newBuild = useNewBuild();
+  // How many items are in the Bin, next to its name in the sidebar.
+  const { content } = useContent(props.me);
+  const binCount = content?.items.filter((i) => i.state === "bin").length ?? 0;
   // The editor belongs to Drafts, a published file to Posts (or Pages).
   const current: Section = route.name === "editor" ? "drafts" : route.name === "file" ? (route.path.includes("/pages/") ? "pages" : "posts") : route.name;
   const section = SECTIONS.find((s) => s.route === current);
@@ -114,6 +120,7 @@ export function Shell(props: { me: Me; onLogout: () => void }) {
                 >
                   <s.icon size={22} aria-hidden="true" />
                   <span class={collapsed ? "visually-hidden" : undefined}>{t(s.label)}</span>
+                  {s.route === "bin" && binCount > 0 && !collapsed && <span class="sidebar-count">{binCount}</span>}
                 </a>
               </li>
             ))}
@@ -179,6 +186,8 @@ export function Shell(props: { me: Me; onLogout: () => void }) {
               </ul>
             ) : current === "drafts" ? (
               <DraftsList me={props.me} />
+            ) : current === "bin" ? (
+              <BinList me={props.me} />
             ) : current === "users" ? (
               <UsersList />
             ) : current === "home" ? (

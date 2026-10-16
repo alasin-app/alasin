@@ -146,7 +146,7 @@ export function Editor(props: { me: Me; source: EditSource }) {
   const [takeOverOpen, setTakeOverOpen] = useState(false);
   /** The menu of a published file, and the action waiting for confirmation. */
   const [menuOpen, setMenuOpen] = useState(false);
-  const [confirm, setConfirm] = useState<"unpublish" | "archive" | "publish" | null>(null);
+  const [confirm, setConfirm] = useState<"unpublish" | "archive" | "publish" | "delete" | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>("idle");
   const [message, setMessage] = useState<string | null>(null);
@@ -545,6 +545,29 @@ export function Editor(props: { me: Me; source: EditSource }) {
     }
   };
 
+  /** Moves the draft, post or page to the Bin (a draft never saved is only discarded on this device). */
+  const moveToBin = async () => {
+    if (!state) return;
+    if (state.sha === null) {
+      await discardMine();
+      return;
+    }
+    setStatus("saving");
+    setMessage(null);
+    try {
+      const path = source.kind === "draft" ? `${state.site.folders.drafts}/${type}s/${source.id}.md` : source.path;
+      await api("/api/bin/delete", { method: "POST", body: { path, sha: state.sha, lockId: lock.lockId } });
+      await deleteLocalDraft(me.user.id, type, localId);
+      setStatus("saved");
+      back();
+    } catch (err) {
+      setStatus("error");
+      if (err instanceof ApiError && err.code === "conflict") setConflict(true);
+      else if (err instanceof NetworkError) setMessage(t("editor.offline"));
+      else setMessage(err instanceof ApiError ? err.message : t("error.generic"));
+    }
+  };
+
   /** Takes the lock from whoever has it; the text is read again, as they may have saved meanwhile. */
   const takeOver = async () => {
     const wasOther = lock.state === "other";
@@ -665,11 +688,6 @@ export function Editor(props: { me: Me; source: EditSource }) {
               {t("editor.publish")}
             </button>
           )}
-          {!isDraft && !fileIsDraft && (
-            <button type="button" class="btn-plain icon-button" onClick={() => setMenuOpen(true)} disabled={status === "saving" || readOnly} aria-label={t("editor.more")} title={t("editor.more")}>
-              <Ellipsis size={22} aria-hidden="true" />
-            </button>
-          )}
           {isDraft && (
           <button
             type="button"
@@ -685,6 +703,9 @@ export function Editor(props: { me: Me; source: EditSource }) {
             {t("editor.publish")}
           </button>
           )}
+          <button type="button" class="btn-plain icon-button" onClick={() => setMenuOpen(true)} disabled={status === "saving" || status === "publishing" || readOnly} aria-label={t("editor.more")} title={t("editor.more")}>
+            <Ellipsis size={22} aria-hidden="true" />
+          </button>
         </div>
       </header>
 
@@ -940,8 +961,13 @@ export function Editor(props: { me: Me; source: EditSource }) {
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
         actions={[
-          { label: t("editor.unpublish"), onSelect: () => setConfirm("unpublish") },
-          { label: t("editor.archive"), onSelect: () => setConfirm("archive") },
+          ...(!isDraft && !fileIsDraft
+            ? [
+                { label: t("editor.unpublish"), onSelect: () => setConfirm("unpublish") },
+                { label: t("editor.archive"), onSelect: () => setConfirm("archive") },
+              ]
+            : []),
+          { label: t("editor.delete"), destructive: true, onSelect: () => setConfirm("delete") },
         ]}
         cancelLabel={t("common.cancel")}
       />
@@ -949,8 +975,20 @@ export function Editor(props: { me: Me; source: EditSource }) {
         open={confirm !== null}
         onClose={() => setConfirm(null)}
         title={confirm ? t(`editor.${confirm}Title`, { title: f.title.trim() }) : ""}
-        message={confirm === "publish" ? t(type === "post" ? "editor.publishMessagePost" : "editor.publishMessagePage") : confirm ? t(`editor.${confirm}Message`) : ""}
-        actions={confirm ? [{ label: t(`editor.${confirm}`), destructive: confirm !== "publish", onSelect: () => void lifecycle(confirm) }] : []}
+        message={
+          confirm === "publish"
+            ? t(type === "post" ? "editor.publishMessagePost" : "editor.publishMessagePage")
+            : confirm === "delete" && state.savedContent === null
+              ? t("editor.deleteMessageLocal")
+              : confirm
+                ? t(`editor.${confirm}Message`)
+                : ""
+        }
+        actions={
+          confirm
+            ? [{ label: t(`editor.${confirm}`), destructive: confirm !== "publish", onSelect: () => void (confirm === "delete" ? moveToBin() : lifecycle(confirm)) }]
+            : []
+        }
         cancelLabel={t("common.cancel")}
       />
 
