@@ -100,6 +100,18 @@ export class Repo {
       .map((e) => ({ name: e.name, path: e.path, sha: e.sha, type: e.type as "file" | "dir" }));
   }
 
+  /** The files a commit changed, from the last commit on the branch that touched `path`; null if none did. */
+  async lastChangeOf(path: string): Promise<{ commit: string; files: { filename: string; status: string; previous_filename?: string }[] } | null> {
+    const { data: commits } = await this.request<{ sha: string }[]>(
+      "GET",
+      `/commits?sha=${encodeURIComponent(this.branch)}&path=${encodeURIComponent(path)}&per_page=1`,
+    );
+    const sha = commits?.[0]?.sha;
+    if (!sha) return null;
+    const { data } = await this.request<{ files?: { filename: string; status: string; previous_filename?: string }[] }>("GET", `/commits/${sha}`);
+    return { commit: sha, files: data?.files ?? [] };
+  }
+
   /** Commits all changes in one commit. Returns the commit SHA and each file's new blob SHA. */
   async commit(changes: FileChange[], message: string): Promise<{ commit: string; shas: Record<string, string | null> }> {
     for (let attempt = 1; ; attempt++) {

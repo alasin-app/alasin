@@ -77,15 +77,15 @@ export function Shell(props: { me: Me; onLogout: () => void }) {
   const route = useRoute();
   const [accountOpen, setAccountOpen] = useState(false);
   const [collapsed, toggleSidebar] = useSidebarCollapsed();
-  // The editor belongs to the Drafts section.
-  const current: Section = route.name === "editor" ? "drafts" : route.name;
+  // The editor belongs to Drafts, a published file to Posts (or Pages).
+  const current: Section = route.name === "editor" ? "drafts" : route.name === "file" ? (route.path.includes("/pages/") ? "pages" : "posts") : route.name;
   const section = SECTIONS.find((s) => s.route === current);
   const title = current === "more" ? t("nav.more") : t(section?.label ?? "nav.home");
   const tabActive = (r: Section) => r === current || (r === "more" && MORE.includes(current));
   const create = (type: DraftKind) => navigate({ name: "editor", type, id: ulid() });
 
   return (
-    <div class={`shell${route.name === "editor" ? " editing" : ""}${collapsed ? " sidebar-collapsed" : ""}`}>
+    <div class={`shell${route.name === "editor" || route.name === "file" ? " editing" : ""}${collapsed ? " sidebar-collapsed" : ""}`}>
       <aside class="sidebar" aria-label={settings.appName}>
         <div class="sidebar-header">
           {collapsed ? (
@@ -131,7 +131,9 @@ export function Shell(props: { me: Me; onLogout: () => void }) {
 
       <main class="content" id="main">
         {route.name === "editor" ? (
-          <Editor key={route.id} me={props.me} type={route.type} id={route.id} />
+          <Editor key={route.id} me={props.me} source={{ kind: "draft", type: route.type, id: route.id }} />
+        ) : route.name === "file" ? (
+          <Editor key={route.path} me={props.me} source={{ kind: "file", path: route.path }} />
         ) : (
           <>
             <NavBar

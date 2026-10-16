@@ -70,6 +70,23 @@ const site = z
       .regex(/^[A-Za-z_][A-Za-z0-9_-]*$/)
       .optional()
       .describe("Front matter field for the author: new posts and pages get the user's full name from their GitHub profile, and the lists show who wrote each one. Leave unset if the site doesn't use one."),
+    lastmod_field: z
+      .string()
+      .regex(/^([A-Za-z_][A-Za-z0-9_-]*)?$/)
+      .default("lastmod")
+      .describe("Front matter field set to the current time whenever a post or page is published or saved. `\"\"` turns it off."),
+    post_url: z
+      .string()
+      .optional()
+      .refine((p) => p === undefined || (p.startsWith("/") && p.includes("{slug}")), { message: "must start with / and contain {slug}" })
+      .describe(
+        "If set, the `url` front matter field of published posts follows this pattern, e.g. `/{yyyy}/{mm}/{dd}/{slug}/`. Placeholders: `{slug}`, `{yyyy}`, `{mm}`, `{dd}` (the post date). Set on publishing, and updated when the address or date of a published post is changed. Leave unset if the site uses Hugo's permalinks instead.",
+      ),
+    page_url: z
+      .string()
+      .optional()
+      .refine((p) => p === undefined || (p.startsWith("/") && p.includes("{slug}")), { message: "must start with / and contain {slug}" })
+      .describe("Like `post_url`, for pages, e.g. `/{slug}/`."),
     front_matter_format: z
       .enum(["yaml", "toml"])
       .default("yaml")

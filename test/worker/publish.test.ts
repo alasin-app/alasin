@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 import { env } from "cloudflare:test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { parseConfig } from "../../src/shared/config/schema";
 import { ulid } from "../../src/shared/ulid";
-import { ALLOWED_USER } from "../fixtures";
+import { ALLOWED_USER, testConfig } from "../fixtures";
 import { call, type FakeGitHub, fakeGitHub, login, mutating } from "./helpers";
 
 let gh: FakeGitHub;
@@ -150,6 +151,17 @@ describe("publish", () => {
     expect((await publish(id, { sha }, "page")).status).toBe(200);
     expect(gh.repo.files().has("content/pages/summer-trip.md")).toBe(true);
     expect((await publish(id, { sha }, "page")).status).toBe(404);
+  });
+
+  it("sets lastmod, and url when a pattern is configured, keeping the front matter as written", async () => {
+    const id = ulid();
+    const sha = await saveDraft(id, draft(id, "Text."));
+    const config = parseConfig({ ...testConfig, site: { ...testConfig.site, post_url: "/{yyyy}/{mm}/{dd}/{slug}/" } });
+    const res = await call(`/api/drafts/post/${id}/publish`, mutating(cookie, { sha, day: "2026-10-15" }), { ALASIN_CONFIG_JSON: JSON.stringify(config) });
+    expect(res.status).toBe(200);
+    expect(gh.repo.files().get("content/posts/summer-trip.md")).toMatch(
+      /^---\ntitle: "Summer trip"\ndate: 2026-10-15T09:30:00Z\nslug: "summer-trip"\ndraft: false\nlastmod: \S+Z\nurl: "\/2026\/10\/15\/summer-trip\/"\n---\n/,
+    );
   });
 
   it("requires the CSRF header like every change", async () => {

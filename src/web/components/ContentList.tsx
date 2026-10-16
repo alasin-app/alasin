@@ -19,11 +19,13 @@ import { Sheet } from "./Sheet";
 
 type Filter = "all" | "draft" | "archived";
 
-/** Where a row leads; null while it can't be opened yet. */
+/** Where a row leads; null while it can't be opened yet (archived items, the Bin). */
 export function routeFor(item: ContentItem): Route | null {
   if (item.state === "draft" && item.draftId && item.path.endsWith(`/${item.draftId}.md`)) {
     return { name: "editor", type: item.kind, id: item.draftId };
   }
+  // Published, or marked draft in the content folders.
+  if (item.state === "published" || item.state === "draft") return { name: "file", path: item.path };
   return null;
 }
 

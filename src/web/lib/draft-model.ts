@@ -6,6 +6,7 @@
 
 import {
   applyChanges,
+  setFields,
   type Fields,
   type FrontMatterFormat,
   joinFile,
@@ -80,25 +81,50 @@ export function parseDraft(text: string, site: SiteSettings): DraftDoc | null {
   return { format: split.format, fields, form, raw: { frontMatter: split.raw, formFields: formFields(form), leading, body: form.body } };
 }
 
+/** Form fields and the front matter keys they are written to ("cover" is `[site] cover_field`). */
+const FORM_KEYS: [Exclude<keyof DraftForm, "body">, string][] = [
+  ["title", "title"],
+  ["date", "date"],
+  ["slug", "slug"],
+  ["categories", "categories"],
+  ["tags", "tags"],
+  ["cover", "cover"],
+];
+
+/** The front matter values of the form. `draft` is set only for drafts (published files keep theirs). */
+function formChanges(f: DraftForm, site: SiteSettings, draft?: boolean): [string, unknown][] {
+  return [
+    ["title", f.title.trim()],
+    ["date", f.date],
+    ["slug", f.slug],
+    ...(draft ? ([["draft", true]] as [string, unknown][]) : []),
+    ["categories", f.categories.length ? f.categories : undefined],
+    ["tags", f.tags.length ? f.tags : undefined],
+    [site.coverField, f.cover ? f.cover : undefined],
+  ];
+}
+
 /** The file text to commit. */
-export function serializeDraft(doc: DraftDoc, site: SiteSettings): string {
+export function serializeDraft(doc: DraftDoc, site: SiteSettings, opts: { draft?: boolean } = { draft: true }): string {
   const f = doc.form;
   // A changed text ends with a newline; an unchanged one stays exactly as it was.
   const body = f.body === "" || f.body.endsWith("\n") || f.body === doc.raw?.body ? f.body : `${f.body}\n`;
   // Unchanged form: the front matter text exactly as it was.
   if (doc.raw && doc.raw.formFields === formFields(f)) return joinFile(doc.format, doc.raw.frontMatter, doc.raw.leading + body);
+  const changes = formChanges(f, site, opts.draft);
+  // An existing file: only the changed fields' lines change.
+  if (doc.raw) {
+    const before = JSON.parse(doc.raw.formFields) as Omit<DraftForm, "body">;
+    const changed = changes.filter(([key]) => {
+      const field = FORM_KEYS.find(([, k]) => (k === "cover" ? site.coverField : k) === key);
+      return !field || JSON.stringify(before[field[0]]) !== JSON.stringify(f[field[0]]);
+    });
+    return joinFile(doc.format, setFields(doc.format, doc.raw.frontMatter, changed), doc.raw.leading + body);
+  }
   const fields = new Map(doc.fields);
-  applyChanges(fields, [
-    ["title", f.title.trim()],
-    ["date", f.date],
-    ["slug", f.slug],
-    ["draft", true],
-    ["categories", f.categories.length ? f.categories : undefined],
-    ["tags", f.tags.length ? f.tags : undefined],
-    [site.coverField, f.cover ? f.cover : undefined],
-  ]);
+  applyChanges(fields, changes);
   // draftId last for new files, unchanged position otherwise.
-  if (!fields.has("draftId")) throw new Error("draft without draftId");
+  if (opts.draft && !fields.has("draftId")) throw new Error("draft without draftId");
   return joinFile(doc.format, stringifyFields(doc.format, fields), `\n${body}`);
 }
 
@@ -109,9 +135,13 @@ export function serializeDraft(doc: DraftDoc, site: SiteSettings): string {
  * last saved version (`saved`), so an untouched file saves unchanged. The
  * Markdown mode is raw: nothing is changed there.
  */
-export function prepareSave(doc: DraftDoc, site: SiteSettings, opts: { rich: boolean; saved: string | null }): { content: string; body: string } {
+export function prepareSave(
+  doc: DraftDoc,
+  site: SiteSettings,
+  opts: { rich: boolean; saved: string | null; draft?: boolean },
+): { content: string; body: string } {
   const keep = opts.saved === null ? undefined : new Set(opts.saved.split("\n"));
   const body = opts.rich ? dropDanglingBreaks(removeEmptyItems(doc.form.body, keep), keep) : doc.form.body;
   const tidied = body === doc.form.body ? doc : { ...doc, form: { ...doc.form, body } };
-  return { content: serializeDraft(tidied, site), body };
+  return { content: serializeDraft(tidied, site, { draft: opts.draft ?? true }), body };
 }

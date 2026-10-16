@@ -123,3 +123,68 @@ export function fromLocalInput(value: string): string | null {
   const d = new Date(value);
   return Number.isNaN(d.getTime()) ? null : utcIso(d);
 }
+
+/** One value written as TOML (a single line). */
+function tomlValue(key: string, v: unknown): string {
+  // Dates are TOML datetimes, not strings.
+  if ((key === "date" || key === "lastmod" || key === "publishDate") && typeof v === "string" && ISO_DATE.test(v)) return v;
+  const line = stringifyToml({ [key]: v }).trim();
+  return line.slice(line.indexOf("=") + 1).trim();
+}
+
+/**
+ * Changes some top-level fields of front matter text (without delimiters) in
+ * place, line by line: every other line, comment and formatting stays as it
+ * was. A changed field keeps its position; a new one is added at the end (TOML:
+ * before the first table); `undefined` removes a field.
+ */
+export function setFields(format: FrontMatterFormat, raw: string, changes: [string, unknown][]): string {
+  const lines = raw.split("\n");
+  for (const [key, value] of changes) {
+    const quoted = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const keyLine =
+      format === "yaml" ? new RegExp(`^(?:${quoted}|"${quoted}"|'${quoted}')\\s*:(?:\\s|$)`) : new RegExp(`^(?:${quoted}|"${quoted}")\\s*=`);
+    let start = -1;
+    for (let i = 0; i < lines.length; i++) {
+      if (format === "toml" && /^\s*\[/.test(lines[i]!)) break; // top-level keys only
+      if (keyLine.test(lines[i]!)) {
+        start = i;
+        break;
+      }
+    }
+    // The lines the current value takes: YAML continues on indented lines and
+    // "- " list items; TOML until its brackets close.
+    let end = start + 1;
+    if (start !== -1) {
+      if (format === "yaml") {
+        while (end < lines.length && (/^\s+\S/.test(lines[end]!) || /^-(\s|$)/.test(lines[end]!))) end++;
+      } else {
+        let depth = 0;
+        for (let i = start; i < lines.length; i++) {
+          for (const ch of lines[i]!.replace(/"(?:[^"\\]|\\.)*"|'[^']*'/g, "")) {
+            if (ch === "[") depth++;
+            else if (ch === "]") depth--;
+          }
+          end = i + 1;
+          if (depth <= 0) break;
+        }
+      }
+    }
+    const written =
+      value === undefined || value === null
+        ? []
+        : [format === "yaml" ? `${/^[A-Za-z_][A-Za-z0-9_-]*$/.test(key) ? key : JSON.stringify(key)}: ${yamlScalar(value, key)}` : `${key} = ${tomlValue(key, value)}`];
+    if (start !== -1) lines.splice(start, end - start, ...written);
+    else if (written.length) {
+      let at = lines.length;
+      if (format === "toml") {
+        const table = lines.findIndex((l) => /^\s*\[/.test(l));
+        if (table !== -1) at = table;
+      }
+      while (at > 0 && lines[at - 1]!.trim() === "") at--;
+      lines.splice(at, 0, ...written);
+    }
+  }
+  return lines.join("\n");
+}
+

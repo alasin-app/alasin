@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 // Every draft: those in the drafts folder, posts and pages marked `draft: true`
-// in the content folders (e.g. left over from an older blog), and drafts on
-// this device that were never saved to GitHub. Newest first.
+// in the content folders (e.g. left over from an older blog), and what only
+// this device has: drafts never saved to GitHub, drafts saved earlier but
+// published or deleted elsewhere since, and unsaved changes to published
+// posts. Newest first.
 
 import { ChevronRight } from "lucide-preact";
 import { useEffect, useState } from "preact/hooks";
@@ -30,13 +32,16 @@ export function DraftsList(props: { me: Me }) {
   // Drafts on this device only, or with changes not saved yet.
   const unsaved = new Set(local.filter((l) => l.content !== l.savedContent).map((l) => l.id));
   const onlyHere = local
-    .filter((l) => !saved.has(l.id))
+    .filter((l) => !l.id.startsWith("file:") && !saved.has(l.id))
     .map((l) => ({ l, doc: parseDraft(l.content, site) }))
     .sort((a, b) => b.l.updatedAt - a.l.updatedAt);
   const time = (n: number) => (Number.isNaN(n) ? -Infinity : n);
   drafts.sort((a, b) => time(b.time) - time(a.time));
 
-  if (!drafts.length && !onlyHere.length) {
+  // Unsaved changes to published posts and pages.
+  const changedFiles = local.filter((l) => l.id.startsWith("file:") && l.content !== l.savedContent);
+
+  if (!drafts.length && !onlyHere.length && !changedFiles.length) {
     return (
       <div class="empty-state">
         <h2 class="headline">{t("drafts.emptyTitle")}</h2>
@@ -58,9 +63,34 @@ export function DraftsList(props: { me: Me }) {
                   <a class="row row-link" href={hrefFor(route)} onClick={linkHandler(route)}>
                     <span class="row-label">
                       {doc?.form.title || <span class="secondary">{t("drafts.untitled")}</span>}
-                      <span class="row-subtitle">{[l.type === "post" ? t("drafts.post") : t("drafts.page"), date, t("drafts.onlyHere")].filter(Boolean).join(" · ")}</span>
+                      <span class="row-subtitle">
+                        {[l.type === "post" ? t("drafts.post") : t("drafts.page"), date, l.baseSha ? t("drafts.goneElsewhere") : t("drafts.onlyHere")].filter(Boolean).join(" · ")}
+                      </span>
                     </span>
                     <span class="badge badge-draft">{t("drafts.badge")}</span>
+                    <ChevronRight class="chevron" size={18} aria-hidden="true" />
+                  </a>
+                </li>
+              );
+            })}
+          </ul>
+        </>
+      )}
+      {changedFiles.length > 0 && (
+        <>
+          <h3 class="list-section-header">{t("drafts.unsavedEdits")}</h3>
+          <ul class="grouped-list">
+            {changedFiles.map((l) => {
+              const path = l.id.slice("file:".length);
+              const route = { name: "file" as const, path };
+              const doc = parseDraft(l.content, site);
+              return (
+                <li>
+                  <a class="row row-link" href={hrefFor(route)} onClick={linkHandler(route)}>
+                    <span class="row-label">
+                      {doc?.form.title || path.split("/").pop()}
+                      <span class="row-subtitle">{[l.type === "post" ? t("drafts.post") : t("drafts.page"), t("drafts.unsaved")].join(" · ")}</span>
+                    </span>
                     <ChevronRight class="chevron" size={18} aria-hidden="true" />
                   </a>
                 </li>

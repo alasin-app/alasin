@@ -105,6 +105,31 @@ describe("round trip: opening and saving without changes", () => {
     expect(content).toContain("- new item\n\nNew paragraph.\n");
   });
 
+  it("changes only the edited field's line in an existing file", () => {
+    const text = SAMPLES["YAML with unusual formatting"]!;
+    const doc = parseDraft(text, site)!;
+    doc.form.title = "New title";
+    doc.form.categories = ["travel"];
+    const { content } = prepareSave(doc, site, { rich: true, saved: text, draft: false });
+    const a = text.split("\n");
+    const b = content.split("\n");
+    expect(b[1]).toBe('title: "New title"');
+    // The block list became one line; everything else is as it was.
+    expect(content.replace('title: "New title"', "title:   'Single quotes and   spaces'").replace('categories: ["travel"]', "categories:\n  - travel\n  - summer-2019")).toBe(text);
+    expect(a.length - b.length).toBe(2);
+    expect(content).toContain("# a comment in the front matter");
+    expect(content).not.toContain("draft: true");
+  });
+
+  it("changes TOML front matter line by line too, with dates unquoted", () => {
+    const text = SAMPLES["TOML front matter"]!;
+    const doc = parseDraft(text, site)!;
+    doc.form.tags = ["y", "z"];
+    doc.form.date = "2026-02-03T04:05:06Z";
+    const { content } = prepareSave(doc, site, { rich: true, saved: text, draft: false });
+    expect(content).toBe(text.replace('tags = ["x"]', 'tags = [ "y", "z" ]').replace("date = 2026-01-02T03:04:05Z", "date = 2026-02-03T04:05:06Z"));
+  });
+
   it("reports where a file would change", () => {
     const result = roundTrip("no front matter here\n", site);
     expect(result).toMatchObject({ ok: false, reason: "no front matter" });

@@ -69,6 +69,17 @@ cover_field = "image"
 # Type: string. Optional. Example: "author"
 # author_field = "author"
 
+# Front matter field set to the current time whenever a post or page is
+# published or saved. "" turns it off. Type: string. Default: "lastmod".
+lastmod_field = "lastmod"
+
+# If set, the `url` field of published posts and pages follows these patterns
+# (set on publishing, updated when the address or date of a published one is
+# changed). Placeholders: {slug}, {yyyy}, {mm}, {dd} (the post date). Leave
+# unset if the site uses Hugo's permalinks instead. Type: string. Optional.
+# post_url = "/{yyyy}/{mm}/{dd}/{slug}/"
+# page_url = "/{slug}/"
+
 # Front matter format for NEW files: "yaml" (---) or "toml" (+++). Existing
 # files always keep their own format. Type: string. Default: "yaml".
 front_matter_format = "yaml"
