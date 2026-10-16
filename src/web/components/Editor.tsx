@@ -5,7 +5,7 @@
 // the site repository. If the file changed on GitHub meanwhile, the user
 // chooses which version to keep — nothing is overwritten silently.
 
-import { Bold, Check, ChevronLeft, FileCode, Heading2, ImageOff, ImagePlus, Italic, Link, List, Quote, RotateCw, TvMinimalPlay, X } from "lucide-preact";
+import { Bold, Check, ChevronLeft, Ellipsis, FileCode, Heading2, ImageOff, ImagePlus, Italic, Link, List, Quote, RotateCw, TvMinimalPlay, X } from "lucide-preact";
 import { PhotoError, photosMarkdown, processPhoto, uploadPhoto } from "../lib/photos";
 import type { MarkdownEditor } from "../editor/markdown-editor";
 import { BodyEditor } from "./BodyEditor";
@@ -139,6 +139,9 @@ export function Editor(props: { me: Me; source: EditSource }) {
   const lock = useEditLock(state && !state.fate ? (source.kind === "draft" ? `draft:${source.id}` : `file:${source.path}`) : null, state?.site.locks?.heartbeatSeconds ?? 60);
   const readOnly = lock.state === "other" || lock.state === "lost";
   const [takeOverOpen, setTakeOverOpen] = useState(false);
+  /** The menu of a published file, and the action waiting for confirmation. */
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [confirm, setConfirm] = useState<"unpublish" | "archive" | "publish" | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>("idle");
   const [message, setMessage] = useState<string | null>(null);
@@ -510,6 +513,33 @@ export function Editor(props: { me: Me; source: EditSource }) {
     }
   };
 
+  /** Moves a published file: unpublish (to a draft), archive, or publish one marked draft: true. */
+  const lifecycle = async (action: "unpublish" | "archive" | "publish") => {
+    if (!state || source.kind !== "file" || !state.sha) return;
+    if (unsaved) {
+      setMessage(t("editor.saveFirst"));
+      return;
+    }
+    setStatus("saving");
+    setMessage(null);
+    try {
+      const res = await api<{ path: string; draftId?: string }>("/api/lifecycle", {
+        method: "POST",
+        body: { action, path: source.path, sha: state.sha, lockId: lock.lockId, day: toLocalInput(state.doc.form.date).slice(0, 10) || undefined },
+      });
+      await deleteLocalDraft(me.user.id, type, localId);
+      setStatus("saved");
+      if (action === "unpublish" && res.draftId) navigate({ name: "editor", type, id: res.draftId }, { replace: true });
+      else if (action === "archive") back();
+      else setReload((n) => n + 1);
+    } catch (err) {
+      setStatus("error");
+      if (err instanceof ApiError && err.code === "conflict") setConflict(true);
+      else if (err instanceof NetworkError) setMessage(t("editor.offline"));
+      else setMessage(err instanceof ApiError ? err.message : t("error.generic"));
+    }
+  };
+
   /** Takes the lock from whoever has it; the text is read again, as they may have saved meanwhile. */
   const takeOver = async () => {
     const wasOther = lock.state === "other";
@@ -598,6 +628,8 @@ export function Editor(props: { me: Me; source: EditSource }) {
           : t("editor.savedOnGitHub");
   // A draft whose address a published post or page already has: publishing it would fail.
   const sameAddress = isDraft && f.slug ? publishedItems.find((i) => i.kind === type && i.slug === f.slug) : undefined;
+  /** A published file marked draft: true (e.g. from an older blog): offered for publishing. */
+  const fileIsDraft = !isDraft && state.doc.fields.get("draft") === true;
   const categories = categoryTree(state.site.categories);
   const categoryNode = (slug: string) => categories.find((c) => c.slug === slug);
 
@@ -623,6 +655,16 @@ export function Editor(props: { me: Me; source: EditSource }) {
           >
             {isDraft ? t("editor.saveDraft") : t("editor.save")}
           </button>
+          {!isDraft && fileIsDraft && (
+            <button type="button" class="btn btn-filled btn-small" onClick={() => setConfirm("publish")} disabled={status === "saving" || readOnly || conflict}>
+              {t("editor.publish")}
+            </button>
+          )}
+          {!isDraft && !fileIsDraft && (
+            <button type="button" class="btn-plain icon-button" onClick={() => setMenuOpen(true)} disabled={status === "saving" || readOnly} aria-label={t("editor.more")} title={t("editor.more")}>
+              <Ellipsis size={22} aria-hidden="true" />
+            </button>
+          )}
           {isDraft && (
           <button
             type="button"
@@ -888,6 +930,24 @@ export function Editor(props: { me: Me; source: EditSource }) {
           onFiles={addPhotos}
         />
       </div>
+
+      <ActionSheet
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        actions={[
+          { label: t("editor.unpublish"), onSelect: () => setConfirm("unpublish") },
+          { label: t("editor.archive"), onSelect: () => setConfirm("archive") },
+        ]}
+        cancelLabel={t("common.cancel")}
+      />
+      <ActionSheet
+        open={confirm !== null}
+        onClose={() => setConfirm(null)}
+        title={confirm ? t(`editor.${confirm}Title`, { title: f.title.trim() }) : ""}
+        message={confirm === "publish" ? t(type === "post" ? "editor.publishMessagePost" : "editor.publishMessagePage") : confirm ? t(`editor.${confirm}Message`) : ""}
+        actions={confirm ? [{ label: t(`editor.${confirm}`), destructive: confirm !== "publish", onSelect: () => void lifecycle(confirm) }] : []}
+        cancelLabel={t("common.cancel")}
+      />
 
       <ActionSheet
         open={takeOverOpen}

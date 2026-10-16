@@ -86,6 +86,12 @@ export class EditLocks extends DurableObject<Env> {
     return this.acquire(key, lockId, who, ttlMs, false, now);
   }
 
+  /** Who holds the lock now and with which lock ID, or null if nobody does. */
+  holderOf(key: string, now = Date.now()): (LockHolder & { lockId: string }) | null {
+    const row = this.current(key, now);
+    return row ? { ...this.holder(row), lockId: row.lock_id } : null;
+  }
+
   /** Gives the lock up, if this editor still holds it. */
   release(key: string, lockId: string): void {
     this.ctx.storage.sql.exec("DELETE FROM locks WHERE key = ? AND lock_id = ?", key, lockId);
