@@ -142,6 +142,8 @@ export async function login(
   const oauthCookie = cookieValue(start, "__Host-alasin_oauth")!;
   const accessToken = `ghu_testaccess${++tokenCounter}0000000`;
   gh.users.set(accessToken, { id: user.id, login: user.login, name: null });
+  // Logging in needs write access to the site repository.
+  if (!gh.repo.collaborators.has(user.login)) gh.repo.collaborators.set(user.login, { permission: "write", id: user.id });
   gh.nextTokens.push({ access_token: accessToken, ...tokenOpts });
   const callback = await call(`/auth/callback?code=testcode&state=${encodeURIComponent(state)}`, {
     ip,

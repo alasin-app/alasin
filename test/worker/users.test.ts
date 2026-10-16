@@ -20,13 +20,14 @@ describe("users", () => {
     const other = { login: "jane", id: 424242 };
     gh.profiles.set(ALLOWED_USER.id, "Octo Cat");
     gh.profiles.set(other.id, "Jane Doe");
-    gh.repo.collaborators.set(ALLOWED_USER.login, "admin");
+    gh.repo.collaborators.set(ALLOWED_USER.login, { permission: "admin", id: ALLOWED_USER.id });
     const config = parseConfig({ ...testConfig, users: { allow: [ALLOWED_USER, other] } });
     const res = await call("/api/users", { cookie }, { ALASIN_CONFIG_JSON: JSON.stringify(config) });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({
       repository: `${gh.repo.owner}/${gh.repo.name}`,
       branch: gh.repo.branch,
+      list: "list",
       users: [
         { login: ALLOWED_USER.login, id: ALLOWED_USER.id, name: "Octo Cat", permission: "admin", you: true },
         // Listed in alasin.toml but not invited to the repository yet.

@@ -120,22 +120,20 @@ client_id = "Iv23liAbCdEfGhIjKlMn"
 # [users] — who may log in.
 # ─────────────────────────────────────────────────────────────────────────────
 #
-# WARNING: everyone listed here can publish to the site. Access is checked by
-# the numeric GitHub user ID (usernames can change and be re-registered); the
-# login is only for readability. `npm run setup` looks up the IDs for you.
-# Each user also needs write access to the site repository on GitHub.
-# Removing a user takes effect on their next request after deploying.
+# Everyone with write access to the site repository on GitHub can log in and
+# publish: add or remove people there (the repository's Settings →
+# Collaborators). Access is confirmed at login and about once an hour, so
+# removing someone on GitHub logs them out within the hour.
+# Each user's full name is taken from their GitHub profile: it's written to the
+# author field of their new posts (see [site] author_field) and shown in lists.
 [users]
 
-# Each user's full name is taken from their GitHub profile: it's written to the
-# author field of their new posts (see [site] author_field) and used to show
-# who wrote or last changed a post. Optional `aliases`: other author values
-# that mean this user, e.g. names used on an older blog.
-# Type: array of { login = string, id = integer, aliases = [string] }.
-# Required, at least one. Example: { login = "octocat", id = 583231, aliases = ["Mona"] }
-allow = [
-  { login = "octocat", id = 583231 },
-]
+# Optional: only these of the repository's writers may log in (checked by the
+# numeric GitHub user ID; the login is only for readability; `npm run setup`
+# looks up the IDs). `aliases`: other author values that mean this user, e.g.
+# names used on an older blog.
+# Type: array of { login = string, id = integer, aliases = [string] }. Optional.
+# allow = [{ login = "octocat", id = 583231, aliases = ["Mona"] }]
 
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -16,7 +16,8 @@ import type { Env } from "./env";
 import { clearCookie, readCookie, serializeCookie, SESSION_COOKIE } from "./lib/cookies";
 import { importAesKey, open, randomToken, seal } from "./lib/crypto";
 import { refreshTokens, revokeToken, type GitHubUser, type UserTokens } from "./lib/github";
-import { logError } from "./lib/log";
+import { log, logError } from "./lib/log";
+import { canWrite, type RepoPermission, repoPermission } from "./lib/access";
 
 const COOKIE_CONTEXT = "alasin/session-cookie/v1";
 const DAY = 24 * 60 * 60 * 1000;
@@ -33,6 +34,8 @@ const sessionRecord = z.object({
   name: z.string().nullable(),
   createdAt: z.number(),
   lastSeenAt: z.number(),
+  /** When write access to the site repository was last confirmed (absent in older sessions). */
+  accessCheckedAt: z.number().optional(),
   /** UserTokens as JSON, sealed with TOKEN_KEY and bound to the session ID. */
   tokens: z.string(),
 });
@@ -70,6 +73,7 @@ export async function createSession(env: Env, config: AlasinConfig, user: GitHub
     name: user.name ?? null,
     createdAt: now,
     lastSeenAt: now,
+    accessCheckedAt: now,
     tokens: await sealTokens(env, sid, tokens),
   });
   const cookieKey = await importAesKey("SESSION_KEY", env.SESSION_KEY);
@@ -172,7 +176,15 @@ async function endSession(c: Context<AppEnv>, session: Session): Promise<Session
   return new SessionExpiredError();
 }
 
-/** Rejects requests without a valid session with 401. */
+/** How often a session's write access to the site repository is confirmed again. */
+const ACCESS_RECHECK = 60 * 60 * 1000;
+
+/**
+ * Rejects requests without a valid session with 401. About once an hour, it
+ * also checks that the user still has write access to the site repository:
+ * someone removed as a collaborator on GitHub is logged out. If GitHub can't
+ * tell (e.g. it's down), the session goes on and the check is tried again.
+ */
 export function requireSession(): MiddlewareHandler<AppEnv> {
   return async (c, next) => {
     const session = await readSession(c);
@@ -181,6 +193,30 @@ export function requireSession(): MiddlewareHandler<AppEnv> {
       return c.json({ error: "unauthenticated", message: "Please log in." }, 401);
     }
     c.set("session", session);
+    if (Date.now() - (session.accessCheckedAt ?? 0) > ACCESS_RECHECK) {
+      const config = c.get("config");
+      let permission: RepoPermission | null;
+      try {
+        permission = await repoPermission(await getUserToken(c), config, session.login);
+      } catch (err) {
+        if (!(err instanceof SessionExpiredError)) throw err;
+        c.header("Set-Cookie", clearCookie(SESSION_COOKIE));
+        return c.json({ error: "unauthenticated", message: "Please log in." }, 401);
+      }
+      if (permission !== null && !canWrite(permission)) {
+        await destroySession(c, session);
+        log({ rid: c.get("requestId"), event: "session_ended_no_access", uid: session.uid });
+        c.header("Set-Cookie", clearCookie(SESSION_COOKIE));
+        return c.json({ error: "not_allowed", message: `You no longer have write access to ${config.github.owner}/${config.github.repo}.` }, 401);
+      }
+      if (permission !== null) {
+        // The session as it is now (getUserToken may have refreshed its tokens).
+        const { sid, ...rest } = c.get("session");
+        const checked = { ...rest, accessCheckedAt: Date.now() };
+        c.set("session", { ...checked, sid });
+        c.executionCtx.waitUntil(writeRecord(c.env, config, sid, checked));
+      }
+    }
     return next();
   };
 }

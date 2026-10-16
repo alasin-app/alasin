@@ -126,11 +126,14 @@ const users = z
   .object({
     allow: z
       .array(allowedUser)
-      .min(1, "list at least one user")
-      .describe("GitHub users allowed to log in. `npm run setup` resolves usernames to numeric IDs."),
+      .min(1, "list at least one user, or leave allow out")
+      .optional()
+      .describe(
+        "Optional. Everyone with write access to the site repository can log in; with this list, only those of them listed here (by numeric GitHub user ID). `npm run setup` resolves usernames to IDs.",
+      ),
   })
   .strict()
-  .describe("Who may log in.");
+  .describe("Who may log in: everyone with write access to the site repository on GitHub, optionally narrowed to a list.");
 
 const media = z
   .object({
@@ -334,7 +337,7 @@ export const configSchema = z
     app,
     site,
     github,
-    users,
+    users: users.prefault({}),
     media,
     drafts: drafts.prefault({}),
     archive: archive.prefault({}),
@@ -389,7 +392,7 @@ export const configSchema = z
       }
     });
     const ids = new Set<number>();
-    c.users.allow.forEach((u, i) => {
+    (c.users.allow ?? []).forEach((u, i) => {
       if (ids.has(u.id)) ctx.addIssue({ code: "custom", path: ["users", "allow", i, "id"], message: "is listed twice" });
       ids.add(u.id);
     });

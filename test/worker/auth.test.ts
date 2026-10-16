@@ -114,6 +114,7 @@ describe("login", () => {
     const cookie = `__Host-alasin_oauth=${cookieValue(start, "__Host-alasin_oauth")}`;
     gh.nextTokens.push({ access_token: "ghu_once0000000000" });
     gh.users.set("ghu_once0000000000", { ...ALLOWED_USER, name: null });
+    gh.repo.collaborators.set(ALLOWED_USER.login, { permission: "write", id: ALLOWED_USER.id });
     const first = await call(`/auth/callback?code=c&state=${state}`, { ip, cookie });
     expect(first.headers.get("Location")).toBe("/");
     const replay = await call(`/auth/callback?code=c&state=${state}`, { ip, cookie });
