@@ -12,7 +12,7 @@ Format: a short title, then a few lines on what and why. Add a date if it helps.
 - **Offline editing** — keep working without a connection beyond the local autosave, and save when back online.
 - **Gallery editing** — turn a single image into a gallery, and add photos to an existing gallery block, from the media library or from the device.
 - **Manage media** — edit an image's description (used as the image title in posts). For orphaned images: select several and *Delete*, moving them to a Bin first rather than deleting at once. This changes the earlier rule that Alasin never deletes from the public media bucket.
-
+- **Gallery and single image text** - show and edit picture title/text
 ## Decided against
 
 Ideas that were considered and left out, so they aren't proposed again without a new reason.
