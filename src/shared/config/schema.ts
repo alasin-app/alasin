@@ -68,13 +68,13 @@ const site = z
     author_field: z
       .string()
       .regex(/^[A-Za-z_][A-Za-z0-9_-]*$/)
-      .optional()
-      .describe("Front matter field for the author's name: new posts and pages get the user's full name from their GitHub profile, and the lists show who wrote each one. Leave unset if the site doesn't use one."),
+      .default("author")
+      .describe("Front matter field for the author's name, as last written: new posts and pages get the user's full name from their GitHub profile."),
     author_id_field: z
       .string()
       .regex(/^[A-Za-z_][A-Za-z0-9_-]*$/)
       .default("author_id")
-      .describe("With `author_field` set: front matter field for the author's GitHub login, which identifies the author (names can change). Alasin shows the author's current GitHub name for it, and writes that name to `author_field` on saving, so that field keeps the last known name."),
+      .describe("Front matter field for the author's GitHub login, which identifies the author (names can change). Alasin shows the author's current GitHub name for it, and writes that name to `author_field` on saving, so that field keeps the last known name."),
     lastmod_field: z
       .string()
       .regex(/^([A-Za-z_][A-Za-z0-9_-]*)?$/)

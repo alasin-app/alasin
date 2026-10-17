@@ -16,7 +16,7 @@ const [siteDir = ".", contentDir = "content"] = process.argv.slice(2).filter((a)
 const root = join(siteDir, contentDir);
 
 // Only what reading and saving use; the rest doesn't affect a file saved unchanged.
-const site = { frontMatterFormat: "yaml", coverField: "image", authorField: null, author: null, categories: [] } as unknown as SiteSettings;
+const site = { frontMatterFormat: "yaml", coverField: "image", authorField: "author", authorIdField: "author_id", author: null, login: "", users: [], categories: [] } as unknown as SiteSettings;
 
 const files: string[] = [];
 const walk = (dir: string) => {

@@ -79,9 +79,9 @@ describe("site settings", () => {
     expect((await get()).users[1]!.name).toBe("Changed");
   });
 
-  it("has no author_id field without an author field", async () => {
-    const site = (await (await call("/api/site", { cookie })).json()) as { authorField: string | null; authorIdField: string | null };
-    expect(site).toMatchObject({ authorField: null, authorIdField: null });
+  it("always has the author fields, named author and author_id unless configured otherwise", async () => {
+    const site = (await (await call("/api/site", { cookie })).json()) as { authorField: string; authorIdField: string };
+    expect(site).toMatchObject({ authorField: "author", authorIdField: "author_id" });
   });
 
   it("requires a session", async () => {

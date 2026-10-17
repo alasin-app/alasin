@@ -106,7 +106,7 @@ export interface LoadedContent extends ContentIndex {
  */
 export async function updateContent(uid: number, site: IndexSettings, opts: { current?: ContentIndex; force?: boolean } = {}): Promise<LoadedContent> {
   const stored = opts.current?.version === INDEX_VERSION ? opts.current : await cachedContent(uid);
-  // Read with other settings (e.g. before `author_field` was set): read everything again.
+  // Read with other settings (e.g. another `author_field`): read everything again.
   const saved = reusable(stored, site) ? stored : undefined;
   try {
     let index: ContentIndex | null = null;

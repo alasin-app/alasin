@@ -68,6 +68,9 @@ interface Upload {
 /** Placeholder address for an image still uploading (never saved: saving waits for uploads). */
 const placeholder = (token: string) => `alasin-upload:${token}`;
 
+/** Every post and page has an author: a GitHub login, or a name for someone without one. */
+const hasAuthor = (f: DraftForm) => !!(f.authorId.trim() || f.author.trim());
+
 /** The kind of a published file, from the configured folders. */
 function kindOf(site: SiteSettings, path: string): DraftKind {
   return path.startsWith(`${site.folders.pages}/`) ? "page" : "post";
@@ -413,6 +416,11 @@ export function Editor(props: { me: Me; source: EditSource }) {
     if (!state.doc.form.title.trim()) {
       setMessage(t("editor.needTitle"));
       titleRef.current?.focus();
+      return null;
+    }
+    if (!hasAuthor(state.doc.form)) {
+      setMessage(t("editor.needAuthor"));
+      setDetailsSheet("edit");
       return null;
     }
     setStatus("saving");
@@ -761,6 +769,9 @@ export function Editor(props: { me: Me; source: EditSource }) {
               if (!f.title.trim()) {
                 setMessage(t("editor.needTitlePublish"));
                 titleRef.current?.focus();
+              } else if (!hasAuthor(f)) {
+                setMessage(t("editor.needAuthor"));
+                setDetailsSheet("edit");
               } else setPublishOpen(true);
             }}
             disabled={status === "saving" || status === "publishing" || uploading || markdownError || conflict || readOnly}
@@ -863,7 +874,7 @@ export function Editor(props: { me: Me; source: EditSource }) {
         <div class="details-summary">
           {f.cover && <img class="cover-thumb" src={coverSrc} alt="" width={44} height={44} />}
           <div class="details-text">
-            <p class="details-line">{[dateText, state.site.authorField && authorName(f, state.site), f.slug].filter(Boolean).join(" · ")}</p>
+            <p class="details-line">{[dateText, authorName(f, state.site), f.slug].filter(Boolean).join(" · ")}</p>
             {(f.categories.length > 0 || f.tags.length > 0) && (
               <p class="chips details-chips">
                 {f.categories.map((c) => (
@@ -1120,21 +1131,19 @@ export function Editor(props: { me: Me; source: EditSource }) {
                 </span>
               </button>
             </li>
-            {state.site.authorField && (
-              <li>
-                <button
-                  type="button"
-                  class="row row-button-left"
-                  onClick={() => {
-                    setOtherAuthor("");
-                    setAuthorOpen(true);
-                  }}
-                >
-                  <span class="row-label">{t("editor.author")}</span>
-                  <span class="row-value">{authorName(f, state.site) || t("editor.none")}</span>
-                </button>
-              </li>
-            )}
+            <li>
+              <button
+                type="button"
+                class="row row-button-left"
+                onClick={() => {
+                  setOtherAuthor("");
+                  setAuthorOpen(true);
+                }}
+              >
+                <span class="row-label">{t("editor.author")}</span>
+                <span class="row-value">{authorName(f, state.site) || t("editor.none")}</span>
+              </button>
+            </li>
             <li class="row">
               <label class="row-label" for="f-tags">
                 {t("editor.tags")}
