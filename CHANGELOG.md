@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.0.0-pre.4](https://github.com/oh2th/alasin/compare/v1.0.0-pre.3...v1.0.0-pre.4) (2026-10-17)
+
+
+### Features
+
+* **editor:** choose the author in the details ([#150](https://github.com/oh2th/alasin/issues/150)) ([b047f07](https://github.com/oh2th/alasin/commit/b047f076751235e6e6b61a98475e08eeaaebee90))
+* **editor:** edit details in a sheet, compact summary in the page ([#146](https://github.com/oh2th/alasin/issues/146)) ([38d7b96](https://github.com/oh2th/alasin/commit/38d7b96908172597c51ad97ab8aa35e405cac645))
+
+
+### Bug Fixes
+
+* **lists:** read the list again when the site settings change ([#162](https://github.com/oh2th/alasin/issues/162)) ([5555425](https://github.com/oh2th/alasin/commit/55554259cdedae3f6bd191909337fa3be5b8b1e1))
+* **setup:** write configuration files in plain ASCII ([#170](https://github.com/oh2th/alasin/issues/170)) ([949c1b8](https://github.com/oh2th/alasin/commit/949c1b830a6a4c7746db521ccc3cff37bb37f18b))
+
 ## [1.0.0-pre.3](https://github.com/oh2th/alasin/compare/v1.0.0-pre.2...v1.0.0-pre.3) (2026-10-17)
 
 
