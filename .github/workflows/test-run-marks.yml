@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: MIT
+# Marks failed and fixed checks in open test runs (issues labelled test-run)
+# from their bug sub-issues: "❌ #123" on the check a bug's title names
+# ("4.19: …"), "✅ #123 fixed, re-test" once it's closed. Runs when an issue
+# changes, and every 15 minutes in case a sub-issue was linked without an
+# issue event. Edits made with the workflow's own token don't start it again.
+name: Test run marks
+
+on:
+  issues:
+    types: [opened, edited, closed, reopened, deleted]
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-run-marks
+  cancel-in-progress: false
+
+jobs:
+  marks:
+    name: marks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run -s test-run-marks
+        env:
+          GH_TOKEN: ${{ github.token }}
