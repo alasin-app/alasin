@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.0.0-pre.6](https://github.com/oh2th/alasin/compare/v1.0.0-pre.5...v1.0.0-pre.6) (2026-10-17)
+
+
+### ⚠ BREAKING CHANGES
+
+* **drafts:** a site that marks posts as drafts with draft: true in its content folders no longer sees them as drafts in Alasin. Move them into the drafts folder (or remove the key) before updating.
+
+### Features
+
+* **drafts:** remove the draft key ([#181](https://github.com/oh2th/alasin/issues/181)) ([9af4509](https://github.com/oh2th/alasin/commit/9af45097dee3db97c7d233204573a4c14b9a7729)), closes [#180](https://github.com/oh2th/alasin/issues/180)
+
 ## [1.0.0-pre.5](https://github.com/oh2th/alasin/compare/v1.0.0-pre.4...v1.0.0-pre.5) (2026-10-17)
 
 
