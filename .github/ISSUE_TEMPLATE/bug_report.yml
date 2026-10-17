@@ -1,0 +1,94 @@
+name: Bug report
+description: Something in Alasin doesn't work as it should.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this. **Security problems don't belong here:** report them privately as described in [SECURITY.md](https://github.com/oh2th/alasin/blob/main/SECURITY.md).
+
+        Leave out secrets and anything you don't want public: tokens, client secrets, private repository names or addresses.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you saw, and any error message shown.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open a draft
+        2. Tap …
+        3. See …
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Alasin version
+      description: Shown in the account sheet (tap your avatar) as "Version x (build)".
+      placeholder: 1.0.0-pre.4 (abc1234)
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where in Alasin?
+      options:
+        - Editor (text, formatting, details)
+        - Photos and galleries
+        - Saving, publishing, archive or Bin
+        - Lists, search and the home screen
+        - Media library
+        - Categories or users
+        - Sign-in and access
+        - Setup or deploy scripts
+        - Something else
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Device
+      multiple: true
+      options:
+        - iOS
+        - iPadOS
+        - Android
+        - macOS
+        - Windows
+        - Linux
+        - Not device-related (setup, deploy, Worker)
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and version
+      placeholder: Safari 26, Chrome 141, home screen app …
+  - type: textarea
+    id: details
+    attributes:
+      label: Screenshots, logs or file samples
+      description: |
+        For a post that doesn't save as it was, the relevant front matter or Markdown helps (output of `npm run roundtrip` too). For setup or deploy problems, the command and its output.
+      render: text
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched the existing issues and this isn't reported yet.
+          required: true
+        - label: This is not a security vulnerability.
+          required: true
