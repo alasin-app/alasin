@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 //
 // The editable parts of a draft (title, date, slug, categories, tags, cover,
-// body) and the file text committed to the repository. Reopening a draft keeps
+// author, body) and the file text committed to the repository. Reopening a draft keeps
 // any other front matter fields and their order.
 
 import {
@@ -27,6 +27,8 @@ export interface DraftForm {
   categories: string[];
   tags: string[];
   cover: string;
+  /** The author field's value ("" if the site has no author field or the file none). */
+  author: string;
   body: string;
 }
 
@@ -53,13 +55,14 @@ const list = (v: unknown) => (Array.isArray(v) ? v.map(String) : typeof v === "s
 
 export function newDraft(id: string, site: SiteSettings, now = new Date()): DraftDoc {
   const fields: Fields = new Map();
-  const form: DraftForm = { title: "", date: utcIso(now), slug: "", categories: [], tags: [], cover: "", body: "" };
+  const author = (site.authorField && site.author) || "";
+  const form: DraftForm = { title: "", date: utcIso(now), slug: "", categories: [], tags: [], cover: "", author, body: "" };
   // The order of a new file's front matter.
   fields.set("title", "");
   fields.set("date", form.date);
   fields.set("slug", "");
   fields.set("draft", true);
-  if (site.authorField && site.author) fields.set(site.authorField, site.author);
+  if (site.authorField && author) fields.set(site.authorField, author);
   fields.set("draftId", id);
   return { format: site.frontMatterFormat, fields, form };
 }
@@ -76,20 +79,17 @@ export function parseDraft(text: string, site: SiteSettings): DraftDoc | null {
       categories: list(fields.get("categories")),
       tags: list(fields.get("tags")),
     cover: str(fields.get(site.coverField)),
+    author: site.authorField ? str(fields.get(site.authorField)) : "",
     body: split.body.slice(leading.length),
   };
   return { format: split.format, fields, form, raw: { frontMatter: split.raw, formFields: formFields(form), leading, body: form.body } };
 }
 
-/** Form fields and the front matter keys they are written to ("cover" is `[site] cover_field`). */
-const FORM_KEYS: [Exclude<keyof DraftForm, "body">, string][] = [
-  ["title", "title"],
-  ["date", "date"],
-  ["slug", "slug"],
-  ["categories", "categories"],
-  ["tags", "tags"],
-  ["cover", "cover"],
-];
+/** Form fields and the front matter keys they are written to ("cover" and "author" as configured in `[site]`). */
+const FORM_KEYS: Exclude<keyof DraftForm, "body">[] = ["title", "date", "slug", "categories", "tags", "cover", "author"];
+
+const keyOf = (field: Exclude<keyof DraftForm, "body">, site: SiteSettings) =>
+  field === "cover" ? site.coverField : field === "author" ? site.authorField : field;
 
 /** The front matter values of the form. `draft` is set only for drafts (published files keep theirs). */
 function formChanges(f: DraftForm, site: SiteSettings, draft?: boolean): [string, unknown][] {
@@ -101,6 +101,7 @@ function formChanges(f: DraftForm, site: SiteSettings, draft?: boolean): [string
     ["categories", f.categories.length ? f.categories : undefined],
     ["tags", f.tags.length ? f.tags : undefined],
     [site.coverField, f.cover ? f.cover : undefined],
+    ...(site.authorField ? ([[site.authorField, f.author.trim() || undefined]] as [string, unknown][]) : []),
   ];
 }
 
@@ -116,8 +117,8 @@ export function serializeDraft(doc: DraftDoc, site: SiteSettings, opts: { draft?
   if (doc.raw) {
     const before = JSON.parse(doc.raw.formFields) as Omit<DraftForm, "body">;
     const changed = changes.filter(([key]) => {
-      const field = FORM_KEYS.find(([, k]) => (k === "cover" ? site.coverField : k) === key);
-      return !field || JSON.stringify(before[field[0]]) !== JSON.stringify(f[field[0]]);
+      const field = FORM_KEYS.find((k) => keyOf(k, site) === key);
+      return !field || JSON.stringify(before[field]) !== JSON.stringify(f[field]);
     });
     return joinFile(doc.format, setFields(doc.format, doc.raw.frontMatter, changed), doc.raw.leading + body);
   }

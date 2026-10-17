@@ -39,4 +39,23 @@ describe("draft model", () => {
     const out = serializeDraft(doc, site);
     expect(out).toBe(`---\ntitle: "Hello"\ndate: 2026-10-15T11:05:30Z\nslug: ""\ndraft: true\nauthor: "Octo"\ndraftId: "${ID}"\n---\n\nText\n`);
   });
+
+  it("changes only the author line when the author changes, and removes an empty one", () => {
+    const text = `---\ntitle: "Post"\ndraft: true\nauthor: "Octo"\ndraftId: "${ID}"\n---\n\nBody\n`;
+    const doc = parseDraft(text, site)!;
+    expect(doc.form.author).toBe("Octo");
+    expect(serializeDraft({ ...doc, form: { ...doc.form, author: "Mona Lisa" } }, site)).toBe(
+      `---\ntitle: "Post"\ndraft: true\nauthor: "Mona Lisa"\ndraftId: "${ID}"\n---\n\nBody\n`,
+    );
+    expect(serializeDraft({ ...doc, form: { ...doc.form, author: " " } }, site)).not.toContain("author");
+  });
+
+  it("leaves an author line alone when the site has no author field", () => {
+    const plain = { ...site, authorField: null } as SiteSettings;
+    const text = `---\ntitle: "Post"\ndraft: true\nauthor: "Octo"\ndraftId: "${ID}"\n---\n\nBody\n`;
+    const doc = parseDraft(text, plain)!;
+    expect(doc.form.author).toBe("");
+    expect(serializeDraft({ ...doc, form: { ...doc.form, title: "New" } }, plain)).toContain('author: "Octo"');
+    expect(newDraft(ID, plain).form.author).toBe("");
+  });
 });
