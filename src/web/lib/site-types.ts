@@ -6,10 +6,15 @@ import type { Category } from "../../shared/categories";
 export interface SiteSettings {
   frontMatterFormat: "yaml" | "toml";
   coverField: string;
+  /** Front matter field for the author's name (null: the site has none). */
   authorField: string | null;
+  /** Front matter field for the author's GitHub login (null when there is no author field). */
+  authorIdField: string | null;
+  /** The signed-in user's name, and their GitHub login. */
   author: string | null;
-  /** The allowed users and the author field values that mean each of them. */
-  users: { login: string; id: number; names: string[] }[];
+  login: string;
+  /** The allowed users, with their current GitHub profile names. */
+  users: { login: string; id: number; name: string | null }[];
   categories: Category[];
   categoriesEditable: boolean;
   gallery: { shortcode: string; paired: boolean };

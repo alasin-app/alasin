@@ -17,7 +17,7 @@ users.get("/", async (c) => {
   const token = await getUserToken(c);
   const { owner, repo } = config.github;
   const people = await members(c.env.KV, token, config);
-  const names = await profileNames(c.env.KV, token, people.map((u) => u.id));
+  const names = await profileNames(token, people.map((u) => u.id));
   const list = await Promise.all(
     people.map(async (u) => ({
       login: u.login,

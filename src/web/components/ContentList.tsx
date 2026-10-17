@@ -8,6 +8,7 @@ import { ChevronDown, ChevronRight, RotateCw, Search as SearchIcon, X } from "lu
 import { useMemo, useState } from "preact/hooks";
 import { categoryTree } from "../../shared/categories";
 import { api, ApiError, type Me } from "../lib/api";
+import { authorKey, authorName, authorUser } from "../lib/authors";
 import { type ContentItem, type ItemKind, valueCounts } from "../lib/content-index";
 import { getLanguage, t, useLanguage } from "../lib/i18n";
 import { hrefFor, linkHandler, navigate, type Route } from "../lib/router";
@@ -37,23 +38,18 @@ function Highlighted(props: { text: string; query: string }) {
   return <span class="row-snippet">{parts.map((p) => (p.match ? <mark>{p.text}</mark> : p.text))}</span>;
 }
 
-/** The allowed user an author field value means (their login, author value or an alias). */
-export function authorUser(value: string, site: SiteSettings): SiteSettings["users"][number] | undefined {
-  const v = value.toLowerCase();
-  return v ? site.users.find((u) => u.names.some((n) => n.toLowerCase() === v)) : undefined;
-}
-
 function Byline(props: { item: ContentItem; site: SiteSettings; updated?: LastUpdate }) {
   const { item, updated } = props;
-  const user = authorUser(item.author, props.site);
+  const user = authorUser(item, props.site);
+  const name = authorName(item, props.site);
   // The git author's name, as the site shows it (Hugo's git info).
   const by = updated ? updated.name || updated.login || "" : "";
   const when = updated ? new Date(updated.date).toLocaleDateString(getLanguage(), { day: "numeric", month: "short", year: "numeric" }) : "";
-  if (!item.author && !updated) return null;
+  if (!name && !updated) return null;
   return (
     <span class="row-byline">
       {user && <img class="avatar-tiny" src={`/api/avatar/${user.id}?s=40`} alt="" width={16} height={16} />}
-      {item.author && <span>{item.author}</span>}
+      {name && <span>{name}</span>}
       {updated && <span class="secondary">{t("content.updatedBy", { name: by, date: when })}</span>}
     </span>
   );
@@ -171,7 +167,7 @@ export function ContentList(props: { me: Me; kind: ItemKind }) {
     let list = ofKind.filter((i) => (filter === "all" ? i.state !== "archived" : i.state === filter));
     // Posts that have any of the chosen categories themselves (not the categories below them).
     if (categories.length) list = list.filter((i) => i.categories.some((c) => categories.includes(c)));
-    if (authors.length) list = list.filter((i) => authors.includes(i.author));
+    if (authors.length && site) list = list.filter((i) => authors.includes(authorKey(i, site)));
     if (tags.length) list = list.filter((i) => i.tags.some((x) => tags.includes(x)));
     if (query.trim()) {
       const rank = new Map(search.find(query).map((p, n) => [p, n]));
@@ -179,8 +175,13 @@ export function ContentList(props: { me: Me; kind: ItemKind }) {
     }
     const time = (i: ContentItem) => (Number.isNaN(i.time) ? -Infinity : i.time);
     return props.kind === "post" ? list.sort((a, b) => time(b) - time(a)) : list.sort((a, b) => a.title.localeCompare(b.title));
-  }, [ofKind, filter, categories, authors, tags, query, search]);
-  const authorCounts = useMemo(() => valueCounts(ofKind, (i) => i.author), [ofKind]);
+  }, [ofKind, filter, categories, authors, tags, query, search, site]);
+  // One entry per person (by login where known), shown by their current name.
+  const authorCounts = useMemo(() => (site ? valueCounts(ofKind, (i) => authorKey(i, site)) : []), [ofKind, site]);
+  const authorLabel = (key: string) => {
+    const item = site && ofKind.find((i) => authorKey(i, site) === key);
+    return item && site ? authorName(item, site) : key;
+  };
   const tagCounts = useMemo(() => valueCounts(ofKind, (i) => i.tags), [ofKind]);
   const filtering = categories.length > 0 || authors.length > 0 || tags.length > 0 || filter !== "all";
 
@@ -268,7 +269,7 @@ export function ContentList(props: { me: Me; kind: ItemKind }) {
           )}
           {authorCounts.length > 0 && (
             <button type="button" class={`btn btn-small ${authors.length ? "btn-tinted" : "btn-plain"}`} onClick={() => setPicker("authors")}>
-              {pickLabel(authors, t("content.anyAuthor"), (v) => v)}
+              {pickLabel(authors, t("content.anyAuthor"), authorLabel)}
               <ChevronDown size={16} aria-hidden="true" />
             </button>
           )}
@@ -368,7 +369,7 @@ export function ContentList(props: { me: Me; kind: ItemKind }) {
         onClose={() => setPicker(null)}
         title={t("content.authors")}
         allLabel={t("content.anyAuthor")}
-        options={authorCounts.map((a) => ({ value: a.value, label: a.value, count: a.count }))}
+        options={authorCounts.map((a) => ({ value: a.value, label: authorLabel(a.value), count: a.count }))}
         selected={authors}
         onChange={setAuthors}
       />

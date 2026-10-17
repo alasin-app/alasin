@@ -15,7 +15,8 @@ import { hrefFor, linkHandler } from "../lib/router";
 import { lockKey, useLocks } from "../lib/edit-lock";
 import { useLastUpdated } from "../lib/last-updated";
 import { useContent } from "../lib/use-content";
-import { authorUser, ContentPlaceholder, ContentRow } from "./ContentList";
+import { authorUser } from "../lib/authors";
+import { ContentPlaceholder, ContentRow } from "./ContentList";
 
 /**
  * `mine`: only the signed-in user's drafts (by the author field; all drafts if
@@ -26,7 +27,7 @@ export function DraftsList(props: { me: Me; mine?: boolean }) {
   const { site, content, error, refresh } = useContent(props.me);
   const [local, setLocal] = useState<LocalDraft[]>([]);
   const drafts = (content?.items ?? []).filter(
-    (i) => i.state === "draft" && (!props.mine || !site?.authorField || authorUser(i.author, site)?.id === props.me.user.id),
+    (i) => i.state === "draft" && (!props.mine || !site?.authorField || authorUser(i, site)?.id === props.me.user.id),
   );
   // The home screen shows only who wrote each draft, not who changed it last.
   const updated = useLastUpdated(props.mine ? [] : drafts);

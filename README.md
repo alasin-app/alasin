@@ -146,7 +146,8 @@ The Hugo site and its content layout.
 | `post_filename` | string | `"{slug}.md"` | `"{slug}.md"` | File name pattern for new posts, relative to `posts_dir`. Placeholders: `{slug}`, `{yyyy}`, `{mm}`, `{dd}`. Must end in `.md`. |
 | `page_filename` | string | `"{slug}.md"` | `"{slug}.md"` | File name pattern for new pages, relative to `pages_dir`. Placeholder: `{slug}`. Must end in `.md`. |
 | `cover_field` | string | `"image"` | `"image"` | Front matter field holding a post's cover image. |
-| `author_field` | string | — | — | Front matter field for the author: new posts and pages get the user's full name from their GitHub profile, and the lists show who wrote each one. Leave unset if the site doesn't use one. |
+| `author_field` | string | — | — | Front matter field for the author's name: new posts and pages get the user's full name from their GitHub profile, and the lists show who wrote each one. Leave unset if the site doesn't use one. |
+| `author_id_field` | string | `"author_id"` | `"author_id"` | With `author_field` set: front matter field for the author's GitHub login, which identifies the author (names can change). Alasin shows the author's current GitHub name for it, and writes that name to `author_field` on saving, so that field keeps the last known name. |
 | `lastmod_field` | string | `"lastmod"` | `"lastmod"` | Front matter field set to the current time whenever a post or page is published or saved. `""` turns it off. |
 | `post_url` | string | — | — | If set, the `url` front matter field of published posts follows this pattern, e.g. `/{yyyy}/{mm}/{dd}/{slug}/`. Placeholders: `{slug}`, `{yyyy}`, `{mm}`, `{dd}` (the post date). Set on publishing, and updated when the address or date of a published post is changed. Leave unset if the site uses Hugo's permalinks instead. |
 | `page_url` | string | — | — | Like `post_url`, for pages, e.g. `/{slug}/`. |
@@ -296,7 +297,7 @@ npm run deploy
 
 **Everyone with write access to the site repository on GitHub can use the deployment** (write, maintain or admin). Alasin asks GitHub at every login and again about once an hour during a session, so you manage people in one place, on GitHub:
 
-- **Add someone:** invite them to the site repository with **Write** access (the repository's **Settings → Collaborators → Add people**). Once they accept, they open the app's address and sign in with GitHub. Their full name, written as the author of their posts, comes from their GitHub profile.
+- **Add someone:** invite them to the site repository with **Write** access (the repository's **Settings → Collaborators → Add people**). Once they accept, they open the app's address and sign in with GitHub. With `[site] author_field` set, their posts get their GitHub login in `author_id` and their full name from their GitHub profile in `author` (see *Authors* below).
 - **Remove someone:** remove them from the repository's collaborators (or lower them to *Read*). They're logged out within the hour.
 - **Check:** the app's **Users** section (in the sidebar; on phones under *More*) lists everyone who can log in, with their permission on the repository.
 
@@ -304,6 +305,46 @@ Nothing in `alasin.toml` changes and nothing needs deploying. Two more things:
 
 - **The GitHub App must be public** (*Where can this GitHub App be installed?* → *Any account*; for an existing app, its settings → *Advanced* → *Make public*). GitHub shows a private app to nobody but its owner, so nobody else could even sign in. Making it public lets nobody else in: anyone without write access is refused and their token revoked, and the app reaches only the repositories it's installed on.
 - **A protected branch:** if `[github] branch` has rules that stop some writers from pushing, their saves fail with GitHub's message. Give them the right on GitHub, or use another branch.
+
+## Authors
+
+With `[site] author_field` set, each post and page records who wrote it in two front matter fields:
+
+```yaml
+author: "Octo Cat"     # the name, as last written
+author_id: "octocat"   # the GitHub login: who wrote it
+```
+
+- **`author_id` identifies the author** (`[site] author_id_field`, default `author_id`). Profile names can change at any time; the login is what Alasin matches avatars, *My drafts*, *My recent posts* and the author filter on. It can be written by hand too.
+- **`author` is the name as last written.** The lists and the editor show the author's current GitHub name for their `author_id`, and saving a post writes that name to `author`. Someone who no longer has access keeps the name their posts last had. A post without `author_id` (e.g. by someone without a GitHub account) is shown by its `author` text; choose *Someone else* in the editor's author picker to write a name only.
+- **Names are never kept:** Alasin reads them from GitHub every time, so a changed name shows at once.
+
+**Existing posts:** posts written before `author_id` need it added once (for example with a small script that maps each `author` name to a login), so Alasin knows whose they are. Until then they are matched by name.
+
+### Showing authors on the site (optional)
+
+Hugo can show the current GitHub name for `author_id` too. A partial such as `layouts/partials/author.html`:
+
+```go-html-template
+{{- $name := .Params.author -}}
+{{- with .Params.author_id -}}
+  {{- $opts := dict -}}
+  {{- with os.Getenv "HUGO_GITHUB_TOKEN" }}{{ $opts = dict "headers" (dict "Authorization" (printf "Bearer %s" .)) }}{{ end -}}
+  {{- with try (resources.GetRemote (printf "https://api.github.com/users/%s" .) $opts) -}}
+    {{- with .Value }}{{ with . | transform.Unmarshal }}{{ $name = or .name .login $name }}{{ end }}{{ end -}}
+  {{- end -}}
+{{- end -}}
+{{ $name }}
+```
+
+It never fails the build: if GitHub doesn't answer, it shows `author`. So that names aren't kept between builds, turn Hugo's download cache off in the site configuration:
+
+```toml
+[caches.getresource]
+maxAge = 0
+```
+
+Without a token GitHub allows 60 requests an hour, so set `HUGO_GITHUB_TOKEN` in the build environment (any token; it needs no permissions). A changed name shows on the site after the next build.
 
 ## Housekeeping
 
