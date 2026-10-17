@@ -25,6 +25,7 @@ Result marks: ✅ passed · ❌ failed (with the fix) · ⏳ not run yet.
 | 1.11 | Dark mode | Device in dark mode: native-looking dark colours on both layouts |
 | 1.12 | iOS Safari | 1.4–1.10 in Safari on iOS, including *Add to Home Screen* (icon and standalone mode) |
 | 1.13 | Hide sidebar | Window ≥ 768 px: the button at the bottom of the sidebar shrinks it to icons (names as tooltips; the environment badge stays at the top) and back; the choice is remembered on the device |
+| 1.14 | Plain ASCII configuration | `alasin.example.toml` and `wrangler.example.toml` show correctly in an editor that doesn't read UTF-8; `npm run setup` on an older `alasin.toml` and `wrangler.toml` reports "comments … written in plain ASCII", rewrites only comment lines, and the deployment works as before |
 
 ### Test runs
 
@@ -47,6 +48,12 @@ Devices: Chrome on macOS (desktop), Chrome on iOS (WebKit, like all iOS browsers
 | 1.11 | ✅ | |
 | 1.12 | ✅ | |
 | 1.13 | ✅ | Added after this run. Toggle moved to the bottom of the sidebar (#72); the environment badge now stays in the hidden sidebar instead of moving to the title bar (#73). |
+
+#### 2026-10-17 — main after v1.0.0-pre.3 (pre.4 changes)
+
+| # | Result | Notes |
+| --- | --- | --- |
+| 1.14 | ✅ | Added after the separators and dashes in the example configuration showed as `<94><80>` in an editor not reading UTF-8 (#170). |
 
 ## Milestone 2 — drafts and photos
 
@@ -106,6 +113,13 @@ Devices: Chrome on macOS (desktop), Chrome on iOS (WebKit, like all iOS browsers
 
 Also found during this run: reloading after a new deployment gave a blank page (old script names answered with the app page); fixed with real 404s, a no-store app page and a one-time automatic reload (#55).
 
+#### 2026-10-17 — main after v1.0.0-pre.3 (pre.4 changes)
+
+| # | Result | Notes |
+| --- | --- | --- |
+| 2.21 | ✅ | Editor bar no longer covers the title; details in a sheet, short summary in the page (#146). |
+| 2.22 | ✅ | Author picker and author-only *My drafts* (#150), after setting `author_field`. |
+
 ## Milestone 3 — publish, archive and delete
 
 Before starting, save a listing of the public media bucket (`npx wrangler r2 object list <media-bucket>` or the dashboard) to compare at the end.
@@ -152,7 +166,7 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 3.13 | ✅ | |
 | 3.14 | ✅ | |
 | 3.15 | ✅ | |
-| 3.16 | ⏳ | Needs a draft folder older than `cleanup_after_days`; to check sooner, set it to 1 for the dev deployment. |
+| 3.16 | ✅ | Checked 2026-10-17. |
 
 ## Milestone 4 — lists and editing existing posts
 
@@ -186,6 +200,7 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 4.24 | Removed on GitHub | Remove a logged-in user from the repository's collaborators (or set *Read*): within about an hour, their next action logs them out |
 | 4.25 | Setup | `npm run setup` asks nothing about users, and removes a `[users]` table from an older `alasin.toml` |
 | 4.26 | My recent posts on Home | Below *My drafts*, *My recent posts* lists your published posts with the latest dates, 5, 10 or 20 of them (the choice is remembered on the device); a row opens the post |
+| 4.27 | Settings change | Set `[site] author_field` (or change a folder or media setting) and deploy, without new commits in the site repository: opening Posts reads the list again by itself, and authors with avatars show without tapping ↻ |
 
 ### Test runs
 
@@ -219,6 +234,12 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 4.24 | ✅ | |
 | 4.25 | ✅ | Works; setup still offered "Limit it further to a list of GitHub users?", which isn't wanted: access is always managed on GitHub. Removed (#109). |
 | 4.26 | ✅ | |
+
+#### 2026-10-17 — main after v1.0.0-pre.3 (pre.4 changes)
+
+| # | Result | Notes |
+| --- | --- | --- |
+| 4.27 | ✅ | Added after authors stayed missing from the lists once `author_field` was set: the list kept on the device was reused while the site's head commit was unchanged (#162). |
 
 ## Milestone 5 — categories and media
 
@@ -274,3 +295,18 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | G.6 | Edit a picture text | Tap a picture's text → change it → *Done*: in Markdown mode only that image's line changed (`![](…/photo.jpg "New text")`); an empty text removes the title; quotes in the text survive saving and publishing, and show on the site |
 | G.7 | Text follows the photo | Give a gallery photo a text, then move it (‹ › or drag): the text moves with it |
 | G.8 | Someone else editing | While another person holds the edit lock, texts show but can't be tapped, *Add text* and the **+** buttons are hidden |
+
+### Test runs
+
+#### 2026-10-17 — main after v1.0.0-pre.3 (pre.4 changes)
+
+| # | Result | Notes |
+| --- | --- | --- |
+| G.1 | ✅ | |
+| G.2 | ✅ | |
+| G.3 | ✅ | |
+| G.4 | ✅ | |
+| G.5 | ✅ | |
+| G.6 | ✅ | |
+| G.7 | ✅ | |
+| G.8 | ✅ | |
