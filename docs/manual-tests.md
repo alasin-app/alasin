@@ -128,15 +128,15 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 
 | # | Check | How |
 | --- | --- | --- |
-| 3.1 | Publish | Draft with a title, text and photos → *Publish* → confirm: "Published" with the file's path; the file is in the posts folder (not in `drafts/`), with `draft: false` and no `draftId`, in one commit as the user |
+| 3.1 | Publish | Draft with a title, text and photos → *Publish* → confirm: "Published" with the file's path; the file is in the posts folder (not in `drafts/`), with no `draft` key and no `draftId`, in one commit as the user |
 | 3.2 | Published photos | The photos used in the text and the cover are in the media bucket under the date path, with their WebP sizes; the text and cover refer to them with the site's image prefix; the draft's folder in the drafts bucket is empty (also photos that weren't used) |
 | 3.3 | Unsaved changes | Change the text, then *Publish* without saving: the change is saved first and is in the published file |
 | 3.4 | Address taken | Publish a draft whose address (slug) is already used by a post: refused with a message, the draft stays; change the slug and publish again |
 | 3.5 | Nothing overwritten | Compare the media bucket with the listing from the start: only new files were added; a photo whose name was taken got `-2` |
-| 3.6 | Unpublish | Open a published post → ••• → *Unpublish* → confirm: it opens as a draft (file moved to the drafts folder with `draft: true`, front matter otherwise as it was); publishing it again puts it back |
+| 3.6 | Unpublish | Open a published post → ••• → *Unpublish* → confirm: it opens as a draft (file moved to the drafts folder with a `draftId` and no `draft` key, front matter otherwise as it was); publishing it again puts it back |
 | 3.7 | Archive | Open a published post → ••• → *Archive* → confirm: the file moves to `archive/` with its path, unchanged; it shows only under *Archived* in the list |
 | 3.8 | Republish | Under *Archived*, tap the post → *Republish*: back at its old path with a new `lastmod`, and opens in the editor |
-| 3.9 | Publish an old draft | Open a post marked `draft: true` in the content folders (e.g. from an older blog) → *Publish*: `draft: false`, `lastmod` and `url` set, in place |
+| 3.9 | Publish an old draft | Removed (#180): Alasin no longer uses the `draft` key. Only the drafts folder makes a draft; a post marked `draft: true` in the content folders is listed as published, without a *Publish* button |
 | 3.10 | Locked | While someone else edits a post, the menu is off for you (read-only), and a direct attempt is refused naming who is editing |
 | 3.11 | Delete | In the editor, ••• → *Delete* → confirm, for a published post, a draft and (from the *Archived* list) an archived post: each moves to `bin/` under its old path, off the site; the *Bin* shows them with what they were and who deleted them when; the sidebar shows the count |
 | 3.12 | Never-saved draft | For a draft never saved to GitHub the menu offers *Discard*, which says it exists only on this device and discards it (nothing goes to the Bin) |
@@ -180,7 +180,7 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 4.4 | Search | Type part of a word from a title or from the text, with or without ä/ö/å, or with a small typo: matching posts appear as you type, title matches first, with the matching words highlighted |
 | 4.5 | Filters | *Drafts* and *Archived* show only those; choosing one or more categories from the tree shows the posts that have any of exactly those categories (not the categories below them); filters and search combine |
 | 4.6 | Up to date | Edit a post on GitHub, then open the list again: the change is there (the list is read again only when the repository changed) |
-| 4.7 | Drafts section | *Drafts* lists drafts saved by Alasin, posts and pages marked `draft: true` in the content folders, and drafts only on this device |
+| 4.7 | Drafts section | *Drafts* lists the drafts in the drafts folder and drafts only on this device |
 | 4.8 | Quick lists | Opening Posts, Pages or Drafts again shows the list at once; after a change on GitHub the list updates within seconds without reading everything again |
 | 4.9 | Authors | Rows show the author (with an avatar for users of the app, as text for others) and the full name of who last changed the file, and when; new posts get the user's full name as author, from their GitHub profile |
 | 4.10 | Edit a published post | Open a post from *Posts*, change the text → *Save*: the commit changes only the edited lines and `lastmod`; editing a title or tag changes only that line of the front matter |
