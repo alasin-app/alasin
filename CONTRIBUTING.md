@@ -21,6 +21,7 @@ npm run typecheck
 | `dev` | integration (default branch) | squash-merged PRs from work branches | the dev environment, on every push |
 | `main` | released code | PRs from `dev`, the release PR, hotfixes | production, on each published release |
 
+- **Every new feature has an issue** (the *Feature request* form; ideas are [issues labelled `enhancement`](https://github.com/oh2th/alasin/issues?q=is%3Aissue+label%3Aenhancement)). Its branch is named after the issue, `feat/<issue>-<short-name>` (e.g. `feat/156-rename-categories`), and the PR description says `Closes #<issue>`.
 - Start work branches from `dev` and open the pull request into `dev`. PRs are **squash-merged**, so the PR title becomes the commit message.
 - Promote `dev` to `main` with a PR merged as a **merge commit, not a squash**, so every conventional commit reaches `main` and the changelog.
 - **Hotfixes:** a `fix/…` branch from `main`, PR into `main`, release, then merge `main` back into `dev`.
