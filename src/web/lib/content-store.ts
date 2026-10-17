@@ -8,7 +8,7 @@
 // Removed on logout (clearLocalData).
 
 import { api, NetworkError } from "./api";
-import { buildIndex, type ChangedFile, changedPaths, type ContentIndex, type ContentItem, imagesIn, INDEX_VERSION, type IndexSettings, itemFromFile } from "./content-index";
+import { buildIndex, type ChangedFile, changedPaths, type ContentIndex, type ContentItem, imagesIn, INDEX_VERSION, type IndexSettings, itemFromFile, reusable, settingsKey } from "./content-index";
 
 const DB = "alasin-content";
 const STORE = "index";
@@ -105,7 +105,9 @@ export interface LoadedContent extends ContentIndex {
  * what changed; `force` reads everything again.
  */
 export async function updateContent(uid: number, site: IndexSettings, opts: { current?: ContentIndex; force?: boolean } = {}): Promise<LoadedContent> {
-  const saved = opts.current?.version === INDEX_VERSION ? opts.current : await cachedContent(uid);
+  const stored = opts.current?.version === INDEX_VERSION ? opts.current : await cachedContent(uid);
+  // Read with other settings (e.g. before `author_field` was set): read everything again.
+  const saved = reusable(stored, site) ? stored : undefined;
   try {
     let index: ContentIndex | null = null;
     if (saved && !opts.force) {
@@ -114,10 +116,11 @@ export async function updateContent(uid: number, site: IndexSettings, opts: { cu
       index = await readChanges(saved, commit, site);
     }
     index ??= await readAll(site);
+    index = { ...index, settings: settingsKey(site) };
     await store(uid, index);
     return { ...index, stale: false };
   } catch (err) {
-    if (err instanceof NetworkError && saved) return { ...saved, stale: true };
+    if (err instanceof NetworkError && stored) return { ...stored, stale: true };
     throw err;
   }
 }

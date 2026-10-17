@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildIndex, changedPaths, imagesIn, mediaUsage, plainText } from "../../src/web/lib/content-index";
+import { buildIndex, changedPaths, imagesIn, INDEX_VERSION, mediaUsage, plainText, reusable, settingsKey } from "../../src/web/lib/content-index";
 
 const folders = { posts: "content/posts", pages: "content/pages", drafts: "drafts", archive: "archive", bin: "bin" };
 const site = { folders, authorField: "author", media: { publicUrl: "https://media.example.com/", contentPrefix: "/img/", browse: [""], byMonth: true } };
@@ -108,5 +108,16 @@ describe("media usage", () => {
     );
     const used = mediaUsage(index);
     expect(["section.jpg", "b.jpg", "route-66.jpg", "route.jpg", "orphan.jpg"].map((n) => used(`2026/01/01/${n}`))).toEqual([true, true, true, true, false]);
+  });
+});
+
+describe("stored index", () => {
+  it("is read again when the settings it was read with change", () => {
+    const index = { version: INDEX_VERSION, commit: "abc", items: [], settings: settingsKey(site) };
+    expect(reusable(index, site)).toBe(true);
+    expect(reusable(index, { ...site, authorField: null })).toBe(false);
+    expect(reusable({ ...index, settings: undefined }, site)).toBe(false);
+    expect(reusable({ ...index, version: INDEX_VERSION - 1 }, site)).toBe(false);
+    expect(reusable(undefined, site)).toBe(false);
   });
 });
