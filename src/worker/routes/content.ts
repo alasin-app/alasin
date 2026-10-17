@@ -31,6 +31,7 @@ import { copyDraftImages, MissingImageError } from "../lib/publish-media";
 import { ConflictError, Repo } from "../lib/repo";
 import { contentPath, draftImageRefs, draftInfo, maintainedFields, parseDay, replaceImageUrls, withFields } from "../../shared/publish";
 import { isUlid } from "../../shared/ulid";
+import { lockedBy } from "../lib/lock-check";
 import { logError } from "../lib/log";
 import { getUserToken } from "../session";
 
@@ -211,7 +212,17 @@ const saveBody = z.strictObject({
   updateUrl: z.boolean().optional(),
   /** Where photos added in this editing session were uploaded (DRAFTS/<editId>/), cleared after saving. */
   editId: z.string().refine(isUlid).optional(),
+  /** The edit lock this editor holds: saving is refused while someone else holds it. */
+  lockId: z.string().max(64).optional(),
 });
+
+/** Whether `id` names a draft, in the drafts folder or in the Bin (whose images stay until it's emptied). */
+async function isDraftId(c: Context<AppEnv>, id: string): Promise<boolean> {
+  const config = c.get("config");
+  const repo = await repoFor(c);
+  const paths = ["post", "page"].flatMap((type) => [`${config.drafts.dir}/${type}s/${id}.md`, `${config.bin.dir}/${config.drafts.dir}/${type}s/${id}.md`]);
+  return (await Promise.all(paths.map((p) => repo.getFile(p)))).some(Boolean);
+}
 
 /**
  * Saving a published post or page, like publishing: draft images it uses
@@ -227,15 +238,23 @@ content.put("/file", async (c) => {
   const parsed = saveBody.safeParse(await c.req.json().catch(() => undefined));
   if (!parsed.success) return c.json({ error: "invalid", message: "Invalid request." }, 400);
   const config = c.get("config");
-  const { path, sha, updateUrl } = parsed.data;
+  const { path, sha, updateUrl, editId } = parsed.data;
   const kind = publishedKind(config, path);
   if (!kind) return c.json({ error: "not_found", message: "No such post or page." }, 404);
+  const locked = await lockedBy(c, `file:${path}`, parsed.data.lockId);
+  if (locked) return locked;
   if (new TextEncoder().encode(parsed.data.content).length > MAX_FILE_BYTES) return c.json({ error: "too_large", message: "The text is too large." }, 413);
   const info = draftInfo(parsed.data.content);
   if (!info) return c.json({ error: "invalid", message: "The front matter can't be read." }, 422);
 
   const { success } = await c.env.RL_COMMIT.limit({ key: `commit:${c.get("session").uid}` });
   if (!success) return c.json({ error: "rate_limited", message: "Too many saves. Wait a moment and try again." }, 429);
+
+  // The editing session's photos are removed after saving: never a draft's own (its ID can't be an editId).
+  const editPhotos = editId ? await c.env.DRAFTS.list({ prefix: `${editId}/`, limit: 1000 }) : null;
+  if (editId && editPhotos?.objects.length && (await isDraftId(c, editId))) {
+    return c.json({ error: "invalid", message: "Invalid editing session." }, 400);
+  }
 
   const day = parseDay(parsed.data.day) ?? parseDay(info.date) ?? parseDay(new Date().toISOString())!;
   const refs = draftImageRefs(parsed.data.content);
@@ -268,9 +287,9 @@ content.put("/file", async (c) => {
     );
     // The photos added in this editing session now live in MEDIA. (Photos of
     // other drafts the text may refer to stay with their drafts.)
-    if (parsed.data.editId) {
+    if (editId && editPhotos?.objects.length) {
       try {
-        const listed = await c.env.DRAFTS.list({ prefix: `${parsed.data.editId}/`, limit: 1000 });
+        const listed = await c.env.DRAFTS.list({ prefix: `${editId}/`, limit: 1000 });
         if (listed.objects.length) await c.env.DRAFTS.delete(listed.objects.map((o) => o.key));
       } catch (err) {
         logError({ rid: c.get("requestId"), event: "draft_media_cleanup_failed", uid: c.get("session").uid }, err);

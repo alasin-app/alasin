@@ -16,7 +16,9 @@ import { type Context, Hono } from "hono";
 import { z } from "zod";
 import type { AlasinConfig } from "../../shared/config/schema";
 import { joinFile, parseFields, slugify, splitFrontMatter, stringifyFields } from "../../shared/frontmatter";
+import { isUlid } from "../../shared/ulid";
 import type { AppEnv } from "../app";
+import { lockedBy } from "../lib/lock-check";
 import { ConflictError, readFolderTexts, Repo } from "../lib/repo";
 import { getUserToken } from "../session";
 
@@ -45,6 +47,13 @@ async function terms(c: Context<AppEnv>): Promise<Term[]> {
 async function repoFor(c: Context<AppEnv>): Promise<Repo> {
   const { github } = c.get("config");
   return new Repo(await getUserToken(c), github.owner, github.repo, github.branch);
+}
+
+/** The edit lock of a file the editor opens: a published post or page, or a draft (archive and Bin have none). */
+function lockKeyOf(config: AlasinConfig, path: string): string | null {
+  if (path.startsWith(`${config.site.posts_dir}/`) || path.startsWith(`${config.site.pages_dir}/`)) return `file:${path}`;
+  const draft = /^(.+)\/(?:post|page)s\/([0-9A-Z]{26})\.md$/.exec(path);
+  return draft && draft[1] === config.drafts.dir && isUlid(draft[2]!) ? `draft:${draft[2]}` : null;
 }
 
 const termPath = (config: AlasinConfig, slug: string) => `${config.categories.path}/${slug}/_index.md`;
@@ -125,6 +134,15 @@ categories.post("/delete", async (c) => {
     const cats = split ? parseFields(split.format, split.raw).get("categories") : undefined;
     const still = Array.isArray(cats) ? cats.map(String).includes(slug) : cats === slug;
     if (!safe || !split || still) return c.json({ error: "invalid", message: `Invalid change to ${ch.path}.` }, 400);
+  }
+
+  // Nothing someone else has open in the editor is changed.
+  for (const ch of changes) {
+    const key = lockKeyOf(config, ch.path);
+    const split = splitFrontMatter(ch.content)!;
+    const title = parseFields(split.format, split.raw).get("title");
+    const locked = key ? await lockedBy(c, key, undefined, typeof title === "string" && title ? `“${title}”` : ch.path) : null;
+    if (locked) return locked;
   }
 
   const repo = await repoFor(c);

@@ -114,6 +114,38 @@ describe("editing published posts", () => {
     const res = await put({ path: "drafts/posts/x.md", content: original, sha: "0".repeat(40) });
     expect(res.status).toBe(404);
   });
+
+  it("refuses to save while someone else is editing it, without telling their lock ID", async () => {
+    await gh.repo.write(POST, original);
+    const { sha } = await open();
+    await env.LOCKS.get(env.LOCKS.idFromName("locks")).acquire(`file:${POST}`, "tab-other0", { uid: 9, login: "jane", name: "Jane Doe" }, 180_000);
+    const res = await put({ path: POST, content: original.replace("Old", "New"), sha, lockId: "tab-mine00" });
+    expect(res.status).toBe(409);
+    const body = (await res.json()) as { error: string; message: string; holder: Record<string, unknown> };
+    expect(body).toMatchObject({ error: "locked", holder: { login: "jane" } });
+    expect(body.message).toContain("Jane Doe");
+    expect(body.holder).not.toHaveProperty("lockId");
+    expect(gh.repo.files().get(POST)).toBe(original);
+    expect((await put({ path: POST, content: original.replace("Old", "New"), sha, lockId: "tab-other0" })).status).toBe(200);
+    await env.LOCKS.get(env.LOCKS.idFromName("locks")).release(`file:${POST}`, "tab-other0");
+  });
+
+  it("never clears a draft's own photos: a draft ID isn't an editing session", async () => {
+    await gh.repo.write(POST, original);
+    const { sha } = await open();
+    const draftId = ulid();
+    await gh.repo.write(`drafts/posts/${draftId}.md`, `---\ntitle: "Draft"\ndraftId: "${draftId}"\n---\n`);
+    await env.DRAFTS.put(`${draftId}/kept.jpg`, "photo", { httpMetadata: { contentType: "image/jpeg" } });
+    const res = await put({ path: POST, content: original.replace("Old", "New"), sha, editId: draftId });
+    expect(res.status).toBe(400);
+    expect((await env.DRAFTS.list()).objects.map((o) => o.key)).toEqual([`${draftId}/kept.jpg`]);
+    // Nor of one in the Bin, whose photos stay until it's emptied.
+    const binned = ulid();
+    await gh.repo.write(`bin/drafts/pages/${binned}.md`, `---\ntitle: "Binned"\ndraftId: "${binned}"\n---\n`);
+    await env.DRAFTS.put(`${binned}/kept.jpg`, "photo", { httpMetadata: { contentType: "image/jpeg" } });
+    expect((await put({ path: POST, content: original.replace("Old", "New"), sha, editId: binned })).status).toBe(400);
+    expect((await env.DRAFTS.list()).objects).toHaveLength(2);
+  });
 });
 
 describe("where a draft went", () => {

@@ -435,7 +435,7 @@ export function Editor(props: { me: Me; source: EditSource }) {
       if (source.kind === "draft") {
         const res = await api<{ sha: string }>(fileUrl(source, type), {
           method: "PUT",
-          body: { content: toSave, sha, title: state.doc.form.title },
+          body: { content: toSave, sha, title: state.doc.form.title, lockId: lock.lockId },
         });
         sha = res.sha;
       } else {
@@ -450,6 +450,7 @@ export function Editor(props: { me: Me; source: EditSource }) {
             day: toLocalInput(state.doc.form.date).slice(0, 10) || undefined,
             updateUrl: !!before && (before.slug !== state.doc.form.slug || before.date !== state.doc.form.date),
             editId: uploadId,
+            lockId: lock.lockId,
           },
         });
         // The Worker sets lastmod and turns new photos' addresses into public ones.
@@ -485,7 +486,8 @@ export function Editor(props: { me: Me; source: EditSource }) {
       return sha;
     } catch (err) {
       setStatus("error");
-      if (err instanceof ApiError && err.status === 409 && err.code !== "exists") setConflict(true);
+      if (err instanceof ApiError && err.code === "locked") setMessage(err.message);
+      else if (err instanceof ApiError && err.status === 409 && err.code !== "exists") setConflict(true);
       else if (err instanceof NetworkError) setMessage(t("editor.offline"));
       else setMessage(err instanceof ApiError ? err.message : t("error.generic"));
       return null;
@@ -503,7 +505,7 @@ export function Editor(props: { me: Me; source: EditSource }) {
       const res = await api<{ path: string }>(`/api/drafts/${type}/${source.id}/publish`, {
         method: "POST",
         // The post's day as the author sees it, for folders named by date.
-        body: { sha, day: toLocalInput(state.doc.form.date).slice(0, 10) || undefined },
+        body: { sha, day: toLocalInput(state.doc.form.date).slice(0, 10) || undefined, lockId: lock.lockId },
       });
       await deleteLocalDraft(me.user.id, type, localId);
       setPublished(res.path);

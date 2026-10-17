@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MIT
+import { env } from "cloudflare:test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ulid } from "../../src/shared/ulid";
 import { ALLOWED_USER, APP_URL } from "../fixtures";
@@ -139,5 +140,25 @@ describe("drafts", () => {
     const res = await save("post", id, { content: draftText(id), sha: null });
     expect(res.status).toBe(502);
     expect(((await res.json()) as { message: string }).message).toMatch(/write access/);
+  });
+
+  it("refuses to save or publish a draft someone else is editing", async () => {
+    const id = ulid();
+    await env.LOCKS.get(env.LOCKS.idFromName("locks")).acquire(`draft:${id}`, "tab-other0", { uid: 9, login: "jane", name: "Jane Doe" }, 180_000);
+    const res = await save("post", id, { content: draftText(id), sha: null, lockId: "tab-mine00" });
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({ error: "locked" });
+    expect(gh.repo.files().has(`drafts/posts/${id}.md`)).toBe(false);
+    const ok = await save("post", id, { content: draftText(id), sha: null, lockId: "tab-other0" });
+    expect(ok.status).toBe(200);
+    const { sha } = (await ok.json()) as { sha: string };
+    const publish = await call(`/api/drafts/post/${id}/publish`, {
+      method: "POST",
+      cookie,
+      headers: { "X-Alasin": "1", Origin: APP_URL, "Content-Type": "application/json" },
+      body: JSON.stringify({ sha, lockId: "tab-mine00" }),
+    });
+    expect(publish.status).toBe(409);
+    await env.LOCKS.get(env.LOCKS.idFromName("locks")).release(`draft:${id}`, "tab-other0");
   });
 });
