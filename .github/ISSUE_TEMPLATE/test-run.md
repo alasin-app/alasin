@@ -15,9 +15,9 @@ Tick a check when it passes. For a failure, open a bug issue and link it after t
 
 ## Login, security and app shell
 
-- [ ] **1.1 Install from a clean clone**: Follow PREREQUISITES.md and the README's *Installation* exactly, for a dev environment (`--env dev`) with a custom domain
-- [ ] **1.2 Deploy**: `npm run deploy -- --env dev` names the right Worker, environment, address and site branch, and finishes without warnings
-- [ ] **1.3 Update**: In the deploy clone: `git pull && npm install && npm run deploy -- --env dev`; the account sheet shows the new version
+- [ ] **1.1 Install from a clean clone**: Only when installing changes (setup, PREREQUISITES.md or the README's *Installation*). In a new clone, follow PREREQUISITES.md and the README's *Installation* exactly, to a new deployment with a custom domain
+- [ ] **1.2 Deploy**: Only when deploying changes. `npm run deploy` names the right Worker, environment, address and site branch, and finishes without warnings
+- [ ] **1.3 Update**: Only when updating changes (e.g. a new setup migration). In the deploy clone: `git pull && npm install && npm run setup && npm run deploy`; setup reports what it updated, and the account sheet shows the new version
 - [ ] **1.4 Login page**: Shows app name, icon and the environment badge; the browser offers to install the app
 - [ ] **1.5 Log in (allowed account)**: *Sign in with GitHub* → authorize the GitHub App → the app opens with the user's GitHub avatar
 - [ ] **1.6 Log in (other account)**: A GitHub account without write access to the site repository ends on "This GitHub account isn't allowed…"
