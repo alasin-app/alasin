@@ -143,13 +143,13 @@ The Hugo site and its content layout.
 | `url` | string (URL) | **required** | `"https://www.example.com"` | Public URL of the Hugo site for the configured branch, used for “View on site” links. |
 | `posts_dir` | string | `"content/posts"` | `"content/posts"` | Directory of posts in the site repository. |
 | `pages_dir` | string | `"content/pages"` | `"content/pages"` | Directory of pages in the site repository. |
-| `post_filename` | string | `"{slug}.md"` | `"{slug}.md"` | File name pattern for new posts, relative to `posts_dir`. Placeholders: `{slug}`, `{yyyy}`, `{mm}`, `{dd}`. Must end in `.md`. |
+| `post_filename` | string | `"{slug}.md"` | `"{yyyy}/{slug}.md"` | File name pattern for new posts, relative to `posts_dir`. Placeholders: `{slug}`, `{yyyy}`, `{mm}`, `{dd}`. Must end in `.md`. |
 | `page_filename` | string | `"{slug}.md"` | `"{slug}.md"` | File name pattern for new pages, relative to `pages_dir`. Placeholder: `{slug}`. Must end in `.md`. |
 | `cover_field` | string | `"image"` | `"image"` | Front matter field holding a post's cover image. |
 | `author_field` | string | `"author"` | `"author"` | Front matter field for the author's name, as last written: new posts and pages get the user's full name from their GitHub profile. |
 | `author_id_field` | string | `"author_id"` | `"author_id"` | Front matter field for the author's GitHub login, which identifies the author (names can change). Alasin shows the author's current GitHub name for it, and writes that name to `author_field` on saving, so that field keeps the last known name. |
 | `lastmod_field` | string | `"lastmod"` | `"lastmod"` | Front matter field set to the current time whenever a post or page is published or saved. `""` turns it off. |
-| `post_url` | string | — | — | If set, the `url` front matter field of published posts follows this pattern, e.g. `/{yyyy}/{mm}/{dd}/{slug}/`. Placeholders: `{slug}`, `{yyyy}`, `{mm}`, `{dd}` (the post date). Set on publishing, and updated when the address or date of a published post is changed. Leave unset if the site uses Hugo's permalinks instead. |
+| `post_url` | string | — | `"/{yyyy}/{mm}/{dd}/{slug}/"` | If set, the `url` front matter field of published posts follows this pattern, e.g. `/{yyyy}/{mm}/{dd}/{slug}/`. Placeholders: `{slug}`, `{yyyy}`, `{mm}`, `{dd}` (the post date). Set on publishing, and updated when the address or date of a published post is changed. Leave unset if the site uses Hugo's permalinks instead. |
 | `page_url` | string | — | — | Like `post_url`, for pages, e.g. `/{slug}/`. |
 | `front_matter_format` | one of "yaml", "toml" | `"yaml"` | `"yaml"` | Front matter format for new files. Existing files keep the format they already use. |
 

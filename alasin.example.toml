@@ -52,9 +52,10 @@ posts_dir = "content/posts"
 pages_dir = "content/pages"
 
 # File name of new posts, relative to posts_dir. Placeholders: {slug}, {yyyy},
-# {mm}, {dd} (from the post date). Must end in ".md".
+# {mm}, {dd} (from the post date). Must end in ".md". New sites get posts in a
+# folder for each year.
 # Type: string. Default: "{slug}.md". Example: "{yyyy}/{mm}/{slug}.md"
-post_filename = "{slug}.md"
+post_filename = "{yyyy}/{slug}.md"
 
 # File name of new pages, relative to pages_dir. Placeholder: {slug}.
 # Type: string. Default: "{slug}.md".
@@ -79,11 +80,14 @@ author_id_field = "author_id"
 # published or saved. "" turns it off. Type: string. Default: "lastmod".
 lastmod_field = "lastmod"
 
-# If set, the `url` field of published posts and pages follows these patterns
-# (set on publishing, updated when the address or date of a published one is
-# changed). Placeholders: {slug}, {yyyy}, {mm}, {dd} (the post date). Leave
-# unset if the site uses Hugo's permalinks instead. Type: string. Optional.
-# post_url = "/{yyyy}/{mm}/{dd}/{slug}/"
+# If set, the `url` field of published posts follows this pattern (set on
+# publishing, updated when the address or date of a published post is changed).
+# Placeholders: {slug}, {yyyy}, {mm}, {dd} (the post date). Leave unset if the
+# site uses Hugo's permalinks instead. New sites get dated post addresses.
+# Type: string. Optional.
+post_url = "/{yyyy}/{mm}/{dd}/{slug}/"
+
+# Like post_url, for pages. Placeholder: {slug}. Type: string. Optional.
 # page_url = "/{slug}/"
 
 # Front matter format for NEW files: "yaml" (---) or "toml" (+++). Existing

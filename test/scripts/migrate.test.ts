@@ -178,7 +178,8 @@ describe("adding options new in alasin.example.toml to existing sections", () =>
     expect(changes.join("\n")).toContain("[drafts] cleanup_after_days");
     expect(changes.join("\n")).toContain("[site] lastmod_field");
     expect(changes.join("\n")).toContain("the commented-out option [security] github_secrets_rotated");
-    expect(text).toBe(currentExample);
+    // post_url is set in the example for new sites, but not its default: an older file isn't given it.
+    expect(text).toBe(cut(currentExample, "\n# If set, the `url` field of published posts", 'post_url = "/{yyyy}/{mm}/{dd}/{slug}/"\n'));
   });
 
   it("never copies an example value of a required option", () => {
@@ -243,5 +244,16 @@ author_id_field = "author_id"`;
     const set = old.replace('# author_field = "author"', 'author_field = "writer"');
     const { text } = migrateAlasinToml(set, currentExample);
     expect(text).toBe(currentExample.replace('author_field = "author"', 'author_field = "writer"'));
+  });
+});
+
+describe("year folders for new sites", () => {
+  it("leaves an older file's post layout as it was: no year folders or url added", () => {
+    const old = currentExample
+      .replace('post_filename = "{yyyy}/{slug}.md"', 'post_filename = "{slug}.md"')
+      .replace('post_url = "/{yyyy}/{mm}/{dd}/{slug}/"', '# post_url = "/{yyyy}/{mm}/{dd}/{slug}/"');
+    const { text } = migrateAlasinToml(old, currentExample);
+    expect(text).toContain('post_filename = "{slug}.md"');
+    expect(text).not.toMatch(/^post_url =/m);
   });
 });
