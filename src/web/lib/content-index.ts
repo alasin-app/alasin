@@ -52,12 +52,21 @@ export interface ContentIndex {
   items: ContentItem[];
   /** The published images (MEDIA keys) each file refers to, section pages included; files with none are left out. */
   media?: Record<string, string[]>;
+  /** The settings the items were read with (see `settingsKey`). */
+  settings?: string;
 }
 
 type Entry = { name: string; type: string; object: { oid?: string; text?: string | null; isBinary?: boolean; entries?: Entry[] } | null };
 type Folders = SiteSettings["folders"];
 /** What reading the files needs to know about the site. */
 export type IndexSettings = Pick<SiteSettings, "folders" | "authorField" | "media">;
+
+/** The settings an index was read with, to read everything again when they change (e.g. `author_field` set). */
+export const settingsKey = (site: IndexSettings): string => JSON.stringify([site.folders, site.authorField, site.media]);
+
+/** Whether a stored index can be brought up to date, or must be read again. */
+export const reusable = (index: ContentIndex | undefined, site: IndexSettings): index is ContentIndex =>
+  index?.version === INDEX_VERSION && index.settings === settingsKey(site);
 
 /** The files of a folder tree, with paths relative to it. */
 function files(entries: Entry[] | undefined, prefix = ""): { rel: string; sha: string; text: string }[] {
