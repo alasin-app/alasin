@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.0-pre.3](https://github.com/oh2th/alasin/compare/v1.0.0-pre.2...v1.0.0-pre.3) (2026-10-17)
+
+
+### Features
+
+* **editor:** add photos to galleries and edit picture texts ([d179c30](https://github.com/oh2th/alasin/commit/d179c30132b25775ae371cf2ef41bfd53180c4cf))
+
 ## [1.0.0-pre.2](https://github.com/oh2th/alasin/compare/v1.0.0-pre1...v1.0.0-pre.2) (2026-10-16)
 
 
