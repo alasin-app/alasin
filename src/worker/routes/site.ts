@@ -84,8 +84,8 @@ site.get("/", async (c) => {
   return c.json({
     frontMatterFormat: config.site.front_matter_format,
     coverField: config.site.cover_field,
-    authorField: config.site.author_field ?? null,
-    authorIdField: config.site.author_field ? config.site.author_id_field : null,
+    authorField: config.site.author_field,
+    authorIdField: config.site.author_id_field,
     author: fullName({ id: session.uid }) ?? session.login,
     login: session.login,
     // Who each author_id (GitHub login) is, with their current name, for the lists and the editor.

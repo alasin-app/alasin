@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { newDraft, parseDraft, prepareSave, serializeDraft } from "../../src/web/lib/draft-model";
 import type { SiteSettings } from "../../src/web/lib/site-types";
 
-const site = { coverField: "image", frontMatterFormat: "yaml", authorField: "author", author: "Octo" } as unknown as SiteSettings;
+const site = { coverField: "image", frontMatterFormat: "yaml", authorField: "author", authorIdField: "author_id", author: "Octo", login: "octo", users: [] } as unknown as SiteSettings;
 const ID = "01JA2B3C4D5E6F7G8H9JKMNPQR";
 
 describe("draft model", () => {
@@ -37,7 +37,7 @@ describe("draft model", () => {
     doc.form.title = "Hello";
     doc.form.body = "Text";
     const out = serializeDraft(doc, site);
-    expect(out).toBe(`---\ntitle: "Hello"\ndate: 2026-10-15T11:05:30Z\nslug: ""\nauthor: "Octo"\ndraftId: "${ID}"\n---\n\nText\n`);
+    expect(out).toBe(`---\ntitle: "Hello"\ndate: 2026-10-15T11:05:30Z\nslug: ""\nauthor: "Octo"\nauthor_id: "octo"\ndraftId: "${ID}"\n---\n\nText\n`);
   });
 
   it("changes only the author line when the author changes, and removes an empty one", () => {
@@ -50,13 +50,10 @@ describe("draft model", () => {
     expect(serializeDraft({ ...doc, form: { ...doc.form, author: " " } }, site)).not.toContain("author");
   });
 
-  it("leaves an author line alone when the site has no author field", () => {
-    const plain = { ...site, authorField: null } as SiteSettings;
-    const text = `---\ntitle: "Post"\ndraft: true\nauthor: "Octo"\ndraftId: "${ID}"\n---\n\nBody\n`;
-    const doc = parseDraft(text, plain)!;
-    expect(doc.form.author).toBe("");
-    expect(serializeDraft({ ...doc, form: { ...doc.form, title: "New" } }, plain)).toContain('author: "Octo"');
-    expect(newDraft(ID, plain).form.author).toBe("");
+  it("uses the configured field names", () => {
+    const named = { ...site, authorField: "writer", authorIdField: "github" } as SiteSettings;
+    const doc = parseDraft(`---\ntitle: "Post"\nwriter: "Octo"\ngithub: "octocat"\ndraftId: "${ID}"\n---\n\nBody\n`, named)!;
+    expect(doc.form).toMatchObject({ author: "Octo", authorId: "octocat" });
   });
 
   it("removes an old draft: true when the front matter is rewritten, and keeps the file as it was otherwise", () => {

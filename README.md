@@ -2,7 +2,7 @@
 
 Alasin (Finnish for "anvil") is a web app for writing and publishing pages and posts on a **Hugo site stored in GitHub, hosted on Cloudflare, with images in R2**. It's built for a small group of people who write together and want something as easy as a hosted CMS, especially on iPhone and iPad, without leaving their own Hugo, GitHub and Cloudflare setup.
 
-> **Status: early development.** Login with GitHub, sessions, security headers, the app shell and the setup tooling work. The editor, image upload and publishing are being built; see the milestones in the project's issues. The configuration format may still change before 1.0.
+> **Status: 1.0.** Breaking changes are announced in the release notes with upgrade steps, and `npm run setup` updates `alasin.toml` where it can. Ideas and plans are in the project's [issues](https://github.com/oh2th/alasin/issues).
 
 ## Features
 
@@ -146,8 +146,8 @@ The Hugo site and its content layout.
 | `post_filename` | string | `"{slug}.md"` | `"{slug}.md"` | File name pattern for new posts, relative to `posts_dir`. Placeholders: `{slug}`, `{yyyy}`, `{mm}`, `{dd}`. Must end in `.md`. |
 | `page_filename` | string | `"{slug}.md"` | `"{slug}.md"` | File name pattern for new pages, relative to `pages_dir`. Placeholder: `{slug}`. Must end in `.md`. |
 | `cover_field` | string | `"image"` | `"image"` | Front matter field holding a post's cover image. |
-| `author_field` | string | — | — | Front matter field for the author's name: new posts and pages get the user's full name from their GitHub profile, and the lists show who wrote each one. Leave unset if the site doesn't use one. |
-| `author_id_field` | string | `"author_id"` | `"author_id"` | With `author_field` set: front matter field for the author's GitHub login, which identifies the author (names can change). Alasin shows the author's current GitHub name for it, and writes that name to `author_field` on saving, so that field keeps the last known name. |
+| `author_field` | string | `"author"` | `"author"` | Front matter field for the author's name, as last written: new posts and pages get the user's full name from their GitHub profile. |
+| `author_id_field` | string | `"author_id"` | `"author_id"` | Front matter field for the author's GitHub login, which identifies the author (names can change). Alasin shows the author's current GitHub name for it, and writes that name to `author_field` on saving, so that field keeps the last known name. |
 | `lastmod_field` | string | `"lastmod"` | `"lastmod"` | Front matter field set to the current time whenever a post or page is published or saved. `""` turns it off. |
 | `post_url` | string | — | — | If set, the `url` front matter field of published posts follows this pattern, e.g. `/{yyyy}/{mm}/{dd}/{slug}/`. Placeholders: `{slug}`, `{yyyy}`, `{mm}`, `{dd}` (the post date). Set on publishing, and updated when the address or date of a published post is changed. Leave unset if the site uses Hugo's permalinks instead. |
 | `page_url` | string | — | — | Like `post_url`, for pages, e.g. `/{slug}/`. |
@@ -297,7 +297,7 @@ npm run deploy
 
 **Everyone with write access to the site repository on GitHub can use the deployment** (write, maintain or admin). Alasin asks GitHub at every login and again about once an hour during a session, so you manage people in one place, on GitHub:
 
-- **Add someone:** invite them to the site repository with **Write** access (the repository's **Settings → Collaborators → Add people**). Once they accept, they open the app's address and sign in with GitHub. With `[site] author_field` set, their posts get their GitHub login in `author_id` and their full name from their GitHub profile in `author` (see *Authors* below).
+- **Add someone:** invite them to the site repository with **Write** access (the repository's **Settings → Collaborators → Add people**). Once they accept, they open the app's address and sign in with GitHub. Their posts get their GitHub login in `author_id` and their full name from their GitHub profile in `author` (see *Authors* below).
 - **Remove someone:** remove them from the repository's collaborators (or lower them to *Read*). They're logged out within the hour.
 - **Check:** the app's **Users** section (in the sidebar; on phones under *More*) lists everyone who can log in, with their permission on the repository.
 
@@ -308,14 +308,14 @@ Nothing in `alasin.toml` changes and nothing needs deploying. Two more things:
 
 ## Authors
 
-With `[site] author_field` set, each post and page records who wrote it in two front matter fields:
+Every post and page records who wrote it in two front matter fields (named in `[site] author_field` and `author_id_field`):
 
 ```yaml
 author: "Octo Cat"     # the name, as last written
 author_id: "octocat"   # the GitHub login: who wrote it
 ```
 
-- **`author_id` identifies the author** (`[site] author_id_field`, default `author_id`). Profile names can change at any time; the login is what Alasin matches avatars, *My drafts*, *My recent posts* and the author filter on. It can be written by hand too.
+- **`author_id` identifies the author.** Profile names can change at any time; the login is what Alasin matches avatars, *My drafts*, *My recent posts* and the author filter on. It can be written by hand too.
 - **`author` is the name as last written.** The lists and the editor show the author's current GitHub name for their `author_id`, and saving a post writes that name to `author`. Someone who no longer has access keeps the name their posts last had. A post without `author_id` (e.g. by someone without a GitHub account) is shown by its `author` text; choose *Someone else* in the editor's author picker to write a name only.
 - **Names are never kept:** Alasin reads them from GitHub every time, so a changed name shows at once.
 

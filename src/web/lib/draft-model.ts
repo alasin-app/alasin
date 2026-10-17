@@ -28,7 +28,7 @@ export interface DraftForm {
   categories: string[];
   tags: string[];
   cover: string;
-  /** The author field's value ("" if the site has no author field or the file none). */
+  /** The author field's value: the name as last written ("" if the file has none). */
   author: string;
   /** The author's GitHub login (`author_id`), "" if none: who wrote it; `author` is the name last written. */
   authorId: string;
@@ -58,15 +58,15 @@ const list = (v: unknown) => (Array.isArray(v) ? v.map(String) : typeof v === "s
 
 export function newDraft(id: string, site: SiteSettings, now = new Date()): DraftDoc {
   const fields: Fields = new Map();
-  const author = (site.authorField && site.author) || "";
-  const authorId = (site.authorField && site.authorIdField && site.login) || "";
+  const author = site.author ?? "";
+  const authorId = site.login;
   const form: DraftForm = { title: "", date: utcIso(now), slug: "", categories: [], tags: [], cover: "", author, authorId, body: "" };
   // The order of a new file's front matter.
   fields.set("title", "");
   fields.set("date", form.date);
   fields.set("slug", "");
-  if (site.authorField && author) fields.set(site.authorField, author);
-  if (site.authorIdField && authorId) fields.set(site.authorIdField, authorId);
+  if (author) fields.set(site.authorField, author);
+  if (authorId) fields.set(site.authorIdField, authorId);
   fields.set("draftId", id);
   return { format: site.frontMatterFormat, fields, form };
 }
@@ -83,8 +83,8 @@ export function parseDraft(text: string, site: SiteSettings): DraftDoc | null {
       categories: list(fields.get("categories")),
       tags: list(fields.get("tags")),
     cover: str(fields.get(site.coverField)),
-    author: site.authorField ? str(fields.get(site.authorField)) : "",
-    authorId: site.authorField && site.authorIdField ? str(fields.get(site.authorIdField)).trim() : "",
+    author: str(fields.get(site.authorField)),
+    authorId: str(fields.get(site.authorIdField)).trim(),
     body: split.body.slice(leading.length),
   };
   return { format: split.format, fields, form, raw: { frontMatter: split.raw, formFields: formFields(form), leading, body: form.body } };
@@ -106,8 +106,8 @@ function formChanges(f: DraftForm, site: SiteSettings, draft?: boolean): [string
     ["categories", f.categories.length ? f.categories : undefined],
     ["tags", f.tags.length ? f.tags : undefined],
     [site.coverField, f.cover ? f.cover : undefined],
-    ...(site.authorField ? ([[site.authorField, f.author.trim() || undefined]] as [string, unknown][]) : []),
-    ...(site.authorField && site.authorIdField ? ([[site.authorIdField, f.authorId.trim() || undefined]] as [string, unknown][]) : []),
+    [site.authorField, f.author.trim() || undefined],
+    [site.authorIdField, f.authorId.trim() || undefined],
   ];
 }
 
@@ -151,7 +151,7 @@ export function prepareSave(
 ): { content: string; body: string; author: string } {
   const keep = opts.saved === null ? undefined : new Set(opts.saved.split("\n"));
   const body = opts.rich ? dropDanglingBreaks(removeEmptyItems(doc.form.body, keep), keep) : doc.form.body;
-  const author = site.authorField && site.authorIdField ? liveAuthorName(doc.form, site) : doc.form.author;
+  const author = liveAuthorName(doc.form, site);
   const tidied = body === doc.form.body && author === doc.form.author ? doc : { ...doc, form: { ...doc.form, body, author } };
   return { content: serializeDraft(tidied, site, { draft: opts.draft ?? true }), body, author };
 }

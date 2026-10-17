@@ -82,7 +82,7 @@ Devices: Chrome on macOS (desktop), Chrome on iOS (WebKit, like all iOS browsers
 | 2.19 | Category tree | Categories with a parent show indented under it in the picker (siblings by title); choosing a child doesn't add its parent; the chip shows the full path on hover |
 | 2.20 | Fast typing | Type as fast as you can in the text, also in the middle of a paragraph: every character lands in order, before the cursor |
 | 2.21 | Details sheet | *New post* opens a sheet asking the title, date, address, categories, tags and cover; categories and cover open on top of it, and Escape closes only the topmost. Afterwards the details show in short under the title, and *Edit* opens the sheet again (without the title). The title has a pencil after it and isn't hidden under the bar on a tablet or desktop |
-| 2.22 | Author | With `author_field` set: a new draft has the signed-in user as author; *Author* in the details lists the names in use and the users, or takes another name; saving changes only that line. Home → *My drafts* shows only drafts with the signed-in user as author, with the author and no "updated by" |
+| 2.22 | Author | A new draft has the signed-in user as author; *Author* in the details lists the names in use and the users, or takes another name; saving changes only that line. Home → *My drafts* shows only drafts with the signed-in user as author, with the author and no "updated by" |
 
 ### Test runs
 
@@ -200,7 +200,7 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 4.24 | Removed on GitHub | Remove a logged-in user from the repository's collaborators (or set *Read*): within about an hour, their next action logs them out |
 | 4.25 | Setup | `npm run setup` asks nothing about users, and removes a `[users]` table from an older `alasin.toml` |
 | 4.26 | My recent posts on Home | Below *My drafts*, *My recent posts* lists your published posts with the latest dates, 5, 10 or 20 of them (the choice is remembered on the device); a row opens the post |
-| 4.27 | Settings change | Set `[site] author_field` (or change a folder or media setting) and deploy, without new commits in the site repository: opening Posts reads the list again by itself, and authors with avatars show without tapping ↻ |
+| 4.27 | Settings change | Change `[site] author_field` (or a folder or media setting) and deploy, without new commits in the site repository: opening Posts reads the list again by itself, and authors with avatars show without tapping ↻ |
 
 ### Test runs
 
@@ -298,7 +298,7 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 
 ## Authors by GitHub login
 
-With `[site] author_field` set and `author_id` (the GitHub login) in the posts.
+Posts have `author_id` (the GitHub login) and `author` (the name).
 
 ### Checklist
 
@@ -310,6 +310,8 @@ With `[site] author_field` set and `author_id` (the GitHub login) in the posts.
 | A.4 | Author picker | The picker lists people with their `@login`; choosing a user writes both fields; *Someone else* writes the name only and removes `author_id` |
 | A.5 | Not a user | A post whose `author_id` isn't a user (edit one on GitHub) shows its `author:` text, without an avatar, and saving it leaves `author:` as it is |
 | A.6 | Mine on Home | *My drafts* and *My recent posts* follow `author_id`, also for posts with an older name in `author:` |
+| A.7 | Author required | Remove the author of a draft (*Someone else* with an empty name isn't possible; edit the file on GitHub to remove both lines): *Save* and *Publish* say "Choose an author first." and open the details |
+| A.8 | Setup | `npm run setup` on an `alasin.toml` with `# author_field = "author"` commented out turns it on and reports it; one that sets it keeps its value and gets the new description |
 
 ### Test runs
 

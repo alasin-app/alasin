@@ -25,7 +25,7 @@ export function DraftsList(props: { me: Me; mine?: boolean }) {
   const { site, content, error, refresh } = useContent(props.me);
   const [local, setLocal] = useState<LocalDraft[]>([]);
   const drafts = (content?.items ?? []).filter(
-    (i) => i.state === "draft" && (!props.mine || !site?.authorField || authorUser(i, site)?.id === props.me.user.id),
+    (i) => i.state === "draft" && (!props.mine || (site && authorUser(i, site)?.id === props.me.user.id)),
   );
   // The home screen shows only who wrote each draft, not who changed it last.
   const updated = useLastUpdated(props.mine ? [] : drafts);

@@ -116,7 +116,7 @@ describe("stored index", () => {
   it("is read again when the settings it was read with change", () => {
     const index = { version: INDEX_VERSION, commit: "abc", items: [], settings: settingsKey(site) };
     expect(reusable(index, site)).toBe(true);
-    expect(reusable(index, { ...site, authorField: null })).toBe(false);
+    expect(reusable(index, { ...site, authorField: "writer" })).toBe(false);
     expect(reusable({ ...index, settings: undefined }, site)).toBe(false);
     expect(reusable({ ...index, version: INDEX_VERSION - 1 }, site)).toBe(false);
     expect(reusable(undefined, site)).toBe(false);

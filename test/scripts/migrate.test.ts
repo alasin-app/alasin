@@ -212,3 +212,36 @@ describe("plain ASCII comments", () => {
     expect(m.changes.some((c) => c.startsWith("comments:"))).toBe(true);
   });
 });
+
+describe("author fields always on", () => {
+  // [site] as setup wrote it before 1.0.0-pre.7.
+  const OLD_AUTHOR = `# Front matter field for the author's name. New posts and pages get the user's
+# full name from their GitHub profile, and the lists show who wrote each one.
+# Leave unset if the site doesn't use one.
+# Type: string. Optional. Example: "author"
+# author_field = "author"
+
+# With author_field set: front matter field for the author's GitHub login, which
+# identifies the author (names can change). Alasin shows the author's current
+# GitHub name for it, and writes that name to author_field on saving, so that
+# field keeps the last known name.
+# Type: string. Default: "author_id".
+author_id_field = "author_id"`;
+  const current = currentExample.slice(currentExample.indexOf("# Front matter field for the author's name"), currentExample.indexOf('author_id_field = "author_id"') + 'author_id_field = "author_id"'.length);
+  const old = currentExample.replace(current, OLD_AUTHOR);
+
+  it("turns a commented-out author_field on and brings both descriptions up to date", () => {
+    const { text, changes } = migrateAlasinToml(old, currentExample);
+    expect(text).toBe(currentExample);
+    expect(changes).toEqual([
+      '[site]: turned author_field on ("author"); author fields are now always used',
+      "[site]: updated the description of author_id_field (author fields are now always used)",
+    ]);
+  });
+
+  it("keeps a value the file sets, updating only its description", () => {
+    const set = old.replace('# author_field = "author"', 'author_field = "writer"');
+    const { text } = migrateAlasinToml(set, currentExample);
+    expect(text).toBe(currentExample.replace('author_field = "author"', 'author_field = "writer"'));
+  });
+});

@@ -30,7 +30,7 @@ export function MyPosts(props: { me: Me }) {
   const time = (n: number) => (Number.isNaN(n) ? -Infinity : n);
   const posts = (content?.items ?? [])
     .filter((i) => i.kind === "post" && i.state === "published")
-    .filter((i) => !site?.authorField || (site && authorUser(i, site)?.id === props.me.user.id))
+    .filter((i) => site && authorUser(i, site)?.id === props.me.user.id)
     .sort((a, b) => time(b.time) - time(a.time))
     .slice(0, count);
   const updated = useLastUpdated(posts);
