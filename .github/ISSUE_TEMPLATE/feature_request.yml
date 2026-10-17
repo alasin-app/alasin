@@ -1,0 +1,41 @@
+name: Feature request
+description: Suggest something new for Alasin, or a change to how something works.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the idea. Alasin is a mobile-first editor for Hugo sites; describing what you're trying to do helps more than a finished design.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: The situation and what makes it hard today.
+      placeholder: When I write a post on my phone, I'd like to …
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: What would help?
+      description: How you imagine it working. Sketches and screenshots are welcome.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you've considered
+      description: Workarounds you use now, or other ways it could work.
+  - type: textarea
+    id: hugo
+    attributes:
+      label: Hugo site details
+      description: If it depends on how your site is set up (theme, front matter fields, shortcodes, folder layout), describe it here.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched the existing issues and this isn't requested yet.
+          required: true
