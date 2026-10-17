@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 //
 // The editable parts of a draft (title, date, slug, categories, tags, cover,
-// author, body) and the file text committed to the repository. Reopening a draft keeps
+// author and author_id, body) and the file text committed to the repository. Reopening a draft keeps
 // any other front matter fields and their order.
 
 import {
@@ -16,6 +16,7 @@ import {
   utcIso,
 } from "../../shared/frontmatter";
 import type { SiteSettings } from "./site-types";
+import { liveAuthorName } from "./authors";
 import { dropDanglingBreaks } from "./line-breaks";
 import { removeEmptyItems } from "./markdown-cleanup";
 
@@ -29,6 +30,8 @@ export interface DraftForm {
   cover: string;
   /** The author field's value ("" if the site has no author field or the file none). */
   author: string;
+  /** The author's GitHub login (`author_id`), "" if none: who wrote it; `author` is the name last written. */
+  authorId: string;
   body: string;
 }
 
@@ -56,13 +59,15 @@ const list = (v: unknown) => (Array.isArray(v) ? v.map(String) : typeof v === "s
 export function newDraft(id: string, site: SiteSettings, now = new Date()): DraftDoc {
   const fields: Fields = new Map();
   const author = (site.authorField && site.author) || "";
-  const form: DraftForm = { title: "", date: utcIso(now), slug: "", categories: [], tags: [], cover: "", author, body: "" };
+  const authorId = (site.authorField && site.authorIdField && site.login) || "";
+  const form: DraftForm = { title: "", date: utcIso(now), slug: "", categories: [], tags: [], cover: "", author, authorId, body: "" };
   // The order of a new file's front matter.
   fields.set("title", "");
   fields.set("date", form.date);
   fields.set("slug", "");
   fields.set("draft", true);
   if (site.authorField && author) fields.set(site.authorField, author);
+  if (site.authorIdField && authorId) fields.set(site.authorIdField, authorId);
   fields.set("draftId", id);
   return { format: site.frontMatterFormat, fields, form };
 }
@@ -80,16 +85,17 @@ export function parseDraft(text: string, site: SiteSettings): DraftDoc | null {
       tags: list(fields.get("tags")),
     cover: str(fields.get(site.coverField)),
     author: site.authorField ? str(fields.get(site.authorField)) : "",
+    authorId: site.authorField && site.authorIdField ? str(fields.get(site.authorIdField)).trim() : "",
     body: split.body.slice(leading.length),
   };
   return { format: split.format, fields, form, raw: { frontMatter: split.raw, formFields: formFields(form), leading, body: form.body } };
 }
 
 /** Form fields and the front matter keys they are written to ("cover" and "author" as configured in `[site]`). */
-const FORM_KEYS: Exclude<keyof DraftForm, "body">[] = ["title", "date", "slug", "categories", "tags", "cover", "author"];
+const FORM_KEYS: Exclude<keyof DraftForm, "body">[] = ["title", "date", "slug", "categories", "tags", "cover", "author", "authorId"];
 
 const keyOf = (field: Exclude<keyof DraftForm, "body">, site: SiteSettings) =>
-  field === "cover" ? site.coverField : field === "author" ? site.authorField : field;
+  field === "cover" ? site.coverField : field === "author" ? site.authorField : field === "authorId" ? site.authorIdField : field;
 
 /** The front matter values of the form. `draft` is set only for drafts (published files keep theirs). */
 function formChanges(f: DraftForm, site: SiteSettings, draft?: boolean): [string, unknown][] {
@@ -102,6 +108,7 @@ function formChanges(f: DraftForm, site: SiteSettings, draft?: boolean): [string
     ["tags", f.tags.length ? f.tags : undefined],
     [site.coverField, f.cover ? f.cover : undefined],
     ...(site.authorField ? ([[site.authorField, f.author.trim() || undefined]] as [string, unknown][]) : []),
+    ...(site.authorField && site.authorIdField ? ([[site.authorIdField, f.authorId.trim() || undefined]] as [string, unknown][]) : []),
   ];
 }
 
@@ -130,7 +137,9 @@ export function serializeDraft(doc: DraftDoc, site: SiteSettings, opts: { draft?
 }
 
 /**
- * What saving commits, and the body to show afterwards. In rich text mode,
+ * What saving commits, and the body and author name to show afterwards. The
+ * author name is updated to the current GitHub name of the user in author_id,
+ * so the file keeps the last known name. In rich text mode,
  * list items and quote lines left empty while writing and line breaks with
  * nothing after them are tidied away, but only on lines changed since the
  * last saved version (`saved`), so an untouched file saves unchanged. The
@@ -140,9 +149,10 @@ export function prepareSave(
   doc: DraftDoc,
   site: SiteSettings,
   opts: { rich: boolean; saved: string | null; draft?: boolean },
-): { content: string; body: string } {
+): { content: string; body: string; author: string } {
   const keep = opts.saved === null ? undefined : new Set(opts.saved.split("\n"));
   const body = opts.rich ? dropDanglingBreaks(removeEmptyItems(doc.form.body, keep), keep) : doc.form.body;
-  const tidied = body === doc.form.body ? doc : { ...doc, form: { ...doc.form, body } };
-  return { content: serializeDraft(tidied, site, { draft: opts.draft ?? true }), body };
+  const author = site.authorField && site.authorIdField ? liveAuthorName(doc.form, site) : doc.form.author;
+  const tidied = body === doc.form.body && author === doc.form.author ? doc : { ...doc, form: { ...doc.form, body, author } };
+  return { content: serializeDraft(tidied, site, { draft: opts.draft ?? true }), body, author };
 }

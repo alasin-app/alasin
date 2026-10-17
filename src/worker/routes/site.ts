@@ -4,7 +4,7 @@
 // image settings (from the site's own config file when configured), the
 // gallery shortcode, time zone and front matter conventions, and the signed-in
 // user's author name. Read from the repository on each request, so it follows
-// changes made outside Alasin.
+// changes made outside Alasin. Names come live from GitHub profiles.
 
 import { Hono } from "hono";
 import { parse as parseToml } from "smol-toml";
@@ -79,18 +79,17 @@ site.get("/", async (c) => {
   const session = c.get("session");
   // Who can log in (the list, or the repository's writers), with full names from GitHub profiles.
   const people = await members(c.env.KV, token, config);
-  const names = await profileNames(c.env.KV, token, [...new Set([session.uid, ...people.map((u) => u.id)])]);
+  const names = await profileNames(token, [...new Set([session.uid, ...people.map((u) => u.id)])]);
   const fullName = (u: { id: number }) => names.get(u.id) ?? (u.id === session.uid ? session.name : null);
   return c.json({
     frontMatterFormat: config.site.front_matter_format,
     coverField: config.site.cover_field,
     authorField: config.site.author_field ?? null,
+    authorIdField: config.site.author_field ? config.site.author_id_field : null,
     author: fullName({ id: session.uid }) ?? session.login,
-    // Which author field values and git author names mean each user, to show them in the lists.
-    users: people.map((u) => {
-      const all = [fullName(u), u.login].filter((n): n is string => !!n);
-      return { login: u.login, id: u.id, names: [...new Set(all)] };
-    }),
+    login: session.login,
+    // Who each author_id (GitHub login) is, with their current name, for the lists and the editor.
+    users: people.map((u) => ({ login: u.login, id: u.id, name: fullName(u) })),
     categories,
     /** Whether categories can be added and deleted in the app (term pages only). */
     categoriesEditable: config.categories.storage === "term-pages",

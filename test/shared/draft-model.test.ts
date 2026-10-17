@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
-import { newDraft, parseDraft, serializeDraft } from "../../src/web/lib/draft-model";
+import { newDraft, parseDraft, prepareSave, serializeDraft } from "../../src/web/lib/draft-model";
 import type { SiteSettings } from "../../src/web/lib/site-types";
 
 const site = { coverField: "image", frontMatterFormat: "yaml", authorField: "author", author: "Octo" } as unknown as SiteSettings;
@@ -57,5 +57,40 @@ describe("draft model", () => {
     expect(doc.form.author).toBe("");
     expect(serializeDraft({ ...doc, form: { ...doc.form, title: "New" } }, plain)).toContain('author: "Octo"');
     expect(newDraft(ID, plain).form.author).toBe("");
+  });
+
+  describe("author_id", () => {
+    const withId = {
+      ...site,
+      authorIdField: "author_id",
+      login: "octocat",
+      users: [{ login: "octocat", id: 1, name: "Octo Cat" }],
+    } as unknown as SiteSettings;
+
+    it("gives a new draft the user's name and GitHub login", () => {
+      const doc = newDraft(ID, withId, new Date("2026-10-15T11:05:30Z"));
+      expect(doc.form).toMatchObject({ author: "Octo", authorId: "octocat" });
+      doc.form.title = "Hello";
+      expect(serializeDraft(doc, withId)).toContain(`author: "Octo"\nauthor_id: "octocat"\ndraftId: "${ID}"`);
+    });
+
+    it("reads author_id, and changes only its line when another author is chosen", () => {
+      const text = `---\ntitle: "Post"\ndraft: true\nauthor: "Octo Cat"\nauthor_id: "octocat"\ndraftId: "${ID}"\n---\n\nBody\n`;
+      const doc = parseDraft(text, withId)!;
+      expect(doc.form.authorId).toBe("octocat");
+      expect(serializeDraft({ ...doc, form: { ...doc.form, author: "Guest", authorId: "" } }, withId)).toBe(
+        `---\ntitle: "Post"\ndraft: true\nauthor: "Guest"\ndraftId: "${ID}"\n---\n\nBody\n`,
+      );
+    });
+
+    it("writes the user's current name to author on saving, so the file keeps the last known name", () => {
+      const text = `---\ntitle: "Post"\ndraft: true\nauthor: "Old Name"\nauthor_id: "octocat"\ndraftId: "${ID}"\n---\n\nBody\n`;
+      const saved = prepareSave(parseDraft(text, withId)!, withId, { rich: true, saved: text });
+      expect(saved.author).toBe("Octo Cat");
+      expect(saved.content).toBe(text.replace("Old Name", "Octo Cat"));
+      // Someone who is no longer a user: their name is kept.
+      const former = text.replace('author_id: "octocat"', 'author_id: "former"');
+      expect(prepareSave(parseDraft(former, withId)!, withId, { rich: true, saved: former }).content).toBe(former);
+    });
   });
 });

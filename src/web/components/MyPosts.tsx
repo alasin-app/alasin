@@ -8,7 +8,8 @@ import type { Me } from "../lib/api";
 import { t, useLanguage } from "../lib/i18n";
 import { useLastUpdated } from "../lib/last-updated";
 import { useContent } from "../lib/use-content";
-import { authorUser, ContentRow } from "./ContentList";
+import { authorUser } from "../lib/authors";
+import { ContentRow } from "./ContentList";
 
 const COUNTS = [5, 10, 20] as const;
 const KEY = "alasin.myPosts";
@@ -29,7 +30,7 @@ export function MyPosts(props: { me: Me }) {
   const time = (n: number) => (Number.isNaN(n) ? -Infinity : n);
   const posts = (content?.items ?? [])
     .filter((i) => i.kind === "post" && i.state === "published")
-    .filter((i) => !site?.authorField || (site && authorUser(i.author, site)?.id === props.me.user.id))
+    .filter((i) => !site?.authorField || (site && authorUser(i, site)?.id === props.me.user.id))
     .sort((a, b) => time(b.time) - time(a.time))
     .slice(0, count);
   const updated = useLastUpdated(posts);

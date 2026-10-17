@@ -64,17 +64,24 @@ describe("site settings", () => {
     const config = parseConfig({ ...testConfig, site: { ...testConfig.site, author_field: "author" } });
     const get = async () =>
       (await (await call("/api/site", { cookie }, { ALASIN_CONFIG_JSON: JSON.stringify(config) })).json()) as Site & {
-        users: { login: string; id: number; names: string[] }[];
+        users: { login: string; id: number; name: string | null }[];
+        authorIdField: string | null;
+        login: string;
       };
     const site = await get();
-    expect(site).toMatchObject({ author: "Octo Cat", authorField: "author" });
+    expect(site).toMatchObject({ author: "Octo Cat", authorField: "author", authorIdField: "author_id", login: ALLOWED_USER.login });
     expect(site.users).toEqual([
-      { login: ALLOWED_USER.login, id: ALLOWED_USER.id, names: ["Octo Cat", ALLOWED_USER.login] },
-      { login: "jane", id: 424242, names: ["Jane Doe", "jane"] },
+      { login: ALLOWED_USER.login, id: ALLOWED_USER.id, name: "Octo Cat" },
+      { login: "jane", id: 424242, name: "Jane Doe" },
     ]);
-    // Kept for a day: no new lookups.
+    // Never kept: a name changed on GitHub shows at once.
     gh.profiles.set(other.id, "Changed");
-    expect((await get()).users[1]!.names[0]).toBe("Jane Doe");
+    expect((await get()).users[1]!.name).toBe("Changed");
+  });
+
+  it("has no author_id field without an author field", async () => {
+    const site = (await (await call("/api/site", { cookie })).json()) as { authorField: string | null; authorIdField: string | null };
+    expect(site).toMatchObject({ authorField: null, authorIdField: null });
   });
 
   it("requires a session", async () => {

@@ -296,6 +296,21 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | G.7 | Text follows the photo | Give a gallery photo a text, then move it (‹ › or drag): the text moves with it |
 | G.8 | Someone else editing | While another person holds the edit lock, texts show but can't be tapped, *Add text* and the **+** buttons are hidden |
 
+## Authors by GitHub login
+
+With `[site] author_field` set and `author_id` (the GitHub login) in the posts.
+
+### Checklist
+
+| # | Check | How |
+| --- | --- | --- |
+| A.1 | New draft | *New post* → save: the file has `author:` with your GitHub name and `author_id:` with your login |
+| A.2 | Current names | The lists, the author filter and the editor show each user's current GitHub name with their avatar, also for posts whose `author:` has an older name; the filter has one entry per person |
+| A.3 | Name changed on GitHub | Change your GitHub profile name, reload the app: the lists and editor show the new name at once (no waiting); saving one of your posts changes only its `author:` line, to the new name |
+| A.4 | Author picker | The picker lists people with their `@login`; choosing a user writes both fields; *Someone else* writes the name only and removes `author_id` |
+| A.5 | Not a user | A post whose `author_id` isn't a user (edit one on GitHub) shows its `author:` text, without an avatar, and saving it leaves `author:` as it is |
+| A.6 | Mine on Home | *My drafts* and *My recent posts* follow `author_id`, also for posts with an older name in `author:` |
+
 ### Test runs
 
 #### 2026-10-17 — main after v1.0.0-pre.3 (pre.4 changes)
