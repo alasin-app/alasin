@@ -155,6 +155,9 @@ export function Editor(props: { me: Me; source: EditSource }) {
   /** The details form: "new" also asks for the title (a new draft opens with it). */
   const [detailsSheet, setDetailsSheet] = useState<"new" | "edit" | null>(null);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
+  /** The author picker, and a name typed there that isn't in the list. */
+  const [authorOpen, setAuthorOpen] = useState(false);
+  const [otherAuthor, setOtherAuthor] = useState("");
   const [conflict, setConflict] = useState(false);
   const [coverOpen, setCoverOpen] = useState(false);
   const [videoOpen, setVideoOpen] = useState(false);
@@ -187,6 +190,12 @@ export function Editor(props: { me: Me; source: EditSource }) {
   const publishedItems = useMemo(() => siteContent?.items.filter((i) => i.state === "published") ?? [], [siteContent]);
   const mediaUsed = useMemo(() => (siteContent ? mediaUsage(siteContent) : null), [siteContent]);
   const knownTags = useMemo(() => valueCounts(siteContent?.items ?? [], (i) => i.tags), [siteContent]);
+  // The names in the author field, most used first, then the users who haven't written yet.
+  const knownAuthors = useMemo(() => {
+    const names = valueCounts(siteContent?.items ?? [], (i) => i.author).map((a) => a.value);
+    for (const u of state?.site.users ?? []) if (!u.names.some((n) => names.includes(n))) names.push(u.names[0]!);
+    return names;
+  }, [siteContent, state?.site]);
 
   const uploading = uploads.some((u) => u.state === "processing" || u.state === "uploading");
   const [draftImages, setDraftImages] = useState<{ file: string; url: string; thumb: string }[] | null>(null);
@@ -850,11 +859,7 @@ export function Editor(props: { me: Me; source: EditSource }) {
         <div class="details-summary">
           {f.cover && <img class="cover-thumb" src={coverSrc} alt="" width={44} height={44} />}
           <div class="details-text">
-            <p class="details-line">
-              {dateText}
-              {dateText && f.slug && " · "}
-              {f.slug}
-            </p>
+            <p class="details-line">{[dateText, state.site.authorField && f.author, f.slug].filter(Boolean).join(" · ")}</p>
             {(f.categories.length > 0 || f.tags.length > 0) && (
               <p class="chips details-chips">
                 {f.categories.map((c) => (
@@ -1113,6 +1118,21 @@ export function Editor(props: { me: Me; source: EditSource }) {
                 </span>
               </button>
             </li>
+            {state.site.authorField && (
+              <li>
+                <button
+                  type="button"
+                  class="row row-button-left"
+                  onClick={() => {
+                    setOtherAuthor("");
+                    setAuthorOpen(true);
+                  }}
+                >
+                  <span class="row-label">{t("editor.author")}</span>
+                  <span class="row-value">{f.author || t("editor.none")}</span>
+                </button>
+              </li>
+            )}
             <li class="row">
               <label class="row-label" for="f-tags">
                 {t("editor.tags")}
@@ -1247,6 +1267,52 @@ export function Editor(props: { me: Me; source: EditSource }) {
           )}
           <button type="submit" class="btn btn-filled" disabled={!videoLink.trim()}>
             {t("editor.videoAdd")}
+          </button>
+        </form>
+      </Sheet>
+
+      <Sheet open={authorOpen} onClose={() => setAuthorOpen(false)} title={t("editor.author")} doneLabel={t("common.cancel")}>
+        <ul class="grouped-list">
+          {[...new Set([...(f.author ? [f.author] : []), ...knownAuthors])].map((name) => (
+            <li>
+              <button
+                type="button"
+                class="row row-button-left"
+                aria-pressed={f.author === name}
+                onClick={() => {
+                  setForm({ author: name });
+                  setAuthorOpen(false);
+                }}
+              >
+                <span class="row-label">{name}</span>
+                {f.author === name && <Check class="row-checkmark" size={20} aria-hidden="true" />}
+              </button>
+            </li>
+          ))}
+        </ul>
+        <form
+          class="video-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!otherAuthor.trim()) return;
+            setForm({ author: otherAuthor.trim() });
+            setAuthorOpen(false);
+          }}
+        >
+          <label class="secondary" for="other-author">
+            {t("editor.otherAuthor")}
+          </label>
+          <input
+            id="other-author"
+            type="text"
+            autocapitalize="words"
+            autocomplete="off"
+            enterkeyhint="done"
+            value={otherAuthor}
+            onInput={(e) => setOtherAuthor((e.target as HTMLInputElement).value)}
+          />
+          <button type="submit" class="btn btn-filled" disabled={!otherAuthor.trim()}>
+            {t("account.done")}
           </button>
         </form>
       </Sheet>
