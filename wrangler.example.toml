@@ -1,4 +1,4 @@
-# wrangler.example.toml — Cloudflare Worker configuration of one Alasin deployment
+# wrangler.example.toml - Cloudflare Worker configuration of one Alasin deployment
 #
 # Copy this file and edit the copy (or let `npm run setup` do it):
 #
@@ -98,9 +98,9 @@ namespace_id = "1003"
 simple = { limit = 30, period = 60 }
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# [env.dev] — optional second deployment (a separate Worker).
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+# [env.dev] - optional second deployment (a separate Worker).
+# -----------------------------------------------------------------------------
 #
 # Wrangler doesn't inherit bindings into environments, so the dev app lists
 # them all again, with its own DRAFTS bucket, KV namespace and rate limits.

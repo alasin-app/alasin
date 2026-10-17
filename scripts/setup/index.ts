@@ -15,7 +15,7 @@ import { parseArgs, repoRoot } from "../lib/args";
 import { displayPath, loadAlasinConfig } from "../lib/config";
 import { appendSection, setValue, type TomlValue } from "../lib/toml-edit";
 import { normalizeUrl, urlProblem } from "../lib/urls";
-import { migrateAlasinToml } from "../lib/migrate";
+import { migrateAlasinToml, plainComments } from "../lib/migrate";
 import { today } from "../../src/shared/housekeeping";
 import { checkBindings, generateWranglerConfig, REQUIRED_SECRETS } from "../lib/wrangler-config";
 import * as cf from "./cloudflare";
@@ -104,7 +104,7 @@ function envWranglerSection(name: string, base: Table): string {
   const ns = (n: number) => String(1000 * (envs + 2) + n);
   const media = ((base.r2_buckets as Table[] | undefined) ?? []).find((b) => b.binding === "MEDIA") ?? {};
   const mediaJ = media.jurisdiction ? `\njurisdiction = ${JSON.stringify(media.jurisdiction)}` : "";
-  return `# ─── [env.${name}] — added by npm run setup -- --env ${name} ───
+  return `# --- [env.${name}] - added by npm run setup -- --env ${name} ---
 [env.${name}]
 name = ${JSON.stringify(`${String(base.name ?? "alasin")}-${name}`)}
 workers_dev = true
@@ -195,6 +195,12 @@ function ensureFiles() {
     writeFileSync(args.configPath, alasinText);
     ok(`Updated ${displayPath(args.configPath)} for this Alasin version:`);
     for (const change of migration.changes) info(`  - ${change}`);
+  }
+  const plainWrangler = plainComments(wranglerText);
+  if (plainWrangler !== wranglerText) {
+    wranglerText = plainWrangler;
+    writeFileSync(args.wranglerPath, wranglerText);
+    ok(`Updated ${displayPath(args.wranglerPath)}: comments written in plain ASCII`);
   }
   if (env && !(wranglerRaw().env as Table | undefined)?.[env]) {
     wranglerText = appendSection(wranglerText, envWranglerSection(env, wranglerRaw()));

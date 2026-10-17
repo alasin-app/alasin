@@ -1,4 +1,4 @@
-# alasin.example.toml — configuration of one Alasin deployment
+# alasin.example.toml - configuration of one Alasin deployment
 #
 # Copy this file and edit the copy:
 #
@@ -23,9 +23,9 @@
 # differs in an [env.<name>] table at the end of the file; see [env.dev].
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# [app] — this Alasin deployment itself.
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+# [app] - this Alasin deployment itself.
+# -----------------------------------------------------------------------------
 [app]
 
 # The one canonical origin of this deployment (https, no path). Required.
@@ -36,9 +36,9 @@
 url = "https://alasin.example.com"
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# [site] — the Hugo site and how its content is laid out.
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+# [site] - the Hugo site and how its content is laid out.
+# -----------------------------------------------------------------------------
 [site]
 
 # Public URL of the site built from [github].branch, for "View on site". Required.
@@ -85,9 +85,9 @@ lastmod_field = "lastmod"
 front_matter_format = "yaml"
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# [github] — the site repository and the GitHub App used to log in.
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+# [github] - the site repository and the GitHub App used to log in.
+# -----------------------------------------------------------------------------
 [github]
 
 # Owner (user or organisation) of the site repository. Required.
@@ -116,9 +116,9 @@ client_id = "Iv23liAbCdEfGhIjKlMn"
 # installation_id = 12345678
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# [media] — the site's existing PUBLIC image bucket (binding MEDIA in wrangler.toml).
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+# [media] - the site's existing PUBLIC image bucket (binding MEDIA in wrangler.toml).
+# -----------------------------------------------------------------------------
 #
 # Alasin only adds new objects here. It never overwrites or deletes anything.
 [media]
@@ -130,7 +130,7 @@ public_url = "https://media.example.com/"
 
 # R2 key of published images. Placeholders: {yyyy}, {mm}, {dd} (from the post
 # date), {name} (the original file name, lower-cased and URL-safe, e.g.
-# IMG_3438.JPG → img_3438; "-2", "-3"… is added only if that name is already
+# IMG_3438.JPG -> img_3438; "-2", "-3"... is added only if that name is already
 # taken, since existing images are never overwritten), {ext} (from the image type).
 # WARNING: must match the layout already used in the bucket; Alasin never
 # restructures an existing bucket. The media library lists images by month when
@@ -138,7 +138,7 @@ public_url = "https://media.example.com/"
 path_pattern = "{yyyy}/{mm}/{dd}/{name}.{ext}"
 
 # How Markdown refers to a published image: this prefix followed by the R2 key.
-# Use the site's own convention — e.g. "/img/" if a Hugo render hook maps it to
+# Use the site's own convention - e.g. "/img/" if a Hugo render hook maps it to
 # the media domain, or the full public_url to link the bucket directly.
 # Type: string. Default: "/img/". Example: "https://media.example.com/"
 content_prefix = "/img/"
@@ -152,9 +152,9 @@ cache_control = "public, max-age=604800"
 browse_prefixes = [""]
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# [drafts] — unpublished drafts.
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+# [drafts] - unpublished drafts.
+# -----------------------------------------------------------------------------
 #
 # Drafts are committed to the site repository, in their own folder, so they
 # have version history and can be finished on another device. Images, including
@@ -167,7 +167,7 @@ browse_prefixes = [""]
 
 # Folder for drafts in the site repository. Must be outside Hugo's content
 # directory, so Hugo never builds drafts. Tip: exclude it from your site's build
-# triggers (Cloudflare Workers Builds: Settings → Build → Build watch paths), so
+# triggers (Cloudflare Workers Builds: Settings -> Build -> Build watch paths), so
 # saving a draft doesn't rebuild the site.
 # Type: string. Default: "drafts".
 dir = "drafts"
@@ -176,7 +176,7 @@ dir = "drafts"
 # draft with that ID exists in the repository (drafts folder or Bin) and
 # nothing in its folder changed for this many days. The wait protects drafts
 # that exist only on someone's device and editing sessions in progress.
-# Type: integer (1–365). Default: 7.
+# Type: integer (1-365). Default: 7.
 cleanup_after_days = 7
 
 # When the cleanup runs: a cron expression in UTC. Default: "17 3 * * *".
@@ -184,38 +184,38 @@ cleanup_cron = "17 3 * * *"
 
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# [archive] — posts and pages taken off the site but kept.
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+# [archive] - posts and pages taken off the site but kept.
+# -----------------------------------------------------------------------------
 [archive]
 
 # Folder for archived posts and pages in the site repository. Each keeps its
-# repository path under it (e.g. archive/content/posts/…) and can be
+# repository path under it (e.g. archive/content/posts/...) and can be
 # republished. Must be outside Hugo's content directory and separate from
 # [drafts] and [bin].
 # Type: string. Default: "archive".
 dir = "archive"
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# [bin] — deleted items, recoverable until the Bin is emptied.
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+# [bin] - deleted items, recoverable until the Bin is emptied.
+# -----------------------------------------------------------------------------
 #
 # Deleting a post, page or draft moves it here; nothing is removed until the
 # Bin is emptied. Images already published to MEDIA are never deleted.
 [bin]
 
 # Folder for the Bin in the site repository. Each item keeps the path it was
-# deleted from (e.g. bin/content/posts/…), so it can be recovered to exactly
+# deleted from (e.g. bin/content/posts/...), so it can be recovered to exactly
 # that place. Must be outside Hugo's content directory and separate from
 # [drafts] and [archive]. Alasin deletes files only inside this folder.
 # Type: string. Default: "bin".
 dir = "bin"
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# [images] — automatic resizing in the browser.
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+# [images] - automatic resizing in the browser.
+# -----------------------------------------------------------------------------
 #
 # Prefer keeping sizes in ONE file in the site repository that both the site's
 # tooling and Alasin read (site_config_file). The values below are fallbacks.
@@ -251,13 +251,13 @@ variant_format = "webp"
 # {width}, {ext}. Type: string. Default: "{name}-{width}.{ext}".
 variant_name = "{name}-{width}.{ext}"
 
-# Variant quality, 1–100. Type: number. Default: 80.
+# Variant quality, 1-100. Type: number. Default: 80.
 quality = 80
 
 # Longest side of the main image, in pixels. Type: integer. Default: 2560.
 max_size = 2560
 
-# JPEG quality of the main image, 1–100. Type: number. Default: 85.
+# JPEG quality of the main image, 1-100. Type: number. Default: 85.
 main_quality = 85
 
 # Keep EXIF metadata (camera, date taken) in the main image. GPS location is
@@ -266,17 +266,17 @@ main_quality = 85
 keep_exif = false
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# [editor] — editing behaviour.
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+# [editor] - editing behaviour.
+# -----------------------------------------------------------------------------
 [editor]
 
-# How often an open editor renews its lock, in seconds. Type: integer (10–600). Default: 60.
+# How often an open editor renews its lock, in seconds. Type: integer (10-600). Default: 60.
 lock_heartbeat_seconds = 60
 
 # How long a lock lasts without renewal (closed tab, lost connection), in
 # seconds. Must be longer than lock_heartbeat_seconds.
-# Type: integer (30–3600). Default: 180.
+# Type: integer (30-3600). Default: 180.
 lock_expiry_seconds = 180
 
 # Name of the site's gallery shortcode. Type: string. Default: "gallery".
@@ -288,9 +288,9 @@ gallery_shortcode = "gallery"
 gallery_paired = true
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# [categories] — where the list of categories lives.
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+# [categories] - where the list of categories lives.
+# -----------------------------------------------------------------------------
 [categories]
 
 # "term-pages":   one directory per category, <path>/<slug>/_index.md
@@ -314,9 +314,9 @@ parent_field = "parent"
 # url_pattern = "/category/{path}/"
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# [preview] — preview styling.
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+# [preview] - preview styling.
+# -----------------------------------------------------------------------------
 [preview]
 
 # Stylesheet of the site's theme, used to style the preview. Its origin is
@@ -324,13 +324,13 @@ parent_field = "parent"
 # css_url = "https://www.example.com/css/main.css"
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# [ui] — what users see.
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+# [ui] - what users see.
+# -----------------------------------------------------------------------------
 [ui]
 
 # App name on the login screen, home screen icon and title bar.
-# Type: string (1–40 characters). Default: "Alasin".
+# Type: string (1-40 characters). Default: "Alasin".
 name = "Alasin"
 
 # Accent colour of buttons and links, and the tint of the app icon.
@@ -347,9 +347,9 @@ accent_color = "#007AFF"
 default_language = "en"
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# [security] — sessions and secret rotation reminders.
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+# [security] - sessions and secret rotation reminders.
+# -----------------------------------------------------------------------------
 #
 # Rate limits are Worker bindings and live in wrangler.toml ([[ratelimits]]).
 [security]
@@ -362,7 +362,7 @@ session_idle_days = 7
 session_max_days = 30
 
 # Secrets are rotated by hand. After this many days, `npm run deploy` and the
-# app's account sheet remind you to rotate them. Type: integer (30–730). Default: 180.
+# app's account sheet remind you to rotate them. Type: integer (30-730). Default: 180.
 rotation_reminder_days = 180
 
 # When the secrets were last rotated, as "YYYY-MM-DD" (in quotes). Written by
@@ -371,9 +371,9 @@ rotation_reminder_days = 180
 # github_secrets_rotated = "2026-01-15"
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# [env.<name>] — a second deployment, e.g. a dev app next to production.
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+# [env.<name>] - a second deployment, e.g. a dev app next to production.
+# -----------------------------------------------------------------------------
 #
 # Used with `npm run setup -- --env dev` and `npm run deploy -- --env dev`.
 # Only list what differs; tables are merged into the values above, and arrays
