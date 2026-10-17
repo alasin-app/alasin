@@ -32,7 +32,7 @@ const NEW_DRAFTS_INTRO = [
 const DIR_COMMENT = [
   "# Folder for drafts in the site repository. Must be outside Hugo's content",
   "# directory, so Hugo never builds drafts. Tip: exclude it from your site's build",
-  "# triggers (Cloudflare Workers Builds: Settings → Build → Build watch paths), so",
+  "# triggers (Cloudflare Workers Builds: Settings -> Build -> Build watch paths), so",
   "# saving a draft doesn't rebuild the site.",
   '# Type: string. Default: "drafts".',
 ];
@@ -138,7 +138,7 @@ function addMissingSections(lines: string[], example: string, changes: string[])
     if (present.some((b) => b.name === block.name)) continue;
     // The block's lines, up to the next banner (a section, or the [env.<name>]
     // introduction after the last one), without trailing blank lines.
-    const banner = ex.findIndex((l, i) => i > block.header && /^# ─{10,}/.test(l));
+    const banner = ex.findIndex((l, i) => i > block.header && BANNER.test(l));
     const end = Math.min(k + 1 < exBlocks.length ? exBlocks[k + 1]!.start : ex.length, banner === -1 ? ex.length : banner);
     const text = ex.slice(block.start, end);
     while (text.length && text.at(-1)!.trim() === "") text.pop();
@@ -149,7 +149,7 @@ function addMissingSections(lines: string[], example: string, changes: string[])
       lines.splice(later.start, 0, ...text, "", "");
     } else {
       // The [env.*] part: its introduction banner, or else the first [env.*] table.
-      const intro = lines.findIndex((l, i) => /^# ─{10,}/.test(l) && /^# \[env\./.test(lines[i + 1] ?? ""));
+      const intro = lines.findIndex((l, i) => BANNER.test(l) && /^# \[env\./.test(lines[i + 1] ?? ""));
       const table = lines.findIndex((l) => /^\s*\[\[?\s*env\./.test(l));
       const env = intro !== -1 ? intro : table !== -1 ? commentBlockAbove(lines, table, -1) : -1;
       let at = env === -1 ? lines.length : env;
@@ -180,12 +180,29 @@ function removeUsers(lines: string[], changes: string[]): void {
     while (a > 0 && lines[a - 1]!.trim() === "") a--;
     let b = start;
     while (b < lines.length && lines[b]!.trim() === "") b++;
-    const want = /^# ─/.test(lines[b] ?? "") ? 2 : 1;
+    const want = BANNER.test(lines[b] ?? "") ? 2 : 1;
     if (b - a > want) lines.splice(a + want, b - a - want);
     const table = m[1]!.trim().replace(/\.allow$/, "");
     if (!changes.some((c) => c.startsWith(`[${table}]`))) changes.push(`[${table}]: removed (who can log in now follows write access to the site repository)`);
     h = start - 1;
   }
+}
+
+/** A section's banner line: dashes (box-drawing lines in files from before 1.0.0-pre.5). */
+const BANNER = /^# [-─]{10,}/;
+
+/** Characters in comments that editors without UTF-8 show as garbage, and their plain ASCII forms. */
+const PLAIN: Record<string, string> = { "─": "-", "—": "-", "–": "-", "→": "->", "←": "<-", "…": "...", "‘": "'", "’": "'", "“": '"', "”": '"', "×": "x", "≥": ">=", "≤": "<=" };
+
+/**
+ * Comment lines with those characters written in plain ASCII. Only comments
+ * change: values (e.g. an app name with ä) are kept as they are.
+ */
+export function plainComments(text: string): string {
+  return text
+    .split("\n")
+    .map((l) => (/^\s*#/.test(l) ? l.replace(/[─—–→←…‘’“”×≥≤]/g, (c) => PLAIN[c]!) : l))
+    .join("\n");
 }
 
 /** A `key = value` line, or `# key = value` for an option that's commented out. */
@@ -214,7 +231,7 @@ function exampleOptions(ex: string[]): Map<string, ExampleOption[]> {
     if (!m) continue;
     // The comment lines right above it (not another commented-out option).
     let start = i;
-    while (start > 0 && ex[start - 1]!.startsWith("#") && !KEY_LINE.test(ex[start - 1]!) && !/^# ─/.test(ex[start - 1]!)) start--;
+    while (start > 0 && ex[start - 1]!.startsWith("#") && !KEY_LINE.test(ex[start - 1]!) && !BANNER.test(ex[start - 1]!)) start--;
     out.get(section)!.push({ key: m[2]!, lines: ex.slice(start, i + 1), commented: !!m[1] });
   }
   return out;
@@ -286,6 +303,11 @@ export function migrateAlasinToml(text: string, example?: string): Migration {
   migrateDrafts(lines, changes);
   migrateTimezone(lines, changes);
   removeUsers(lines, changes);
+  const plain = plainComments(lines.join("\n")).split("\n");
+  if (plain.some((l, i) => l !== lines[i])) {
+    lines.splice(0, lines.length, ...plain);
+    changes.push("comments: dashes, arrows and quotes written in plain ASCII (no change in behaviour)");
+  }
   if (example) {
     addMissingSections(lines, example, changes);
     addMissingOptions(lines, example, changes, meaningOf);
