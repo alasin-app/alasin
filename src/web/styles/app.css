@@ -1170,6 +1170,11 @@ img {
   justify-content: flex-start;
 }
 
+.row-checkmark {
+  flex: none;
+  color: var(--accent);
+}
+
 .chip-tag {
   background: var(--fill);
   color: var(--secondary-label);
