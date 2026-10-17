@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { buildIndex, changedPaths, imagesIn, INDEX_VERSION, mediaUsage, plainText, reusable, settingsKey } from "../../src/web/lib/content-index";
+import { buildIndex, changedPaths, imagesIn, INDEX_VERSION, itemFromFile, mediaUsage, plainText, reusable, settingsKey } from "../../src/web/lib/content-index";
 
 const folders = { posts: "content/posts", pages: "content/pages", drafts: "drafts", archive: "archive", bin: "bin" };
-const site = { folders, authorField: "author", media: { publicUrl: "https://media.example.com/", contentPrefix: "/img/", browse: [""], byMonth: true } };
+const site = { folders, authorField: "author", authorIdField: "author_id", media: { publicUrl: "https://media.example.com/", contentPrefix: "/img/", browse: [""], byMonth: true } };
 
 const file = (name: string, text: string, oid = "a".repeat(40)) => ({ name, type: "blob", object: { oid, text, isBinary: false, isTruncated: false } });
 const dir = (name: string, entries: unknown[]) => ({ name, type: "tree", object: { entries } });
@@ -119,5 +119,13 @@ describe("stored index", () => {
     expect(reusable({ ...index, settings: undefined }, site)).toBe(false);
     expect(reusable({ ...index, version: INDEX_VERSION - 1 }, site)).toBe(false);
     expect(reusable(undefined, site)).toBe(false);
+  });
+});
+
+describe("authors in the index", () => {
+  it("keeps author_id next to the author text", () => {
+    const text = `---\ntitle: "T"\nauthor: "Jane"\nauthor_id: "jane-doe"\n---\n\nBody\n`;
+    expect(itemFromFile("content/posts/t.md", "s", text, site)).toMatchObject({ author: "Jane", authorId: "jane-doe" });
+    expect(itemFromFile("content/posts/t.md", "s", text.replace('author_id: "jane-doe"\n', ""), site)).not.toHaveProperty("authorId");
   });
 });

@@ -15,6 +15,7 @@ import { fromLocalInput, slugify, toLocalInput } from "../../shared/frontmatter"
 import { youtubeId, youtubeShortcode } from "../../shared/youtube";
 import { categoryTree } from "../../shared/categories";
 import { api, ApiError, type Me, NetworkError } from "../lib/api";
+import { authorKey, authorName } from "../lib/authors";
 import { type DraftDoc, type DraftForm, newDraft, parseDraft, prepareSave, serializeDraft } from "../lib/draft-model";
 import { getLanguage, t, useLanguage } from "../lib/i18n";
 import { deleteLocalDraft, getLocalDraft, putLocalDraft } from "../lib/local-drafts";
@@ -190,11 +191,22 @@ export function Editor(props: { me: Me; source: EditSource }) {
   const publishedItems = useMemo(() => siteContent?.items.filter((i) => i.state === "published") ?? [], [siteContent]);
   const mediaUsed = useMemo(() => (siteContent ? mediaUsage(siteContent) : null), [siteContent]);
   const knownTags = useMemo(() => valueCounts(siteContent?.items ?? [], (i) => i.tags), [siteContent]);
-  // The names in the author field, most used first, then the users who haven't written yet.
+  // Everyone who has written (one entry per person, most posts first), then the users who haven't yet.
   const knownAuthors = useMemo(() => {
-    const names = valueCounts(siteContent?.items ?? [], (i) => i.author).map((a) => a.value);
-    for (const u of state?.site.users ?? []) if (!u.names.some((n) => names.includes(n))) names.push(u.names[0]!);
-    return names;
+    const site = state?.site;
+    if (!site) return [];
+    const items = siteContent?.items ?? [];
+    const out = new Map<string, { name: string; authorId: string }>();
+    for (const { value: key } of valueCounts(items, (i) => authorKey(i, site))) {
+      const i = items.find((x) => authorKey(x, site) === key)!;
+      const user = site.users.find((u) => `@${u.login.toLowerCase()}` === key);
+      out.set(key, { name: authorName(i, site), authorId: user?.login ?? i.authorId ?? "" });
+    }
+    for (const u of site.users) {
+      const key = `@${u.login.toLowerCase()}`;
+      if (!out.has(key)) out.set(key, { name: u.name || u.login, authorId: u.login });
+    }
+    return [...out].map(([key, a]) => ({ key, ...a }));
   }, [siteContent, state?.site]);
 
   const uploading = uploads.some((u) => u.state === "processing" || u.state === "uploading");
@@ -405,7 +417,7 @@ export function Editor(props: { me: Me; source: EditSource }) {
     }
     setStatus("saving");
     setMessage(null);
-    const { content: toSave, body } = prepareSave(state.doc, state.site, { rich: mode === "rich", saved: state.savedContent, draft: isDraft });
+    const { content: toSave, body, author } = prepareSave(state.doc, state.site, { rich: mode === "rich", saved: state.savedContent, draft: isDraft });
     let sha = state.sha;
     try {
       if (opts.overwrite) {
@@ -451,7 +463,7 @@ export function Editor(props: { me: Me; source: EditSource }) {
         return {
           ...s,
           // Show the tidied (or saved) text, unless more was typed while saving.
-          doc: reread ?? (typedMeanwhile ? s.doc : { ...s.doc, form: { ...s.doc.form, body } }),
+          doc: reread ?? { ...s.doc, form: { ...s.doc.form, ...(typedMeanwhile ? {} : { body }), author } },
           sha,
           savedContent: saved,
           notice: null,
@@ -859,7 +871,7 @@ export function Editor(props: { me: Me; source: EditSource }) {
         <div class="details-summary">
           {f.cover && <img class="cover-thumb" src={coverSrc} alt="" width={44} height={44} />}
           <div class="details-text">
-            <p class="details-line">{[dateText, state.site.authorField && f.author, f.slug].filter(Boolean).join(" · ")}</p>
+            <p class="details-line">{[dateText, state.site.authorField && authorName(f, state.site), f.slug].filter(Boolean).join(" · ")}</p>
             {(f.categories.length > 0 || f.tags.length > 0) && (
               <p class="chips details-chips">
                 {f.categories.map((c) => (
@@ -1129,7 +1141,7 @@ export function Editor(props: { me: Me; source: EditSource }) {
                   }}
                 >
                   <span class="row-label">{t("editor.author")}</span>
-                  <span class="row-value">{f.author || t("editor.none")}</span>
+                  <span class="row-value">{authorName(f, state.site) || t("editor.none")}</span>
                 </button>
               </li>
             )}
@@ -1273,29 +1285,38 @@ export function Editor(props: { me: Me; source: EditSource }) {
 
       <Sheet open={authorOpen} onClose={() => setAuthorOpen(false)} title={t("editor.author")} doneLabel={t("common.cancel")}>
         <ul class="grouped-list">
-          {[...new Set([...(f.author ? [f.author] : []), ...knownAuthors])].map((name) => (
-            <li>
-              <button
-                type="button"
-                class="row row-button-left"
-                aria-pressed={f.author === name}
-                onClick={() => {
-                  setForm({ author: name });
-                  setAuthorOpen(false);
-                }}
-              >
-                <span class="row-label">{name}</span>
-                {f.author === name && <Check class="row-checkmark" size={20} aria-hidden="true" />}
-              </button>
-            </li>
-          ))}
+          {(() => {
+            // The current author first if nobody else has written as them.
+            const current = authorKey(f, state.site);
+            const list = current && !knownAuthors.some((a) => a.key === current) ? [{ key: current, name: authorName(f, state.site), authorId: f.authorId }, ...knownAuthors] : knownAuthors;
+            return list.map((a) => (
+              <li>
+                <button
+                  type="button"
+                  class="row row-button-left"
+                  aria-pressed={a.key === current}
+                  onClick={() => {
+                    setForm({ author: a.name, authorId: a.authorId });
+                    setAuthorOpen(false);
+                  }}
+                >
+                  <span class="row-label">
+                    {a.name}
+                    {a.authorId && <span class="row-subtitle">@{a.authorId}</span>}
+                  </span>
+                  {a.key === current && <Check class="row-checkmark" size={20} aria-hidden="true" />}
+                </button>
+              </li>
+            ));
+          })()}
         </ul>
         <form
           class="video-form"
           onSubmit={(e) => {
             e.preventDefault();
             if (!otherAuthor.trim()) return;
-            setForm({ author: otherAuthor.trim() });
+            // Someone without a GitHub login here: the name only.
+            setForm({ author: otherAuthor.trim(), authorId: "" });
             setAuthorOpen(false);
           }}
         >
