@@ -5,9 +5,9 @@
 // only where the user types. In "rich" mode, live formatting shows it like a
 // rich-text editor: headings, bold, italic and links formatted with their
 // markers hidden (except where the cursor is), bullets for list markers, a bar
-// for quotes, ↵ for line breaks, images inline, galleries as cards that can be
-// reordered, and other shortcodes as protected blocks. "markdown" mode shows
-// the plain text.
+// for quotes, ↵ for line breaks, images inline with their text, galleries as
+// cards that can be reordered and added to, and other shortcodes as protected
+// blocks. "markdown" mode shows the plain text.
 
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { defineLanguageFacet, Language, LanguageSupport, syntaxTree } from "@codemirror/language";
@@ -25,7 +25,19 @@ import {
 } from "@codemirror/view";
 import { isQuoted, keepLineBreaks, quoteLines, richEnter, unquoteLines } from "../lib/line-breaks";
 import { pastedVideo, shortcodeYoutubeId, youtubeThumbnail } from "../../shared/youtube";
-import { findGalleries, findShortcodes, galleryText, type GalleryBlock, type GalleryImage, standaloneImage } from "./blocks";
+import {
+  addImagesAt,
+  findGalleries,
+  findShortcodes,
+  galleryText,
+  type GalleryBlock,
+  type GalleryImage,
+  type ImageTarget,
+  setImageTitleAt,
+  standaloneImage,
+} from "./blocks";
+
+export type { ImageTarget } from "./blocks";
 
 export interface EditorOptions {
   /** Start read-only. */
@@ -36,11 +48,60 @@ export interface EditorOptions {
   /** Nonce for CodeMirror's runtime <style> elements (Content-Security-Policy). */
   styleNonce?: string;
   gallery: string;
+  /** The gallery wraps Markdown images, so a single image can become one. */
+  galleryPaired: boolean;
   placeholder: string;
-  labels: { moveEarlier: string; moveLater: string; remove: string; removeImage: string; gallery: string; shortcode: string };
+  labels: {
+    moveEarlier: string;
+    moveLater: string;
+    remove: string;
+    removeImage: string;
+    gallery: string;
+    shortcode: string;
+    addPhotos: string;
+    makeGallery: string;
+    imageText: string;
+    addText: string;
+  };
   /** Image address to show for a Markdown image URL (e.g. /img/… → media domain). */
   resolveImage: (url: string) => string;
   onChange: (text: string) => void;
+  /** The + of a gallery or a single image: photos to add there (see MarkdownEditor.addImages). */
+  onAddPhotos?: (target: ImageTarget) => void;
+  /** A picture's text tapped: the text to edit (see MarkdownEditor.setImageTitle). */
+  onImageText?: (target: ImageTarget, title: string) => void;
+}
+
+/** What the widgets need besides the options: targets that follow the text as it changes. */
+interface WidgetOptions extends EditorOptions {
+  track: (pos: number, index: number | null) => ImageTarget;
+}
+
+/** An image still uploading has no picture to show yet. */
+const pending = (url: string) => url.startsWith("alasin-upload:");
+
+function widgetButton(text: string, label: string, onClick: () => void, cls?: string): HTMLButtonElement {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.textContent = text;
+  b.setAttribute("aria-label", label);
+  b.title = label;
+  if (cls) b.className = cls;
+  b.addEventListener("mousedown", (e) => e.preventDefault());
+  b.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onClick();
+  });
+  return b;
+}
+
+/** The picture's text under it; tapping it edits the text. */
+function captionButton(title: string, opts: WidgetOptions, target: () => ImageTarget): HTMLButtonElement {
+  const { labels } = opts;
+  const b = widgetButton(title || labels.addText, title ? `${labels.imageText}: ${title}` : labels.addText, () => opts.onImageText?.(target(), title), "cm-md-caption");
+  if (!title) b.classList.add("cm-md-caption-empty");
+  return b;
 }
 
 /**
@@ -194,15 +255,17 @@ class ImageWidget extends WidgetType {
   constructor(
     readonly src: string,
     readonly alt: string,
+    readonly title: string,
     readonly pos: number,
-    readonly removeLabel: string,
+    readonly opts: WidgetOptions,
   ) {
     super();
   }
   override eq(o: ImageWidget) {
-    return o.src === this.src && o.alt === this.alt && o.pos === this.pos;
+    return o.src === this.src && o.alt === this.alt && o.title === this.title && o.pos === this.pos;
   }
   toDOM(view: EditorView) {
+    const { labels } = this.opts;
     const wrap = document.createElement("div");
     wrap.className = "cm-md-image";
     const img = document.createElement("img");
@@ -210,27 +273,27 @@ class ImageWidget extends WidgetType {
     img.alt = this.alt;
     img.loading = "lazy";
     wrap.appendChild(img);
-    const remove = document.createElement("button");
-    remove.type = "button";
-    remove.className = "cm-md-image-remove";
-    remove.textContent = "✕";
-    remove.title = this.removeLabel;
-    remove.setAttribute("aria-label", this.removeLabel);
-    remove.addEventListener("mousedown", (e) => e.preventDefault());
-    remove.addEventListener("click", (e) => {
-      e.preventDefault();
-      // Remove the image's line together with one blank line around it.
-      const line = view.state.doc.lineAt(Math.min(this.pos, view.state.doc.length));
-      let from = line.from;
-      let to = Math.min(line.to + 1, view.state.doc.length);
-      if (view.state.doc.sliceString(to, to + 1) === "\n") to += 1;
-      else if (from > 0 && view.state.doc.sliceString(from - 2, from) === "\n\n") from -= 1;
-      view.dispatch({ changes: { from, to }, userEvent: "delete" });
-    });
-    wrap.appendChild(remove);
+    const tools = document.createElement("div");
+    tools.className = "cm-md-image-tools";
+    if (this.opts.galleryPaired && this.opts.onAddPhotos) {
+      tools.appendChild(widgetButton("+", labels.makeGallery, () => this.opts.onAddPhotos!(this.opts.track(this.pos, null))));
+    }
+    tools.appendChild(
+      widgetButton("✕", labels.removeImage, () => {
+        // Remove the image's line together with one blank line around it.
+        const line = view.state.doc.lineAt(Math.min(this.pos, view.state.doc.length));
+        let from = line.from;
+        let to = Math.min(line.to + 1, view.state.doc.length);
+        if (view.state.doc.sliceString(to, to + 1) === "\n") to += 1;
+        else if (from > 0 && view.state.doc.sliceString(from - 2, from) === "\n\n") from -= 1;
+        view.dispatch({ changes: { from, to }, userEvent: "delete" });
+      }),
+    );
+    wrap.appendChild(tools);
+    wrap.appendChild(captionButton(this.title, this.opts, () => this.opts.track(this.pos, null)));
     // Clicking the image puts the cursor right after it.
     wrap.addEventListener("mousedown", (e) => {
-      if (e.target === remove) return;
+      if ((e.target as HTMLElement).closest("button")) return;
       e.preventDefault();
       const line = view.state.doc.lineAt(Math.min(this.pos, view.state.doc.length));
       view.dispatch({ selection: EditorSelection.cursor(line.to) });
@@ -280,7 +343,7 @@ class ShortcodeWidget extends WidgetType {
 class GalleryWidget extends WidgetType {
   constructor(
     readonly block: GalleryBlock,
-    readonly opts: EditorOptions,
+    readonly opts: WidgetOptions,
   ) {
     super();
   }
@@ -313,26 +376,20 @@ class GalleryWidget extends WidgetType {
     images.forEach((image, i) => {
       const fig = document.createElement("figure");
       fig.draggable = true;
+      const thumb = document.createElement("div");
+      thumb.className = "cm-md-gallery-thumb";
       const img = document.createElement("img");
-      img.src = this.opts.resolveImage(image.url);
+      if (pending(image.url)) thumb.classList.add("cm-md-pending");
+      else img.src = this.opts.resolveImage(image.url);
       img.alt = image.alt;
       img.loading = "lazy";
       img.draggable = false;
-      fig.appendChild(img);
+      thumb.appendChild(img);
       const bar = document.createElement("div");
       bar.className = "cm-md-gallery-bar";
       const button = (text: string, label: string, onClick: () => void, disabled = false) => {
-        const b = document.createElement("button");
-        b.type = "button";
-        b.textContent = text;
-        b.setAttribute("aria-label", label);
-        b.title = label;
+        const b = widgetButton(text, label, onClick);
         b.disabled = disabled;
-        b.addEventListener("mousedown", (e) => e.preventDefault());
-        b.addEventListener("click", (e) => {
-          e.preventDefault();
-          onClick();
-        });
         bar.appendChild(b);
       };
       const move = (to: number) => {
@@ -344,7 +401,9 @@ class GalleryWidget extends WidgetType {
       button("‹", labels.moveEarlier, () => move(i - 1), i === 0);
       button("›", labels.moveLater, () => move(i + 1), i === images.length - 1);
       button("✕", labels.remove, () => this.replace(view, images.filter((_, k) => k !== i)));
-      fig.appendChild(bar);
+      thumb.appendChild(bar);
+      fig.appendChild(thumb);
+      if (!pending(image.url)) fig.appendChild(captionButton(image.title, this.opts, () => this.opts.track(this.block.from, i)));
       fig.addEventListener("dragstart", (e) => {
         dragged = i;
         e.dataTransfer?.setData("text/plain", String(i));
@@ -363,6 +422,9 @@ class GalleryWidget extends WidgetType {
       });
       grid.appendChild(fig);
     });
+    if (this.opts.onAddPhotos) {
+      grid.appendChild(widgetButton("+", labels.addPhotos, () => this.opts.onAddPhotos!(this.opts.track(this.block.from, null)), "cm-md-gallery-add"));
+    }
     wrap.appendChild(grid);
     return wrap;
   }
@@ -374,7 +436,7 @@ class GalleryWidget extends WidgetType {
 // ---------- Live formatting ----------
 
 /** Block widgets (galleries, shortcodes, standalone images) come from a state field. */
-function blockDecorations(opts: EditorOptions) {
+function blockDecorations(opts: WidgetOptions) {
   const build = (state: EditorState): DecorationSet => {
     const text = state.doc.toString();
     const ranges: { from: number; to: number; deco: Decoration }[] = [];
@@ -391,11 +453,11 @@ function blockDecorations(opts: EditorOptions) {
       const line = state.doc.line(n);
       if (inGallery(line.from)) continue;
       const img = standaloneImage(line.text);
-      if (img && !img.url.startsWith("alasin-upload:")) {
+      if (img && !pending(img.url)) {
         ranges.push({
           from: line.from,
           to: line.to,
-          deco: Decoration.replace({ widget: new ImageWidget(opts.resolveImage(img.url), img.alt, line.from, opts.labels.removeImage), block: true }),
+          deco: Decoration.replace({ widget: new ImageWidget(opts.resolveImage(img.url), img.alt, img.title, line.from, opts), block: true }),
         });
       }
     }
@@ -534,7 +596,7 @@ function inlineDecorations() {
   );
 }
 
-function richExtensions(opts: EditorOptions): Extension {
+function richExtensions(opts: WidgetOptions): Extension {
   return [inlineDecorations(), blockDecorations(opts), EditorView.editorAttributes.of({ class: "cm-rich" })];
 }
 
@@ -554,6 +616,10 @@ export interface MarkdownEditor {
   quote: () => void;
   /** Inserts a block of text at the cursor, separated by blank lines. */
   insertBlock: (text: string) => void;
+  /** Adds images (their Markdown) to the gallery or single image a + was tapped on. False if it's no longer there. */
+  addImages: (target: ImageTarget, images: string[]) => boolean;
+  /** Sets the text of the picture that was tapped (nothing if it's no longer there). */
+  setImageTitle: (target: ImageTarget, title: string) => void;
   destroy: () => void;
 }
 
@@ -563,6 +629,22 @@ export function createMarkdownEditor(opts: EditorOptions): MarkdownEditor {
   const readOnlyExtensions = (ro: boolean): Extension =>
     ro ? [EditorState.readOnly.of(true), EditorView.editable.of(false), EditorView.editorAttributes.of({ class: "cm-readonly" })] : [];
   let rich = opts.rich;
+  // Targets handed out to the app follow the text while a sheet is open
+  // (uploads finishing elsewhere in the text move them). Only the latest few matter.
+  let targets: ImageTarget[] = [];
+  const wopts: WidgetOptions = {
+    ...opts,
+    track: (pos, index) => {
+      const target = { pos, index };
+      targets = [...targets.slice(-3), target];
+      return target;
+    },
+  };
+  const apply = (change: { from: number; to: number; insert: string } | null) => {
+    if (!change) return false;
+    view.dispatch({ changes: change, userEvent: "input" });
+    return true;
+  };
   const view = new EditorView({
     parent: opts.parent,
     state: EditorState.create({
@@ -594,9 +676,10 @@ export function createMarkdownEditor(opts: EditorOptions): MarkdownEditor {
         }),
         placeholderExt(opts.placeholder),
         EditorView.contentAttributes.of({ autocapitalize: "sentences", autocorrect: "on", spellcheck: "true", "aria-multiline": "true" }),
-        live.of(opts.rich ? richExtensions(opts) : []),
+        live.of(opts.rich ? richExtensions(wopts) : []),
         lock.of(readOnlyExtensions(opts.readOnly ?? false)),
         EditorView.updateListener.of((u) => {
+          if (u.docChanged) for (const target of targets) target.pos = u.changes.mapPos(target.pos);
           if (u.docChanged && !u.transactions.some((t) => t.annotation(External))) opts.onChange(u.state.doc.toString());
         }),
       ],
@@ -616,7 +699,7 @@ export function createMarkdownEditor(opts: EditorOptions): MarkdownEditor {
     },
     setRich(next) {
       rich = next;
-      view.dispatch({ effects: live.reconfigure(next ? richExtensions(opts) : []) });
+      view.dispatch({ effects: live.reconfigure(next ? richExtensions(wopts) : []) });
     },
     setReadOnly(ro) {
       view.dispatch({ effects: lock.reconfigure(readOnlyExtensions(ro)) });
@@ -626,6 +709,8 @@ export function createMarkdownEditor(opts: EditorOptions): MarkdownEditor {
     heading: (level) => setHeading(view, level),
     quote: () => toggleQuote(view),
     insertBlock: (text) => insertBlock(view, text),
+    addImages: (target, images) => apply(addImagesAt(view.state.doc.toString(), opts.gallery, target.pos, images)),
+    setImageTitle: (target, title) => void apply(setImageTitleAt(view.state.doc.toString(), opts.gallery, target, title)),
     destroy() {
       view.destroy();
     },
