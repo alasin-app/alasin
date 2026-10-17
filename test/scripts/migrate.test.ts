@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
 import { parse } from "smol-toml";
 import { describe, expect, it } from "vitest";
-import { migrateAlasinToml } from "../../scripts/lib/migrate";
+import { migrateAlasinToml, plainComments } from "../../scripts/lib/migrate";
+import wranglerExample from "../../wrangler.example.toml?raw";
 import { parseConfig, selectEnvironment } from "../../src/shared/config/schema";
 import currentExample from "../../alasin.example.toml?raw";
 
@@ -32,8 +33,8 @@ repo_dir = "unpublished"
 `;
 
 function withOldDrafts(extra = ""): string {
-  const start = currentExample.indexOf("# ─────────────────────────────────────────────────────────────────────────────\n# [drafts]");
-  const end = currentExample.indexOf("# ─────────────────────────────────────────────────────────────────────────────\n# [images]");
+  const start = currentExample.indexOf("# -----------------------------------------------------------------------------\n# [drafts]");
+  const end = currentExample.indexOf("# -----------------------------------------------------------------------------\n# [images]");
   return currentExample.slice(0, start) + V090_DRAFTS + "\n\n" + currentExample.slice(end) + extra;
 }
 
@@ -42,14 +43,16 @@ describe("alasin.toml migration", () => {
     const old = withOldDrafts();
     expect(() => parseConfig(selectEnvironment(parse(old) as Record<string, unknown>, undefined))).toThrow(/storage/);
     const { text, changes } = migrateAlasinToml(old);
-    expect(changes).toHaveLength(2);
+    // The two [drafts] changes, and its old-style comments in plain ASCII.
+    expect(changes).toHaveLength(3);
     const config = parseConfig(selectEnvironment(parse(text) as Record<string, unknown>, undefined));
     expect(config.drafts.dir).toBe("unpublished");
     expect(text).not.toMatch(/storage = "r2"|repo_dir|Both options are server-side/);
     expect(text).toContain("# Folder for drafts in the site repository.");
     expect(text).toContain("# Drafts are committed to the site repository");
-    // Everything outside [drafts] is untouched.
-    expect(text.slice(0, text.indexOf("# [drafts]"))).toBe(old.slice(0, old.indexOf("# [drafts]")));
+    // Everything outside [drafts] is untouched, apart from plain ASCII comments.
+    const plainOld = plainComments(old);
+    expect(text.slice(0, text.indexOf("# [drafts]"))).toBe(plainOld.slice(0, plainOld.indexOf("# [drafts]")));
   });
 
   it("migrates environment tables too", () => {
@@ -85,8 +88,8 @@ describe("adding sections new in alasin.example.toml", () => {
   function without(names: string[]): string {
     let text = currentExample;
     for (const name of names) {
-      const start = text.indexOf(`# ─────────────────────────────────────────────────────────────────────────────\n# [${name}]`);
-      const next = text.indexOf("# ─────────────────────────────────────────────────────────────────────────────\n# [", start + 10);
+      const start = text.indexOf(`# -----------------------------------------------------------------------------\n# [${name}]`);
+      const next = text.indexOf("# -----------------------------------------------------------------------------\n# [", start + 10);
       text = text.slice(0, start) + text.slice(next);
     }
     return text;
@@ -110,8 +113,8 @@ describe("adding sections new in alasin.example.toml", () => {
     expect(text.indexOf("\n[security]\n")).toBeLessThan(text.indexOf("\n[env.dev.app]\n"));
     expect(text.endsWith('[env.dev.app]\nurl = "https://dev.example.com"\n')).toBe(true);
     // Also before the commented [env.<name>] introduction.
-    expect(text.indexOf("\n[security]\n")).toBeLessThan(text.indexOf("# [env.<name>] —"));
-    expect(text.match(/# \[env\.<name>\] —/g)).toHaveLength(1);
+    expect(text.indexOf("\n[security]\n")).toBeLessThan(text.indexOf("# [env.<name>] -"));
+    expect(text.match(/# \[env\.<name>\] -/g)).toHaveLength(1);
   });
 
   it("never changes what the configuration means: every optional section's example values are its defaults", () => {
@@ -130,7 +133,7 @@ describe("adding sections new in alasin.example.toml", () => {
 
 describe("removed [users]", () => {
   it("removes [users] and [env.*.users] with their comments, keeping everything else", () => {
-    const head = currentExample.slice(0, currentExample.indexOf("# ─────────────────────────────────────────────────────────────────────────────\n# [media]"));
+    const head = currentExample.slice(0, currentExample.indexOf("# -----------------------------------------------------------------------------\n# [media]"));
     const tail = currentExample.slice(head.length);
     const usersBlock = `# ─────────────────────────────────────────────────────────────────────────────
 # [users] — who may log in.
@@ -187,5 +190,25 @@ describe("adding options new in alasin.example.toml to existing sections", () =>
   it("keeps the values a file sets, and adds nothing that would change them", () => {
     const old = currentExample.replace("cleanup_after_days = 7", "cleanup_after_days = 1");
     expect(migrateAlasinToml(old, currentExample)).toEqual({ text: old, changes: [] });
+  });
+});
+
+describe("plain ASCII comments", () => {
+  const ascii = /^[\t\n\r\x20-\x7E]*$/;
+
+  it("the example files are plain ASCII, so any editor shows them right", () => {
+    expect(currentExample).toMatch(ascii);
+    expect(wranglerExample).toMatch(ascii);
+  });
+
+  it("rewrites dashes, arrows and quotes in comments of older files, leaving values alone", () => {
+    const text = `# ${"─".repeat(10)}\n# [ui] — what users see → “here”…\n[ui]\nname = "Älä – ok"\n`;
+    expect(plainComments(text)).toBe(`# ${"-".repeat(10)}\n# [ui] - what users see -> "here"...\n[ui]\nname = "Älä – ok"\n`);
+  });
+
+  it("migrates an older file to plain ASCII comments and reports it", () => {
+    const m = migrateAlasinToml(withOldDrafts(), currentExample);
+    expect(m.text.split("\n").filter((l) => l.startsWith("#")).join("\n")).toMatch(ascii);
+    expect(m.changes.some((c) => c.startsWith("comments:"))).toBe(true);
   });
 });
