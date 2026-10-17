@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.1.0](https://github.com/oh2th/alasin/compare/v1.0.0...v1.1.0) (2026-10-17)
+
+
+### Features
+
+* **setup:** year folders and dated post addresses for new sites ([#201](https://github.com/oh2th/alasin/issues/201)) ([bbbbf51](https://github.com/oh2th/alasin/commit/bbbbf51399b2cdf37b261c3c0527b98a263c7b83)), closes [#199](https://github.com/oh2th/alasin/issues/199)
+
+
+### Bug Fixes
+
+* **home:** keep other people's saved drafts out of Only on this device ([#200](https://github.com/oh2th/alasin/issues/200)) ([c698633](https://github.com/oh2th/alasin/commit/c69863354525bff4dc986eaafe54ac3cfc59e11e)), closes [#198](https://github.com/oh2th/alasin/issues/198)
+
 ## [1.0.0](https://github.com/oh2th/alasin/compare/v1.0.0-pre.6...v1.0.0) (2026-10-17)
 
 
