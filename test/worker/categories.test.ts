@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MIT
+import { env } from "cloudflare:test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { parseConfig } from "../../src/shared/config/schema";
 import { ALLOWED_USER, testConfig } from "../fixtures";
@@ -72,5 +73,17 @@ describe("categories", () => {
   it("is only for term pages", async () => {
     const dataFile = { ALASIN_CONFIG_JSON: JSON.stringify(parseConfig({ ...testConfig, categories: { storage: "data-file", path: "data/categories.yaml" } })) };
     expect(await (await post("", { title: "X" }, dataFile)).json()).toMatchObject({ error: "unsupported" });
+  });
+
+  it("refuses to delete while someone else is editing a post it changes", async () => {
+    const p = "content/posts/2026/a.md";
+    const text = '---\ntitle: "A"\ncategories: ["holidays"]\n---\n\nText.\n';
+    await gh.repo.write(p, text);
+    await env.LOCKS.get(env.LOCKS.idFromName("locks")).acquire(`file:${p}`, "tab-other0", { uid: 9, login: "jane", name: "Jane Doe" }, 180_000);
+    const res = await post("/delete", { slug: "holidays", changes: [{ path: p, sha: await shaOf(p), content: text.replace('["holidays"]', "[]") }] });
+    expect(res.status).toBe(409);
+    expect(((await res.json()) as { message: string }).message).toContain("“A”");
+    expect(gh.repo.files().has("content/categories/holidays/_index.md")).toBe(true);
+    await env.LOCKS.get(env.LOCKS.idFromName("locks")).release(`file:${p}`, "tab-other0");
   });
 });

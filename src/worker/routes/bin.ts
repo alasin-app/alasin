@@ -16,6 +16,7 @@ import type { AlasinConfig } from "../../shared/config/schema";
 import { draftInfo } from "../../shared/publish";
 import { isUlid } from "../../shared/ulid";
 import type { AppEnv } from "../app";
+import { lockedBy } from "../lib/lock-check";
 import { logError } from "../lib/log";
 import { ConflictError, Repo } from "../lib/repo";
 import { getUserToken } from "../session";
@@ -68,10 +69,8 @@ bin.post("/delete", async (c) => {
   const what = kindOf(config, path);
   if (!what) return c.json({ error: "invalid", message: "This can't be deleted." }, 400);
 
-  const holder = await c.env.LOCKS.get(c.env.LOCKS.idFromName("locks")).holderOf(what.lockKey);
-  if (holder && holder.lockId !== lockId) {
-    return c.json({ error: "locked", message: `${holder.name ?? holder.login} is editing this. Try again when they're done.`, holder }, 409);
-  }
+  const locked = await lockedBy(c, what.lockKey, lockId);
+  if (locked) return locked;
   if (await limited(c)) return c.json({ error: "rate_limited", message: "Too many saves. Wait a moment and try again." }, 429);
 
   const repo = await repoFor(c);

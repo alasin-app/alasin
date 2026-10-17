@@ -23,6 +23,7 @@ import type { AppEnv } from "../app";
 import { ConflictError, Repo } from "../lib/repo";
 import { copyDraftImages, MissingImageError } from "../lib/publish-media";
 import { contentPath, draftImageRefs, draftInfo, maintainedFields, parseDay, publishedText } from "../../shared/publish";
+import { lockedBy } from "../lib/lock-check";
 import { logError } from "../lib/log";
 import { getUserToken } from "../session";
 
@@ -54,6 +55,8 @@ const saveBody = z.strictObject({
   sha: z.string().regex(/^[0-9a-f]{40}$/).nullable(),
   /** Title for the commit message. */
   title: z.string().max(200).optional(),
+  /** The edit lock this editor holds: saving is refused while someone else holds it. */
+  lockId: z.string().max(64).optional(),
 });
 
 export const drafts = new Hono<AppEnv>();
@@ -91,7 +94,7 @@ drafts.put("/:type/:id", async (c) => {
       ? c.json({ error: "too_large", message: "The draft is too large." }, 413)
       : c.json({ error: "invalid", message: "Invalid draft." }, 400);
   }
-  const { content, sha, title } = parsed.data;
+  const { content, sha, title, lockId } = parsed.data;
   if (new TextEncoder().encode(content).length > MAX_DRAFT_BYTES) {
     return c.json({ error: "too_large", message: "The draft is too large." }, 413);
   }
@@ -99,6 +102,9 @@ drafts.put("/:type/:id", async (c) => {
   if (!/^(---|\+\+\+)\r?\n/.test(content) || !content.includes(p.id)) {
     return c.json({ error: "invalid", message: "The draft's front matter is missing its draft ID." }, 400);
   }
+
+  const locked = await lockedBy(c, `draft:${p.id}`, lockId);
+  if (locked) return locked;
 
   const { success } = await c.env.RL_COMMIT.limit({ key: `commit:${c.get("session").uid}` });
   if (!success) return c.json({ error: "rate_limited", message: "Too many saves. Wait a moment and try again." }, 429);
@@ -124,6 +130,8 @@ const publishBody = z.strictObject({
   sha: z.string().regex(/^[0-9a-f]{40}$/),
   /** The post's day in the author's time zone (YYYY-MM-DD), for folders named by date. */
   day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  /** The edit lock this editor holds: publishing is refused while someone else holds it. */
+  lockId: z.string().max(64).optional(),
 });
 
 /**
@@ -142,6 +150,8 @@ drafts.post("/:type/:id/publish", async (c) => {
   if (!p) return c.json({ error: "not_found", message: "No such draft." }, 404);
   const parsed = publishBody.safeParse(await c.req.json().catch(() => undefined));
   if (!parsed.success) return c.json({ error: "invalid", message: "Invalid request." }, 400);
+  const locked = await lockedBy(c, `draft:${p.id}`, parsed.data.lockId);
+  if (locked) return locked;
 
   const { success } = await c.env.RL_COMMIT.limit({ key: `commit:${c.get("session").uid}` });
   if (!success) return c.json({ error: "rate_limited", message: "Too many saves. Wait a moment and try again." }, 429);
