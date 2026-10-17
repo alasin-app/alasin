@@ -56,7 +56,7 @@ export function runBody(checks: Check[], prs: MergedPr[], extra: string[] = []):
     "- **Deployment:** (dev or production)",
     "- **Devices:** (e.g. iOS Safari, macOS Chrome)",
     "",
-    'Tick a check when it passes. For a failure, open a bug issue and link it after the check ("❌ #123"); tick the check once the fix has been checked.',
+    'Tick a check when it passes. For a failure, add a sub-issue (*Sub-issues* → *Create sub-issue*) whose title starts with the check ID, e.g. "4.19: lock banner missing on iOS": the check gets "❌ #123", and "✅ #123 fixed, re-test" once the bug is closed. Tick the check when the re-test passes.',
     "",
     "## Changes",
     "",
@@ -70,3 +70,60 @@ export function runBody(checks: Check[], prs: MergedPr[], extra: string[] = []):
   if (!chosen.length) out.push("", "No manual checks: nothing to test by hand.");
   return { body: `${out.join("\n")}\n`, ids: chosen.map((c) => c.id), unknown };
 }
+
+/** A sub-issue of a test run: a bug found while testing. */
+export interface SubIssue {
+  number: number;
+  title: string;
+  state: "open" | "closed";
+  /** Why it was closed: "completed" (fixed) or "not_planned". */
+  stateReason?: string | null;
+}
+
+/** The check a bug is about: the ID its title starts with (after an optional "[Bug]: "), e.g. "4.19: …". */
+export function checkIdOf(title: string): string | null {
+  const m = /^\s*(?:\[[^\]]*\]:?\s*)?(\d+|[A-Z])\.(\d+)\b/.exec(title);
+  return m ? `${m[1]}.${m[2]}` : null;
+}
+
+const UNLINKED = "## Bugs without a check";
+
+/**
+ * The run's text with each bug marked on its check: "❌ #123" while it's
+ * open, "✅ #123 fixed, re-test" once closed as completed, nothing if closed
+ * as not planned. Checkboxes are left as they are. Bugs whose title names no
+ * check of the run are listed at the end. Marking again changes nothing.
+ */
+export function markRun(body: string, bugs: SubIssue[]): string {
+  const lines = body.replace(/\r\n/g, "\n").split("\n");
+  // The section is rebuilt below.
+  const section = lines.indexOf(UNLINKED);
+  if (section !== -1) {
+    let end = section + 1;
+    while (end < lines.length && !lines[end]!.startsWith("## ")) end++;
+    lines.splice(section, end - section);
+    while (lines.length && lines.at(-1)!.trim() === "") lines.pop();
+  }
+  const unlinked: string[] = [];
+  for (const bug of bugs) {
+    // Earlier marks of this bug (also as typed by hand, in quotes) go first.
+    const old = new RegExp(`\\s*"?(?:❌|✅) #${bug.number}(?!\\d)(?: fixed, re-test)?"?`, "g");
+    for (let i = 0; i < lines.length; i++) if (CHECK_LINE_ANY.test(lines[i]!)) lines[i] = lines[i]!.replace(old, "");
+    const fixed = bug.state === "closed";
+    if (fixed && bug.stateReason === "not_planned") continue;
+    const id = checkIdOf(bug.title);
+    const at = id ? lines.findIndex((l) => l.startsWith(`- [ ] **${id} `) || l.startsWith(`- [x] **${id} `) || l.startsWith(`- [X] **${id} `)) : -1;
+    if (at === -1) {
+      unlinked.push(`- ${fixed ? "✅" : "❌"} #${bug.number}${fixed ? " fixed, re-test" : ""}`);
+      continue;
+    }
+    lines[at] = `${lines[at]!.trimEnd()} ${fixed ? `✅ #${bug.number} fixed, re-test` : `❌ #${bug.number}`}`;
+  }
+  if (unlinked.length) lines.push("", UNLINKED, "", ...unlinked);
+  return lines.join("\n").trimEnd();
+}
+
+/** A run's text as compared: GitHub keeps what the browser sent, often with \r\n line ends. */
+export const normalizedRun = (body: string) => body.replace(/\r\n/g, "\n").trimEnd();
+
+const CHECK_LINE_ANY = /^- \[[ xX]\] \*\*/;
