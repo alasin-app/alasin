@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Every draft: those in the drafts folder, posts and pages marked `draft: true`
-// in the content folders (e.g. left over from an older blog), and what only
-// this device has: drafts never saved to GitHub, drafts saved earlier but
+// Every draft: those in the drafts folder, and what only this device has: drafts never saved to GitHub, drafts saved earlier but
 // published or deleted elsewhere since, and unsaved changes to published
 // posts. Newest first.
 

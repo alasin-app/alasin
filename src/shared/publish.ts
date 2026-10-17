@@ -99,10 +99,10 @@ export function maintainedFields(config: AlasinConfig, type: "post" | "page", in
 }
 
 /**
- * The published file: draft image URLs replaced by their public ones,
- * `draft: false`, no `draftId`, plus `extra` fields. Everything else in the
- * front matter stays exactly as written.
+ * The published file: draft image URLs replaced by their public ones, no
+ * `draft` key (Hugo's default is published) and no `draftId`, plus `extra`
+ * fields. Everything else in the front matter stays exactly as written.
  */
 export function publishedText(text: string, urls: Map<string, string>, extra: [string, unknown][] = []): string {
-  return withFields(replaceImageUrls(text, urls), [["draft", false], ["draftId", undefined], ...extra]);
+  return withFields(replaceImageUrls(text, urls), [["draft", undefined], ["draftId", undefined], ...extra]);
 }

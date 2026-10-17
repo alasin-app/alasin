@@ -7,16 +7,15 @@
 //
 //   POST /api/lifecycle {action, path, sha, lockId?, day?}
 //
-//   unpublish  published → draft    <posts|pages>/… → <drafts>/<type>s/<new draftId>.md, draft: true
+//   unpublish  published → draft    <posts|pages>/… → <drafts>/<type>s/<new draftId>.md (the folder makes it a draft)
 //   archive    published → archived <path> → <archive>/<path>
 //   republish  archived → published <archive>/<path> → <path>, lastmod set
-//   publish    a post or page marked draft: true in the content folders → draft: false
-//              in place, lastmod and url set (drafts saved by Alasin use POST /api/drafts/…/publish)
+//
+// Drafts are published with POST /api/drafts/…/publish.
 
 import { type Context, Hono } from "hono";
 import { z } from "zod";
 import type { AlasinConfig } from "../../shared/config/schema";
-import { splitFrontMatter, parseFields } from "../../shared/frontmatter";
 import { draftInfo, maintainedFields, parseDay, withFields } from "../../shared/publish";
 import { ulid } from "../../shared/ulid";
 import type { AppEnv } from "../app";
@@ -24,7 +23,7 @@ import { ConflictError, Repo } from "../lib/repo";
 import { getUserToken } from "../session";
 import { draftPath } from "./drafts";
 
-const ACTIONS = ["unpublish", "archive", "republish", "publish"] as const;
+const ACTIONS = ["unpublish", "archive", "republish"] as const;
 type Action = (typeof ACTIONS)[number];
 
 const body = z.strictObject({
@@ -57,7 +56,7 @@ function archivedOrigin(config: AlasinConfig, path: string): string | null {
   return publishedKind(config, origin) ? origin : null;
 }
 
-const MESSAGES: Record<Action, string> = { unpublish: "Unpublish", archive: "Archive", republish: "Republish", publish: "Publish" };
+const MESSAGES: Record<Action, string> = { unpublish: "Unpublish", archive: "Archive", republish: "Republish" };
 
 export const lifecycle = new Hono<AppEnv>();
 
@@ -89,8 +88,6 @@ lifecycle.post("/", async (c: Context<AppEnv>) => {
   const info = draftInfo(file.content);
   if (!info) return c.json({ error: "invalid", message: "The front matter can't be read." }, 422);
   const day = parseDay(parsed.data.day) ?? parseDay(info.date) ?? parseDay(new Date().toISOString())!;
-  const split = splitFrontMatter(file.content)!;
-  const isDraft = parseFields(split.format, split.raw).get("draft") === true;
 
   let target: string;
   let content: string;
@@ -99,7 +96,7 @@ lifecycle.post("/", async (c: Context<AppEnv>) => {
     case "unpublish":
       draftId = ulid();
       target = draftPath(config, kind, draftId);
-      content = withFields(file.content, [["draft", true], ["draftId", draftId]]);
+      content = withFields(file.content, [["draft", undefined], ["draftId", draftId]]);
       break;
     case "archive":
       target = `${config.archive.dir}/${path}`;
@@ -108,12 +105,6 @@ lifecycle.post("/", async (c: Context<AppEnv>) => {
     case "republish":
       target = origin;
       content = withFields(file.content, maintainedFields(config, kind, info, day, { url: false }));
-      break;
-    case "publish":
-      if (!isDraft) return c.json({ error: "invalid", message: "This is already published." }, 400);
-      if (!info.title) return c.json({ error: "no_title", message: "Give it a title before publishing." }, 422);
-      target = path;
-      content = withFields(file.content, [["draft", false], ...maintainedFields(config, kind, info, day, { url: true })]);
       break;
   }
 

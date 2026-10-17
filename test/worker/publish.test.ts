@@ -60,7 +60,7 @@ describe("publish", () => {
     const published = files.get("content/posts/summer-trip.md")!;
     expect(published).toContain("![](/img/2026/10/15/photo.jpg)");
     expect(published).toContain('image: "/img/2026/10/15/photo.jpg"');
-    expect(published).toContain("draft: false");
+    expect(published).not.toContain("draft:");
     expect(published).not.toContain("draftId");
     expect(published).not.toContain("/api/draft-media/");
     expect(gh.repo.commits.size).toBe(commitsBefore + 1);
@@ -160,7 +160,7 @@ describe("publish", () => {
     const res = await call(`/api/drafts/post/${id}/publish`, mutating(cookie, { sha, day: "2026-10-15" }), { ALASIN_CONFIG_JSON: JSON.stringify(config) });
     expect(res.status).toBe(200);
     expect(gh.repo.files().get("content/posts/summer-trip.md")).toMatch(
-      /^---\ntitle: "Summer trip"\ndate: 2026-10-15T09:30:00Z\nslug: "summer-trip"\ndraft: false\nlastmod: \S+Z\nurl: "\/2026\/10\/15\/summer-trip\/"\n---\n/,
+      /^---\ntitle: "Summer trip"\ndate: 2026-10-15T09:30:00Z\nslug: "summer-trip"\nlastmod: \S+Z\nurl: "\/2026\/10\/15\/summer-trip\/"\n---\n/,
     );
   });
 

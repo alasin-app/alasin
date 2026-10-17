@@ -65,7 +65,6 @@ export function newDraft(id: string, site: SiteSettings, now = new Date()): Draf
   fields.set("title", "");
   fields.set("date", form.date);
   fields.set("slug", "");
-  fields.set("draft", true);
   if (site.authorField && author) fields.set(site.authorField, author);
   if (site.authorIdField && authorId) fields.set(site.authorIdField, authorId);
   fields.set("draftId", id);
@@ -97,13 +96,13 @@ const FORM_KEYS: Exclude<keyof DraftForm, "body">[] = ["title", "date", "slug", 
 const keyOf = (field: Exclude<keyof DraftForm, "body">, site: SiteSettings) =>
   field === "cover" ? site.coverField : field === "author" ? site.authorField : field === "authorId" ? site.authorIdField : field;
 
-/** The front matter values of the form. `draft` is set only for drafts (published files keep theirs). */
+/** The front matter values of the form. A draft's `draft` key is removed: the drafts folder makes it a draft (published files keep theirs). */
 function formChanges(f: DraftForm, site: SiteSettings, draft?: boolean): [string, unknown][] {
   return [
     ["title", f.title.trim()],
     ["date", f.date],
     ["slug", f.slug],
-    ...(draft ? ([["draft", true]] as [string, unknown][]) : []),
+    ...(draft ? ([["draft", undefined]] as [string, unknown][]) : []),
     ["categories", f.categories.length ? f.categories : undefined],
     ["tags", f.tags.length ? f.tags : undefined],
     [site.coverField, f.cover ? f.cover : undefined],

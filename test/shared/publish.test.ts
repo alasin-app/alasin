@@ -31,14 +31,14 @@ describe("publish helpers", () => {
     expect(draftInfo(`---\ntitle: ""\n---\n`)!.slug).toBe("");
   });
 
-  it("writes the published file with public URLs, draft false and no draftId", () => {
+  it("writes the published file with public URLs, without the draft key and draftId", () => {
     const text = `---\ntitle: "T"\ndraft: true\nweight: 3\ndraftId: "${ID}"\n---\n\n![](/api/draft-media/${ID}/a.jpg)\n`;
     const out = publishedText(text, new Map([[`${ID}/a.jpg`, "/img/2026/10/05/a.jpg"]]));
-    expect(out).toBe(`---\ntitle: "T"\ndraft: false\nweight: 3\n---\n\n![](/img/2026/10/05/a.jpg)\n`);
+    expect(out).toBe(`---\ntitle: "T"\nweight: 3\n---\n\n![](/img/2026/10/05/a.jpg)\n`);
   });
 
   it("keeps TOML front matter TOML", () => {
     const text = `+++\ntitle = "T"\ndraft = true\ndraftId = "${ID}"\n+++\n\nBody\n`;
-    expect(publishedText(text, new Map())).toBe(`+++\ntitle = "T"\ndraft = false\n+++\n\nBody\n`);
+    expect(publishedText(text, new Map())).toBe(`+++\ntitle = "T"\n+++\n\nBody\n`);
   });
 });
