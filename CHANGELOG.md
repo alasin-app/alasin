@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.0.0](https://github.com/oh2th/alasin/compare/v1.0.0-pre.6...v1.0.0) (2026-10-17)
+
+
+### ⚠ BREAKING CHANGES
+
+* **authors:** a site that left author_field unset now gets author and author_id in new and saved posts, and Home's My drafts and My recent posts show only the signed-in user's posts instead of everyone's. Run npm run setup (it turns author_field on and reports it), and set author_field/author_id_field if the site's theme uses other field names.
+
+### Features
+
+* **authors:** author settings always on ([#185](https://github.com/oh2th/alasin/issues/185)) ([839d44c](https://github.com/oh2th/alasin/commit/839d44c7167a0647aec800abcdaea31fde9bd710)), closes [#169](https://github.com/oh2th/alasin/issues/169) [#166](https://github.com/oh2th/alasin/issues/166)
+
+
+### Miscellaneous
+
+* release 1.0.0 ([#186](https://github.com/oh2th/alasin/issues/186)) ([69dd1ae](https://github.com/oh2th/alasin/commit/69dd1ae21b4c874f5a90545f1702e1a8cdb6c8d1))
+
 ## [1.0.0-pre.6](https://github.com/oh2th/alasin/compare/v1.0.0-pre.5...v1.0.0-pre.6) (2026-10-17)
 
 
