@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/oh2th/alasin/compare/v1.1.0...v1.2.0) (2026-10-17)
+
+
+### Features
+
+* **users:** invite and remove people on GitHub from Users ([#208](https://github.com/oh2th/alasin/issues/208)) ([e74522e](https://github.com/oh2th/alasin/commit/e74522e52a2cf4c9a8abcb9a7808def9081b54a3)), closes [#207](https://github.com/oh2th/alasin/issues/207)
+
 ## [1.1.0](https://github.com/oh2th/alasin/compare/v1.0.0...v1.1.0) (2026-10-17)
 
 
