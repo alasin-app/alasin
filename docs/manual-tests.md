@@ -74,6 +74,7 @@ Devices: Chrome on macOS (desktop), Chrome on iOS (WebKit, like all iOS browsers
 | 2.18 | YouTube video | Video button → paste a YouTube link (watch, youtu.be, shorts) or a bare video ID → `{{< youtube ID >}}` at the cursor, previewed with its thumbnail; anything else is refused with a message. A YouTube link pasted on a line of its own becomes the shortcode too |
 | 2.19 | Category tree | Categories with a parent show indented under it in the picker (siblings by title); choosing a child doesn't add its parent; the chip shows the full path on hover |
 | 2.20 | Fast typing | Type as fast as you can in the text, also in the middle of a paragraph: every character lands in order, before the cursor |
+| 2.21 | Details sheet | *New post* opens a sheet asking the title, date, address, categories, tags and cover; categories and cover open on top of it, and Escape closes only the topmost. Afterwards the details show in short under the title, and *Edit* opens the sheet again (without the title). The title has a pencil after it and isn't hidden under the bar on a tablet or desktop |
 
 ### Test runs
 
