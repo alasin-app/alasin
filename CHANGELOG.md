@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.0-pre.5](https://github.com/oh2th/alasin/compare/v1.0.0-pre.4...v1.0.0-pre.5) (2026-10-17)
+
+
+### Features
+
+* **authors:** identify authors by GitHub login in author_id ([#176](https://github.com/oh2th/alasin/issues/176)) ([92ef6c1](https://github.com/oh2th/alasin/commit/92ef6c111f29eeb3d0b4417298da8bd6de2d8ede)), closes [#167](https://github.com/oh2th/alasin/issues/167) [#165](https://github.com/oh2th/alasin/issues/165)
+
 ## [1.0.0-pre.4](https://github.com/oh2th/alasin/compare/v1.0.0-pre.3...v1.0.0-pre.4) (2026-10-17)
 
 
