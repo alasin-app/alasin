@@ -24,9 +24,8 @@ export function DraftsList(props: { me: Me; mine?: boolean }) {
   useLanguage();
   const { site, content, error, refresh } = useContent(props.me);
   const [local, setLocal] = useState<LocalDraft[]>([]);
-  const drafts = (content?.items ?? []).filter(
-    (i) => i.state === "draft" && (!props.mine || (site && authorUser(i, site)?.id === props.me.user.id)),
-  );
+  const allDrafts = (content?.items ?? []).filter((i) => i.state === "draft");
+  const drafts = allDrafts.filter((i) => !props.mine || (site && authorUser(i, site)?.id === props.me.user.id));
   // The home screen shows only who wrote each draft, not who changed it last.
   const updated = useLastUpdated(props.mine ? [] : drafts);
   const locks = useLocks();
@@ -36,7 +35,8 @@ export function DraftsList(props: { me: Me; mine?: boolean }) {
 
   if (!site || !content) return <ContentPlaceholder error={error} refresh={refresh} />;
 
-  const saved = new Set(drafts.map((d) => d.draftId).filter(Boolean));
+  // Saved on GitHub by anyone: a copy of someone else's draft kept on this device isn't "only here".
+  const saved = new Set(allDrafts.map((d) => d.draftId).filter(Boolean));
   // Drafts on this device only, or with changes not saved yet.
   const unsaved = new Set(local.filter((l) => l.content !== l.savedContent).map((l) => l.id));
   const onlyHere = local
