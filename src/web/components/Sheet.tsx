@@ -8,14 +8,20 @@ import { useEffect, useRef } from "preact/hooks";
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
+/** Open modals, topmost last: a sheet opened from another sheet handles the keys alone. */
+const openModals: object[] = [];
+
 export function useModalFocus(open: boolean, onClose: () => void) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
     const previous = document.activeElement as HTMLElement | null;
     const el = ref.current;
+    const token = {};
+    openModals.push(token);
     el?.querySelector<HTMLElement>(FOCUSABLE)?.focus();
     const onKey = (e: KeyboardEvent) => {
+      if (openModals[openModals.length - 1] !== token) return;
       if (e.key === "Escape") {
         e.preventDefault();
         onClose();
@@ -37,7 +43,8 @@ export function useModalFocus(open: boolean, onClose: () => void) {
     document.body.classList.add("modal-open");
     return () => {
       document.removeEventListener("keydown", onKey);
-      document.body.classList.remove("modal-open");
+      openModals.splice(openModals.indexOf(token), 1);
+      if (!openModals.length) document.body.classList.remove("modal-open");
       previous?.focus?.();
     };
   }, [open]);
