@@ -1481,7 +1481,7 @@ img {
   max-height: 360px;
   border-radius: 8px;
 }
-.cm-md-image-remove,
+.cm-md-image-tools button,
 .cm-md-gallery-bar button {
   min-width: 32px;
   min-height: 32px;
@@ -1492,10 +1492,36 @@ img {
   font-size: 14px;
   cursor: pointer;
 }
-.cm-md-image-remove {
+.cm-md-image-tools {
   position: absolute;
   top: 6px;
   right: 6px;
+  display: flex;
+  gap: 6px;
+}
+
+/* A picture's text under it: tap to edit. */
+.cm-md-caption {
+  display: block;
+  width: 100%;
+  margin: 4px 0 0;
+  padding: 2px 4px;
+  border: 0;
+  background: none;
+  color: var(--secondary-label);
+  font: inherit;
+  font-size: var(--footnote);
+  text-align: left;
+  cursor: text;
+}
+.cm-md-gallery .cm-md-caption {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cm-md-caption-empty {
+  color: var(--accent);
+  opacity: 0.7;
 }
 
 .cm-md-gallery {
@@ -1517,13 +1543,29 @@ img {
   gap: 6px;
 }
 .cm-md-gallery figure {
-  position: relative;
+  min-width: 0;
   margin: 0;
+  cursor: grab;
+}
+.cm-md-gallery-thumb {
+  position: relative;
   aspect-ratio: 1;
   overflow: hidden;
   border-radius: 8px;
   background: var(--fill);
-  cursor: grab;
+}
+/* Still uploading: no picture yet. */
+.cm-md-pending img {
+  visibility: hidden;
+}
+.cm-md-gallery-add {
+  aspect-ratio: 1;
+  border: 2px dashed var(--separator);
+  border-radius: 8px;
+  background: none;
+  color: var(--accent);
+  font-size: 28px;
+  cursor: pointer;
 }
 .cm-md-gallery figure.dragging {
   opacity: 0.4;
@@ -1824,9 +1866,17 @@ img {
   font-variant-numeric: tabular-nums;
 }
 
-/* Someone else is editing: the text can't be changed, so its buttons go. */
+/* Someone else is editing: the text can't be changed, so its buttons go (pictures' texts stay, not editable). */
 .cm-readonly .cm-md-gallery button,
 .cm-readonly .cm-md-image button {
+  display: none;
+}
+.cm-readonly .cm-md-gallery .cm-md-caption,
+.cm-readonly .cm-md-image .cm-md-caption {
+  display: block;
+  pointer-events: none;
+}
+.cm-readonly .cm-md-caption.cm-md-caption-empty {
   display: none;
 }
 

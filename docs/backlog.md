@@ -10,19 +10,7 @@ Format: a short title, then a few lines on what and why. Add a date if it helps.
 - **Theme-styled preview** — preview a post with the site's own styles, and link to the hosting's preview build where there is one.
 - **Swipe actions and pull to refresh** — the iOS gestures in the lists (e.g. swipe to delete, pull to read the list again).
 - **Offline editing** — keep working without a connection beyond the local autosave, and save when back online.
-- **Gallery editing** — turn a single image into a gallery, and add photos to an existing gallery block, from the media library or from the device.
 - **Manage media** — For orphaned images: select several and *Delete*, moving them to a Bin first rather than deleting at once. This changes the earlier rule that Alasin never deletes from the public media bucket.
-- **Gallery and single image text** — show and edit each picture's title text, both for single images and for images inside a gallery block. The text is the Markdown image title, and is optional per image:
-
-  ```markdown
-  {{< gallery >}}
-
-  ![](/img/2026/01/01/photo-1.jpg "Title text for the first photo")
-
-  ![](/img/2026/01/01/photo-2.jpg)
-
-  {{< /gallery >}}
-  ```
 
 ## Decided against
 

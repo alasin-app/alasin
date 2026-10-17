@@ -2,7 +2,7 @@
 // Preact wrapper around the CodeMirror Markdown editor.
 
 import { useEffect, useRef } from "preact/hooks";
-import type { MarkdownEditor } from "../editor/markdown-editor";
+import type { ImageTarget, MarkdownEditor } from "../editor/markdown-editor";
 import { t } from "../lib/i18n";
 import { settings } from "../lib/settings";
 import type { SiteSettings } from "../lib/site";
@@ -16,14 +16,22 @@ export function BodyEditor(props: {
   onChange: (text: string) => void;
   onReady: (editor: MarkdownEditor | null) => void;
   onFiles: (files: File[]) => void;
+  /** The + of a gallery or a single image. */
+  onAddPhotos: (target: ImageTarget) => void;
+  /** A picture's text tapped. */
+  onImageText: (target: ImageTarget, title: string) => void;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const editor = useRef<MarkdownEditor | null>(null);
   // Latest callbacks, so the editor (created once) always calls the current ones.
   const onChange = useRef(props.onChange);
   const onFiles = useRef(props.onFiles);
+  const onAddPhotos = useRef(props.onAddPhotos);
+  const onImageText = useRef(props.onImageText);
   onChange.current = props.onChange;
   onFiles.current = props.onFiles;
+  onAddPhotos.current = props.onAddPhotos;
+  onImageText.current = props.onImageText;
   /** Value and mode at the time CodeMirror finishes loading. */
   /**
    * Texts the editor itself reported while the app's state catches up. Typing
@@ -52,6 +60,7 @@ export function BodyEditor(props: {
       readOnly: latest.current.readOnly,
       styleNonce: settings.styleNonce || undefined,
       gallery: gallery.shortcode,
+      galleryPaired: gallery.paired,
       placeholder: t("editor.bodyPlaceholder"),
       labels: {
         moveEarlier: t("editor.moveEarlier"),
@@ -60,6 +69,10 @@ export function BodyEditor(props: {
         removeImage: t("editor.removeImage"),
         gallery: t("editor.gallery"),
         shortcode: t("editor.shortcode"),
+        addPhotos: t("photos.add"),
+        makeGallery: t("editor.makeGallery"),
+        imageText: t("editor.imageText"),
+        addText: t("editor.addImageText"),
       },
       resolveImage,
       onChange: (text) => {
@@ -68,6 +81,8 @@ export function BodyEditor(props: {
         if (emitted.current.length > 50) emitted.current.splice(0, emitted.current.length - 50);
         onChange.current(text);
       },
+      onAddPhotos: (target) => onAddPhotos.current(target),
+      onImageText: (target, title) => onImageText.current(target, title),
     });
     editor.current = ed;
     props.onReady(ed);

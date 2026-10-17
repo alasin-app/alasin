@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
-import { findGalleries, findShortcodes, galleryText, standaloneImage } from "../../src/web/editor/blocks";
+import { addImagesAt, findGalleries, findShortcodes, galleryText, setImageTitleAt, standaloneImage, withImageTitle } from "../../src/web/editor/blocks";
 
 const TEXT = `Intro
 
@@ -56,8 +56,56 @@ describe("editor blocks", () => {
   });
 
   it("recognises a line that is just an image", () => {
-    expect(standaloneImage("![](/img/c.jpg)")).toEqual({ alt: "", url: "/img/c.jpg" });
-    expect(standaloneImage('  ![A](/x.png "t")  ')).toEqual({ alt: "A", url: "/x.png" });
+    expect(standaloneImage("![](/img/c.jpg)")).toEqual({ alt: "", url: "/img/c.jpg", title: "" });
+    expect(standaloneImage('  ![A](/x.png "t")  ')).toEqual({ alt: "A", url: "/x.png", title: "t" });
     expect(standaloneImage("Text ![](/img/c.jpg)")).toBeNull();
+  });
+
+  it("reads picture texts, escaped quotes included", () => {
+    const [g] = findGalleries(TEXT, "gallery");
+    expect(g!.images.map((i) => i.title)).toEqual(["", "Caption b"]);
+    expect(standaloneImage('![](/x.jpg "Say \\"hi\\"")')!.title).toBe('Say "hi"');
+  });
+
+  it("sets, changes and removes a picture's text, keeping alt and address as written", () => {
+    expect(withImageTitle("![](/x.jpg)", "Harbour at dusk")).toBe('![](/x.jpg "Harbour at dusk")');
+    expect(withImageTitle('![Alt](/x.jpg "Old")', "New")).toBe('![Alt](/x.jpg "New")');
+    expect(withImageTitle('![Alt](/x.jpg "Old")', "  ")).toBe("![Alt](/x.jpg)");
+    expect(withImageTitle("![](/x.jpg)", 'A "quote"\nand a line')).toBe('![](/x.jpg "A \\"quote\\" and a line")');
+    expect(standaloneImage(withImageTitle("![](/x.jpg)", 'a\\b "c"'))!.title).toBe('a\\b "c"');
+  });
+
+  it("sets the text of one image in a gallery, changing only its line", () => {
+    const [g] = findGalleries(TEXT, "gallery");
+    const change = setImageTitleAt(TEXT, "gallery", { pos: g!.from, index: 0 }, "First");
+    const next = TEXT.slice(0, change!.from) + change!.insert + TEXT.slice(change!.to);
+    expect(next).toBe(TEXT.replace("![](/img/a.jpg)", '![](/img/a.jpg "First")'));
+    expect(setImageTitleAt(TEXT, "gallery", { pos: g!.from, index: 5 }, "x")).toBeNull();
+  });
+
+  it("sets the text of a single image, but not of one inside a gallery by its line", () => {
+    const pos = TEXT.indexOf("![](/img/c.jpg)");
+    const change = setImageTitleAt(TEXT, "gallery", { pos, index: null }, "C");
+    expect(change).toEqual({ from: pos, to: pos + "![](/img/c.jpg)".length, insert: '![](/img/c.jpg "C")' });
+    expect(setImageTitleAt(TEXT, "gallery", { pos: TEXT.indexOf("![](/img/a.jpg)"), index: null }, "x")).toBeNull();
+    expect(setImageTitleAt(TEXT, "gallery", { pos: pos + 1, index: null }, "x")).toBeNull();
+  });
+
+  it("adds photos to the end of a gallery", () => {
+    const [g] = findGalleries(TEXT, "gallery");
+    const change = addImagesAt(TEXT, "gallery", g!.from, ["![](/img/d.jpg)"]);
+    expect(change!.insert).toBe('{{< gallery caption="Day one" >}}\n\n![](/img/a.jpg)\n\n![Alt b](/img/b.jpg "Caption b")\n\n![](/img/d.jpg)\n\n{{< /gallery >}}');
+    expect([change!.from, change!.to]).toEqual([g!.from, g!.to]);
+  });
+
+  it("makes a single image a gallery when photos are added to it", () => {
+    const pos = TEXT.indexOf("![](/img/c.jpg)");
+    const change = addImagesAt(TEXT, "gallery", pos, ["![](/img/d.jpg)", "![](/img/e.jpg)"]);
+    expect(change).toEqual({
+      from: pos,
+      to: pos + "![](/img/c.jpg)".length,
+      insert: "{{< gallery >}}\n\n![](/img/c.jpg)\n\n![](/img/d.jpg)\n\n![](/img/e.jpg)\n\n{{< /gallery >}}",
+    });
+    expect(addImagesAt("Just text", "gallery", 0, ["![](/img/d.jpg)"])).toBeNull();
   });
 });
