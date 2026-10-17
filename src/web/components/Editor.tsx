@@ -5,7 +5,7 @@
 // the site repository. If the file changed on GitHub meanwhile, the user
 // chooses which version to keep — nothing is overwritten silently.
 
-import { Bold, Check, ChevronLeft, Ellipsis, FileCode, Heading2, ImageOff, ImagePlus, Italic, Link, List, Quote, RotateCw, TvMinimalPlay, X } from "lucide-preact";
+import { Bold, Check, ChevronLeft, Ellipsis, FileCode, Heading2, ImageOff, ImagePlus, Italic, Link, List, Pencil, Quote, RotateCw, TvMinimalPlay, X } from "lucide-preact";
 import { PhotoError, photosMarkdown, processPhoto, uploadPhoto } from "../lib/photos";
 import type { ImageTarget, MarkdownEditor } from "../editor/markdown-editor";
 import { BodyEditor } from "./BodyEditor";
@@ -16,7 +16,7 @@ import { youtubeId, youtubeShortcode } from "../../shared/youtube";
 import { categoryTree } from "../../shared/categories";
 import { api, ApiError, type Me, NetworkError } from "../lib/api";
 import { type DraftDoc, type DraftForm, newDraft, parseDraft, prepareSave, serializeDraft } from "../lib/draft-model";
-import { t, useLanguage } from "../lib/i18n";
+import { getLanguage, t, useLanguage } from "../lib/i18n";
 import { deleteLocalDraft, getLocalDraft, putLocalDraft } from "../lib/local-drafts";
 import { type DraftKind, navigate } from "../lib/router";
 import { ulid } from "../../shared/ulid";
@@ -152,7 +152,8 @@ export function Editor(props: { me: Me; source: EditSource }) {
   const [status, setStatus] = useState<Status>("idle");
   const [message, setMessage] = useState<string | null>(null);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
-  const [detailsOpen, setDetailsOpen] = useState(true);
+  /** The details form: "new" also asks for the title (a new draft opens with it). */
+  const [detailsSheet, setDetailsSheet] = useState<"new" | "edit" | null>(null);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [conflict, setConflict] = useState(false);
   const [coverOpen, setCoverOpen] = useState(false);
@@ -205,6 +206,10 @@ export function Editor(props: { me: Me; source: EditSource }) {
     if (imageText) document.getElementById("image-text")?.focus();
   }, [imageText !== null]);
 
+  useEffect(() => {
+    if (detailsSheet === "new") document.getElementById("d-title")?.focus();
+  }, [detailsSheet]);
+
   const addVideo = () => {
     const video = youtubeId(videoLink);
     if (!video) {
@@ -242,7 +247,9 @@ export function Editor(props: { me: Me; source: EditSource }) {
         if (cancelled) return;
         setState(l);
         setConflict(l.notice === "conflict");
-        if (!l.doc.form.title) setTimeout(() => titleRef.current?.focus(), 50);
+        // A new draft starts with its details; anything else untitled with the title.
+        if (source.kind === "draft" && l.sha === null && !l.doc.form.title) setDetailsSheet("new");
+        else if (!l.doc.form.title) setTimeout(() => titleRef.current?.focus(), 50);
       },
       (err: unknown) => !cancelled && setLoadError(err instanceof NetworkError ? t("error.network") : t("error.generic")),
     );
@@ -699,6 +706,12 @@ export function Editor(props: { me: Me; source: EditSource }) {
   const neverSaved = state.sha === null;
   const categories = categoryTree(state.site.categories);
   const categoryNode = (slug: string) => categories.find((c) => c.slug === slug);
+  // Published images are referred to by the site's own prefix (e.g. /img/…).
+  const { contentPrefix, publicUrl } = state.site.media;
+  const coverSrc = contentPrefix.startsWith("/") && f.cover.startsWith(contentPrefix) ? publicUrl + f.cover.slice(contentPrefix.length) : f.cover;
+  const dateText = Number.isNaN(Date.parse(f.date))
+    ? ""
+    : new Date(f.date).toLocaleString(getLanguage(), { day: "numeric", month: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" });
 
   return (
     <div class="editor">
@@ -808,16 +821,24 @@ export function Editor(props: { me: Me; source: EditSource }) {
         <p class="eyebrow">
           {isDraft ? (type === "post" ? t("editor.newPostLabel") : t("editor.newPageLabel")) : type === "post" ? t("editor.publishedPostLabel") : t("editor.publishedPageLabel")}
         </p>
-        <textarea
-          ref={titleRef}
-          class="title-input"
-          rows={1}
-          readOnly={readOnly}
-          placeholder={t("editor.titlePlaceholder")}
-          value={f.title}
-          onInput={(e) => onTitle((e.target as HTMLTextAreaElement).value.replace(/\n/g, " "))}
-          aria-label={t("editor.title")}
-        />
+        <div class="title-wrap">
+          <textarea
+            ref={titleRef}
+            class="title-input"
+            rows={1}
+            readOnly={readOnly}
+            placeholder={t("editor.titlePlaceholder")}
+            value={f.title}
+            onInput={(e) => onTitle((e.target as HTMLTextAreaElement).value.replace(/\n/g, " "))}
+            aria-label={t("editor.title")}
+          />
+          {/* A hint that the title can be edited; the field itself is in the tab order. */}
+          {!readOnly && (
+            <button type="button" class="title-edit" tabIndex={-1} aria-hidden="true" title={t("editor.editTitle")} onClick={() => titleRef.current?.focus()}>
+              <Pencil size={20} />
+            </button>
+          )}
+        </div>
 
         {markdownError && mode === "markdown" && (
           <p class="banner banner-error editor-banner" role="alert">
@@ -825,88 +846,33 @@ export function Editor(props: { me: Me; source: EditSource }) {
           </p>
         )}
 
-        {mode === "rich" && (<>
-        <button type="button" class="details-toggle" aria-expanded={detailsOpen} onClick={() => setDetailsOpen(!detailsOpen)}>
-          {t("editor.details")}
-        </button>
-        {detailsOpen && (
-          <fieldset class="form-fieldset" disabled={readOnly}>
-          <ul class="grouped-list form-list">
-            <li class="row">
-              <label class="row-label" for="f-date">
-                {t("editor.date")}
-              </label>
-              <input
-                id="f-date"
-                type="datetime-local"
-                class="row-input"
-                value={toLocalInput(f.date)}
-                onChange={(e) => {
-                  const v = (e.target as HTMLInputElement).value;
-                  const date = fromLocalInput(v);
-                  if (date) setForm({ date });
-                }}
-              />
-            </li>
-            <li class="row">
-              <label class="row-label" for="f-slug">
-                {t("editor.slug")}
-              </label>
-              <input
-                id="f-slug"
-                class="row-input"
-                value={f.slug}
-                autocapitalize="off"
-                spellcheck={false}
-                onInput={(e) => setForm({ slug: slugify((e.target as HTMLInputElement).value) })}
-              />
-            </li>
-            <li>
-              <button type="button" class="row row-button-left" onClick={() => setCategoriesOpen(true)}>
-                <span class="row-label">{t("editor.categories")}</span>
-                <span class="row-value chips">
-                  {f.categories.length
-                    ? f.categories.map((c) => (
-                        <span class="chip" title={categoryNode(c)?.path.join(" › ")}>
-                          {categoryNode(c)?.title ?? c}
-                        </span>
-                      ))
-                    : t("editor.none")}
-                </span>
-              </button>
-            </li>
-            <li class="row">
-              <label class="row-label" for="f-tags">
-                {t("editor.tags")}
-              </label>
-              <TagsInput id="f-tags" value={f.tags} known={knownTags} onChange={(tags) => setForm({ tags })} />
-            </li>
-            <li>
-              <button type="button" class="row row-button-left" onClick={openCover}>
-                <span class="row-label">{t("editor.cover")}</span>
-                {f.cover ? (
-                  <img
-                    class="cover-thumb"
-                    src={
-                      // Published images are referred to by the site's own prefix (e.g. /img/…).
-                      state.site.media.contentPrefix.startsWith("/") && f.cover.startsWith(state.site.media.contentPrefix)
-                        ? state.site.media.publicUrl + f.cover.slice(state.site.media.contentPrefix.length)
-                        : f.cover
-                    }
-                    alt=""
-                    width={44}
-                    height={44}
-                  />
-                ) : (
-                  <span class="row-value">{t("editor.none")}</span>
-                )}
-              </button>
-            </li>
-          </ul>
-          </fieldset>
+        {mode === "rich" && (
+        <div class="details-summary">
+          {f.cover && <img class="cover-thumb" src={coverSrc} alt="" width={44} height={44} />}
+          <div class="details-text">
+            <p class="details-line">
+              {dateText}
+              {dateText && f.slug && " · "}
+              {f.slug}
+            </p>
+            {(f.categories.length > 0 || f.tags.length > 0) && (
+              <p class="chips details-chips">
+                {f.categories.map((c) => (
+                  <span class="chip" title={categoryNode(c)?.path.join(" › ")}>
+                    {categoryNode(c)?.title ?? c}
+                  </span>
+                ))}
+                {f.tags.map((tag) => (
+                  <span class="chip chip-tag">{tag}</span>
+                ))}
+              </p>
+            )}
+          </div>
+          <button type="button" class="btn btn-tinted btn-small" onClick={() => setDetailsSheet("edit")} disabled={readOnly} aria-label={t("editor.editDetails")}>
+            {t("editor.edit")}
+          </button>
+        </div>
         )}
-
-        </>)}
 
         <div class={`toolbar${readOnly ? " is-disabled" : ""}`} role="toolbar" aria-label={t("editor.formatting")} {...(readOnly ? { inert: true } : {})}>
           <button type="button" onClick={() => format("bold")} aria-label={t("editor.bold")}>
@@ -1080,6 +1046,88 @@ export function Editor(props: { me: Me; source: EditSource }) {
         ]}
         cancelLabel={t("common.cancel")}
       />
+
+      <Sheet
+        open={detailsSheet !== null}
+        onClose={() => setDetailsSheet(null)}
+        title={detailsSheet === "new" ? t(type === "post" ? "home.newPost" : "home.newPage") : t("editor.details")}
+        doneLabel={t("account.done")}
+      >
+        <fieldset class="form-fieldset" disabled={readOnly}>
+          <ul class="grouped-list form-list">
+            {detailsSheet === "new" && (
+              <li class="row">
+                <label class="row-label" for="d-title">
+                  {t("editor.title")}
+                </label>
+                <input
+                  id="d-title"
+                  class="row-input"
+                  value={f.title}
+                  autocapitalize="sentences"
+                  enterkeyhint="next"
+                  onInput={(e) => onTitle((e.target as HTMLInputElement).value)}
+                />
+              </li>
+            )}
+            <li class="row">
+              <label class="row-label" for="f-date">
+                {t("editor.date")}
+              </label>
+              <input
+                id="f-date"
+                type="datetime-local"
+                class="row-input"
+                value={toLocalInput(f.date)}
+                onChange={(e) => {
+                  const v = (e.target as HTMLInputElement).value;
+                  const date = fromLocalInput(v);
+                  if (date) setForm({ date });
+                }}
+              />
+            </li>
+            <li class="row">
+              <label class="row-label" for="f-slug">
+                {t("editor.slug")}
+              </label>
+              <input
+                id="f-slug"
+                class="row-input"
+                value={f.slug}
+                autocapitalize="off"
+                spellcheck={false}
+                onInput={(e) => setForm({ slug: slugify((e.target as HTMLInputElement).value) })}
+              />
+            </li>
+            <li>
+              <button type="button" class="row row-button-left" onClick={() => setCategoriesOpen(true)}>
+                <span class="row-label">{t("editor.categories")}</span>
+                <span class="row-value chips">
+                  {f.categories.length
+                    ? f.categories.map((c) => (
+                        <span class="chip" title={categoryNode(c)?.path.join(" › ")}>
+                          {categoryNode(c)?.title ?? c}
+                        </span>
+                      ))
+                    : t("editor.none")}
+                </span>
+              </button>
+            </li>
+            <li class="row">
+              <label class="row-label" for="f-tags">
+                {t("editor.tags")}
+              </label>
+              <TagsInput id="f-tags" value={f.tags} known={knownTags} onChange={(tags) => setForm({ tags })} />
+            </li>
+            <li>
+              <button type="button" class="row row-button-left" onClick={openCover}>
+                <span class="row-label">{t("editor.cover")}</span>
+                {f.cover ? <img class="cover-thumb" src={coverSrc} alt="" width={44} height={44} /> : <span class="row-value">{t("editor.none")}</span>}
+              </button>
+            </li>
+          </ul>
+        </fieldset>
+      </Sheet>
 
       <Sheet open={imageText !== null} onClose={() => setImageText(null)} title={t("editor.imageText")} doneLabel={t("common.cancel")}>
         <form

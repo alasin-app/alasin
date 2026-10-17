@@ -1077,10 +1077,27 @@ img {
   color: var(--secondary-label);
 }
 
+/* The editor's bar always has its background: on wide screens it stays above
+   the page instead of lying over its top like the other bars. */
+@media (min-width: 768px) {
+  .nav-bar.editor-bar {
+    margin-bottom: 0;
+  }
+}
+
+/* The title field is as wide as its text, so the pencil follows the title. */
+.title-wrap {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  margin: 4px var(--gutter-right) 12px var(--gutter);
+}
+
 .title-input {
   display: block;
-  width: calc(100% - var(--gutter) - var(--gutter-right));
-  margin: 4px var(--gutter-right) 12px var(--gutter);
+  flex: 0 1 auto;
+  min-width: 2ch;
+  margin: 0;
   padding: 0;
   border: 0;
   background: none;
@@ -1099,24 +1116,63 @@ img {
   outline: none;
 }
 
-.details-toggle {
-  display: block;
-  margin: 0 var(--gutter-right) 6px var(--gutter);
-  padding: 0 16px;
+/* Without field-sizing the field can't follow its text: it fills the row. */
+@supports not (field-sizing: content) {
+  .title-input {
+    flex: 1 1 auto;
+  }
+}
+
+.title-edit {
+  flex: none;
+  display: inline-flex;
+  margin-bottom: 0.3em;
+  padding: 0;
   border: 0;
   background: none;
+  color: var(--tertiary-label);
+  cursor: text;
+  transition: opacity 0.2s;
+}
+
+.title-wrap:focus-within .title-edit {
+  opacity: 0;
+}
+
+/* The details in short; editing them opens a sheet. */
+.details-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 var(--gutter-right) 16px var(--gutter);
+  padding: 10px 12px 10px 16px;
+  border-radius: var(--radius-cell);
+  background: var(--cell-bg);
+}
+
+.details-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.details-line {
+  overflow: hidden;
+  font-size: var(--subheadline);
   color: var(--secondary-label);
-  font-size: var(--footnote);
-  text-transform: uppercase;
-  cursor: pointer;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
-.details-toggle::after {
-  content: " ▾";
+.details-chips {
+  justify-content: flex-start;
 }
 
-.details-toggle[aria-expanded="false"]::after {
-  content: " ▸";
+.chip-tag {
+  background: var(--fill);
+  color: var(--secondary-label);
 }
 
 .form-list .row {
