@@ -7,7 +7,7 @@
 
 import { Bold, Check, ChevronLeft, Ellipsis, FileCode, Heading2, ImageOff, ImagePlus, Italic, Link, List, Quote, RotateCw, TvMinimalPlay, X } from "lucide-preact";
 import { PhotoError, photosMarkdown, processPhoto, uploadPhoto } from "../lib/photos";
-import type { MarkdownEditor } from "../editor/markdown-editor";
+import type { ImageTarget, MarkdownEditor } from "../editor/markdown-editor";
 import { BodyEditor } from "./BodyEditor";
 import { useVisibleTop } from "../lib/visual-viewport";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
@@ -165,6 +165,10 @@ export function Editor(props: { me: Me; source: EditSource }) {
   const [uploads, setUploads] = useState<Upload[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
   const [photoMenu, setPhotoMenu] = useState(false);
+  /** The gallery or single image whose + opened the photo menu (null: the toolbar, photos go at the cursor). */
+  const photoTarget = useRef<ImageTarget | null>(null);
+  /** The picture whose text is being edited. */
+  const [imageText, setImageText] = useState<{ target: ImageTarget; value: string } | null>(null);
   /** The media library sheet: the images picked, in the order picked. */
   const [library, setLibrary] = useState<string[] | null>(null);
   const editorRef = useRef<MarkdownEditor | null>(null);
@@ -196,6 +200,10 @@ export function Editor(props: { me: Me; source: EditSource }) {
     // After the sheet has focused its first button: start in the link field.
     if (videoOpen) document.getElementById("video-link")?.focus();
   }, [videoOpen]);
+
+  useEffect(() => {
+    if (imageText) document.getElementById("image-text")?.focus();
+  }, [imageText !== null]);
 
   const addVideo = () => {
     const video = youtubeId(videoLink);
@@ -302,16 +310,30 @@ export function Editor(props: { me: Me; source: EditSource }) {
     }
   };
 
+  const openPhotoMenu = (target: ImageTarget | null) => {
+    photoTarget.current = target;
+    setPhotoMenu(true);
+  };
+
+  /** Images added to the gallery or single image a + was tapped on, or else at the cursor. */
+  const placePhotos = (urls: string[], target: ImageTarget | null) => {
+    if (!state) return;
+    if (target && editorRef.current?.addImages(target, urls.map((u) => `![](${u})`))) return;
+    const md = photosMarkdown(urls, state.site.gallery);
+    if (editorRef.current) editorRef.current.insertBlock(md);
+    else updateForm((f) => ({ body: `${f.body.replace(/\s+$/, "")}\n\n${md}\n` }));
+  };
+
   /** Published images reused as they are: no copy, the same address. */
   const addFromLibrary = (keys: string[]) => {
     setLibrary(null);
+    const target = photoTarget.current;
+    photoTarget.current = null;
     if (!state || !keys.length) return;
-    const md = photosMarkdown(
+    placePhotos(
       keys.map((k) => state.site.media.contentPrefix + k),
-      state.site.gallery,
+      target,
     );
-    if (editorRef.current) editorRef.current.insertBlock(md);
-    else updateForm((f) => ({ body: `${f.body.replace(/\s+$/, "")}\n\n${md}\n` }));
   };
 
   const removeUpload = (token: string) => {
@@ -319,7 +341,7 @@ export function Editor(props: { me: Me; source: EditSource }) {
     updateForm((f) => ({ body: f.body.replace(new RegExp(`!\\[\\]\\(${placeholder(token)}\\)\\n*`), "") }));
   };
 
-  const addPhotos = (files: File[]) => {
+  const addPhotos = (files: File[], target: ImageTarget | null = null) => {
     if (!state || !files.length) return;
     const list: Upload[] = files.map((file) => ({
       token: Math.random().toString(36).slice(2, 10),
@@ -328,12 +350,10 @@ export function Editor(props: { me: Me; source: EditSource }) {
       state: "processing",
       progress: 0,
     }));
-    const md = photosMarkdown(
+    placePhotos(
       list.map((u) => placeholder(u.token)),
-      state.site.gallery,
+      target,
     );
-    if (editorRef.current) editorRef.current.insertBlock(md);
-    else updateForm((f) => ({ body: `${f.body.replace(/\s+$/, "")}\n\n${md}\n` }));
     setUploads((u) => [...u, ...list]);
     // Two photos at a time.
     const queue = [...list];
@@ -907,7 +927,7 @@ export function Editor(props: { me: Me; source: EditSource }) {
           <button type="button" onClick={() => format("quote")} aria-label={t("editor.quote")}>
             <Quote size={20} aria-hidden="true" />
           </button>
-          <button type="button" onClick={() => setPhotoMenu(true)} aria-label={t("photos.add")}>
+          <button type="button" onClick={() => openPhotoMenu(null)} aria-label={t("photos.add")}>
             <ImagePlus size={20} aria-hidden="true" />
           </button>
           <button type="button" onClick={openVideo} aria-label={t("editor.video")}>
@@ -931,7 +951,8 @@ export function Editor(props: { me: Me; source: EditSource }) {
             hidden
             onChange={(e) => {
               const input = e.target as HTMLInputElement;
-              addPhotos([...(input.files ?? [])]);
+              addPhotos([...(input.files ?? [])], photoTarget.current);
+              photoTarget.current = null;
               input.value = "";
             }}
           />
@@ -972,7 +993,9 @@ export function Editor(props: { me: Me; source: EditSource }) {
           site={state.site}
           onChange={(text) => (mode === "rich" ? setForm({ body: text }) : onMarkdownChange(text))}
           onReady={(ed) => (editorRef.current = ed)}
-          onFiles={addPhotos}
+          onFiles={(files) => addPhotos(files)}
+          onAddPhotos={(target) => !readOnly && openPhotoMenu(target)}
+          onImageText={(target, title) => !readOnly && setImageText({ target, value: title })}
         />
       </div>
 
@@ -1057,6 +1080,35 @@ export function Editor(props: { me: Me; source: EditSource }) {
         ]}
         cancelLabel={t("common.cancel")}
       />
+
+      <Sheet open={imageText !== null} onClose={() => setImageText(null)} title={t("editor.imageText")} doneLabel={t("common.cancel")}>
+        <form
+          class="video-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (imageText) editorRef.current?.setImageTitle(imageText.target, imageText.value);
+            setImageText(null);
+          }}
+        >
+          <label class="secondary" for="image-text">
+            {t("editor.imageTextHint")}
+          </label>
+          <input
+            id="image-text"
+            type="text"
+            autocapitalize="sentences"
+            enterkeyhint="done"
+            value={imageText?.value ?? ""}
+            onInput={(e) => {
+              const value = (e.target as HTMLInputElement).value;
+              setImageText((it) => (it ? { ...it, value } : it));
+            }}
+          />
+          <button type="submit" class="btn btn-filled">
+            {t("account.done")}
+          </button>
+        </form>
+      </Sheet>
 
       <Sheet open={library !== null} onClose={() => setLibrary(null)} title={t("nav.media")} doneLabel={t("common.cancel")}>
         <MediaLibrary

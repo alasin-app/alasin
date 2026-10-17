@@ -257,3 +257,18 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 | 5.11 | ✅ | |
 | 5.12 | ✅ | |
 | 5.13 | ✅ | First run failed (counts didn't change after adding an orphaned photo to a draft or post); fixed in #131, passed on the second run. |
+
+## Galleries and picture texts
+
+### Checklist
+
+| # | Check | How |
+| --- | --- | --- |
+| G.1 | Add to a gallery from the library | A gallery card's **+** tile → *From media library* → pick two photos → *Add 2 photos*: they are added at the end of that gallery, not at the cursor |
+| G.2 | Add to a gallery from this device | A gallery card's **+** → *From this device* → pick photos: they show in the gallery as empty tiles while uploading, then as photos |
+| G.3 | Single image to gallery | A single image's **+** → pick one or more photos: the image and the new photos become one gallery, the image first |
+| G.4 | Toolbar unchanged | After using a **+**, the toolbar's photo button still adds photos at the cursor |
+| G.5 | Picture text shown | Under each photo (single images and in galleries) its text shows, or *Add text* if it has none |
+| G.6 | Edit a picture text | Tap a picture's text → change it → *Done*: in Markdown mode only that image's line changed (`![](…/photo.jpg "New text")`); an empty text removes the title; quotes in the text survive saving and publishing, and show on the site |
+| G.7 | Text follows the photo | Give a gallery photo a text, then move it (‹ › or drag): the text moves with it |
+| G.8 | Someone else editing | While another person holds the edit lock, texts show but can't be tapped, *Add text* and the **+** buttons are hidden |
