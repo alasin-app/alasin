@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.3.0](https://github.com/oh2th/alasin/compare/v1.2.0...v1.3.0) (2026-10-17)
+
+
+### Features
+
+* **test-runs:** mark failed and fixed checks from bug sub-issues ([#224](https://github.com/oh2th/alasin/issues/224)) ([941ac40](https://github.com/oh2th/alasin/commit/941ac4045f6eed92d66f1f07685bbab16cfdc688)), closes [#223](https://github.com/oh2th/alasin/issues/223)
+
+
+### Bug Fixes
+
+* **security:** edit locks on every save, and editId can't name a draft ([#215](https://github.com/oh2th/alasin/issues/215)) ([4d6d8a8](https://github.com/oh2th/alasin/commit/4d6d8a849885b1b9f9f4ba327436dcb769dd912b)), closes [#214](https://github.com/oh2th/alasin/issues/214)
+
 ## [1.2.0](https://github.com/oh2th/alasin/compare/v1.1.0...v1.2.0) (2026-10-17)
 
 
