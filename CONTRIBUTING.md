@@ -80,7 +80,18 @@ If you run a deployment, list its identifying terms in `.local/denylist` (gitign
 - New `alasin.toml` options go in `src/shared/config/schema.ts` with a description and in `alasin.example.toml`; then run `npm run docs:config`.
 - Dependencies must have MIT-compatible licences (MIT, BSD, Apache-2.0, ISC) and are pinned exactly.
 - Security-relevant behaviour gets a test (see `test/worker`).
-- Things only a person on a real device can check are listed in [docs/manual-tests.md](docs/manual-tests.md); add checks for new features there and record each test run.
+- Things only a person on a real device can check are manual checks: see *Manual tests* below.
+
+## Manual tests
+
+Automated tests (`npm test`) cover the Worker, the configuration and the scripts. What needs real devices, GitHub or Cloudflare is checked by hand, in test runs:
+
+- **The checks** are in [`.github/ISSUE_TEMPLATE/test-run.md`](.github/ISSUE_TEMPLATE/test-run.md), grouped by area. A pull request that adds or changes behaviour adds or updates its checks there.
+- **Every pull request lists the checks it affects** under *Manual checks* (the pull request template has the section), or says "none".
+- **A test run is an issue** labelled `test-run`. `npm run test-run` builds one from the pull requests merged into `dev` since the last run, with only the checks they list (add more with `--checks 2.21,A.3`); `-- --create` opens it. Tick each check as it passes; for a failure open a bug issue and link it next to the check. Close the run when every check is ticked.
+- **Where:** a dev deployment, never production, unless the check is about production itself. Record the version and devices at the top of the run; never a deployment's own names, addresses or accounts.
+
+Past runs: [closed `test-run` issues](https://github.com/oh2th/alasin/issues?q=label%3Atest-run).
 
 ## Reporting security issues
 
