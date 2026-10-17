@@ -148,7 +148,7 @@ export function Editor(props: { me: Me; source: EditSource }) {
   const [takeOverOpen, setTakeOverOpen] = useState(false);
   /** The menu of a published file, and the action waiting for confirmation. */
   const [menuOpen, setMenuOpen] = useState(false);
-  const [confirm, setConfirm] = useState<"unpublish" | "archive" | "publish" | "delete" | null>(null);
+  const [confirm, setConfirm] = useState<"unpublish" | "archive" | "delete" | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>("idle");
   const [message, setMessage] = useState<string | null>(null);
@@ -583,8 +583,8 @@ export function Editor(props: { me: Me; source: EditSource }) {
     }
   };
 
-  /** Moves a published file: unpublish (to a draft), archive, or publish one marked draft: true. */
-  const lifecycle = async (action: "unpublish" | "archive" | "publish") => {
+  /** Moves a published file: unpublish (to a draft) or archive. */
+  const lifecycle = async (action: "unpublish" | "archive") => {
     if (!state || source.kind !== "file" || !state.sha) return;
     if (unsaved) {
       setMessage(t("editor.saveFirst"));
@@ -600,8 +600,7 @@ export function Editor(props: { me: Me; source: EditSource }) {
       await deleteLocalDraft(me.user.id, type, localId);
       setStatus("saved");
       if (action === "unpublish" && res.draftId) navigate({ name: "editor", type, id: res.draftId }, { replace: true });
-      else if (action === "archive") back();
-      else setReload((n) => n + 1);
+      else back();
     } catch (err) {
       setStatus("error");
       if (err instanceof ApiError && err.code === "conflict") setConflict(true);
@@ -721,8 +720,6 @@ export function Editor(props: { me: Me; source: EditSource }) {
           : t("editor.savedOnGitHub");
   // A draft whose address a published post or page already has: publishing it would fail.
   const sameAddress = isDraft && f.slug ? publishedItems.find((i) => i.kind === type && i.slug === f.slug) : undefined;
-  /** A published file marked draft: true (e.g. from an older blog): offered for publishing. */
-  const fileIsDraft = !isDraft && state.doc.fields.get("draft") === true;
   /** A draft that exists only on this device: deleting it discards it. */
   const neverSaved = state.sha === null;
   const categories = categoryTree(state.site.categories);
@@ -756,11 +753,6 @@ export function Editor(props: { me: Me; source: EditSource }) {
           >
             {isDraft ? t("editor.saveDraft") : t("editor.save")}
           </button>
-          {!isDraft && fileIsDraft && (
-            <button type="button" class="btn btn-filled btn-small" onClick={() => setConfirm("publish")} disabled={status === "saving" || readOnly || conflict}>
-              {t("editor.publish")}
-            </button>
-          )}
           {isDraft && (
           <button
             type="button"
@@ -986,7 +978,7 @@ export function Editor(props: { me: Me; source: EditSource }) {
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
         actions={[
-          ...(!isDraft && !fileIsDraft
+          ...(!isDraft
             ? [
                 { label: t("editor.unpublish"), onSelect: () => setConfirm("unpublish") },
                 { label: t("editor.archive"), onSelect: () => setConfirm("archive") },
@@ -1008,17 +1000,15 @@ export function Editor(props: { me: Me; source: EditSource }) {
               : ""
         }
         message={
-          confirm === "publish"
-            ? t(type === "post" ? "editor.publishMessagePost" : "editor.publishMessagePage")
-            : confirm === "delete" && neverSaved
-              ? t("editor.deleteMessageLocal")
-              : confirm
-                ? t(`editor.${confirm}Message`)
-                : ""
+          confirm === "delete" && neverSaved
+            ? t("editor.deleteMessageLocal")
+            : confirm
+              ? t(`editor.${confirm}Message`)
+              : ""
         }
         actions={
           confirm
-            ? [{ label: confirm === "delete" && neverSaved ? t("editor.discard") : t(`editor.${confirm}`), destructive: confirm !== "publish", onSelect: () => void (confirm === "delete" ? moveToBin() : lifecycle(confirm)) }]
+            ? [{ label: confirm === "delete" && neverSaved ? t("editor.discard") : t(`editor.${confirm}`), destructive: true, onSelect: () => void (confirm === "delete" ? moveToBin() : lifecycle(confirm)) }]
             : []
         }
         cancelLabel={t("common.cancel")}

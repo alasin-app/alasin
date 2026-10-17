@@ -39,7 +39,7 @@ describe("lifecycle", () => {
     expect(path).toBe(`drafts/posts/${draftId}.md`);
     const files = gh.repo.files();
     expect(files.has(POST)).toBe(false);
-    expect(files.get(path)).toBe(text.replace("draft: false", "draft: true").replace("---\n\nText.", `draftId: "${draftId}"\n---\n\nText.`));
+    expect(files.get(path)).toBe(text.replace("draft: false\n", "").replace("---\n\nText.", `draftId: "${draftId}"\n---\n\nText.`));
     expect(gh.repo.lastCommit().message).toBe("Unpublish post: Trip");
   });
 
@@ -56,14 +56,10 @@ describe("lifecycle", () => {
     expect(gh.repo.files().has(archived)).toBe(false);
   });
 
-  it("publishes a post marked draft: true in place, with lastmod and url", async () => {
-    const draft = text.replace("draft: false", "draft: true");
-    await gh.repo.write(POST, draft);
-    const res = await act({ action: "publish", path: POST, sha: await shaOf(POST), day: "2019-08-02" });
-    expect(await res.json()).toMatchObject({ path: POST });
-    expect(gh.repo.files().get(POST)).toMatch(/draft: false\nlastmod: \S+Z\nurl: "\/2019\/08\/02\/trip\/"\n---/);
-    // Already published: refused.
+  it("has no action for publishing in place: drafts are published from the drafts folder", async () => {
+    const before = gh.repo.files().get(POST);
     expect((await act({ action: "publish", path: POST, sha: await shaOf(POST) })).status).toBe(400);
+    expect(gh.repo.files().get(POST)).toBe(before);
   });
 
   it("refuses while someone else is editing it, but not for the editor holding the lock", async () => {

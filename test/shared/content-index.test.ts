@@ -30,7 +30,8 @@ describe("content index", () => {
     expect(index.items.map((i) => [i.title, i.kind, i.state])).toEqual([
       ["Trip", "post", "published"],
       ["Bundle", "post", "published"],
-      ["Hidden", "post", "draft"],
+      // The draft key means nothing to Alasin: only the drafts folder makes a draft.
+      ["Hidden", "post", "published"],
       ["About", "page", "published"],
       ["New one", "post", "draft"],
       ["Old", "post", "archived"],

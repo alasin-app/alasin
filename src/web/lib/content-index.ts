@@ -4,7 +4,7 @@
 // every Markdown file of the posts, pages, drafts, archive and Bin folders,
 // with what the lists and the search need. Where a file is decides its state:
 //
-//   <posts_dir>/…, <pages_dir>/…        published (or draft, with `draft: true`)
+//   <posts_dir>/…, <pages_dir>/…        published
 //   <drafts>/posts/…, <drafts>/pages/…  draft
 //   <archive>/<repository path>         archived
 //   <bin>/<repository path>             in the Bin, deleted from that path
@@ -45,7 +45,7 @@ export interface ContentItem {
 }
 
 /** Changes when the index gains fields, so older kept copies are read again. */
-export const INDEX_VERSION = 4;
+export const INDEX_VERSION = 5;
 
 export interface ContentIndex {
   version?: number;
@@ -86,13 +86,13 @@ function files(entries: Entry[] | undefined, prefix = ""): { rel: string; sha: s
 const under = (path: string, dir: string) => path.startsWith(`${dir}/`);
 
 /** What a repository path is, outside the Bin; null if it isn't a post or page. */
-function classify(path: string, folders: Folders, draftFlag: boolean): { kind: ItemKind; state: Exclude<ItemState, "bin"> } | null {
-  if (under(path, folders.posts)) return { kind: "post", state: draftFlag ? "draft" : "published" };
-  if (under(path, folders.pages)) return { kind: "page", state: draftFlag ? "draft" : "published" };
+function classify(path: string, folders: Folders): { kind: ItemKind; state: Exclude<ItemState, "bin"> } | null {
+  if (under(path, folders.posts)) return { kind: "post", state: "published" };
+  if (under(path, folders.pages)) return { kind: "page", state: "published" };
   if (under(path, `${folders.drafts}/posts`)) return { kind: "post", state: "draft" };
   if (under(path, `${folders.drafts}/pages`)) return { kind: "page", state: "draft" };
   if (under(path, folders.archive)) {
-    const inner = classify(path.slice(folders.archive.length + 1), folders, false);
+    const inner = classify(path.slice(folders.archive.length + 1), folders);
     return inner ? { kind: inner.kind, state: "archived" } : null;
   }
   return null;
@@ -151,7 +151,7 @@ function item(path: string, sha: string, text: string, site: IndexSettings, bin:
     // Front matter that doesn't parse: listed by its file name.
   }
   const origin = bin ? path.slice(folders.bin.length + 1) : path;
-  const what = classify(origin, folders, fields.get("draft") === true);
+  const what = classify(origin, folders);
   if (!what) return null;
   const date = str(fields.get("date"));
   const name = origin.split("/").pop()!.replace(/\.md$/, "");

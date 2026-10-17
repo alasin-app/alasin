@@ -32,12 +32,12 @@ describe("draft model", () => {
     expect(changed).toContain(`draftId: "${ID}"`);
   });
 
-  it("creates new drafts with a UTC date, draft: true and the author", () => {
+  it("creates new drafts with a UTC date and the author, without a draft key (the folder makes it a draft)", () => {
     const doc = newDraft(ID, site, new Date("2026-10-15T11:05:30Z"));
     doc.form.title = "Hello";
     doc.form.body = "Text";
     const out = serializeDraft(doc, site);
-    expect(out).toBe(`---\ntitle: "Hello"\ndate: 2026-10-15T11:05:30Z\nslug: ""\ndraft: true\nauthor: "Octo"\ndraftId: "${ID}"\n---\n\nText\n`);
+    expect(out).toBe(`---\ntitle: "Hello"\ndate: 2026-10-15T11:05:30Z\nslug: ""\nauthor: "Octo"\ndraftId: "${ID}"\n---\n\nText\n`);
   });
 
   it("changes only the author line when the author changes, and removes an empty one", () => {
@@ -45,7 +45,7 @@ describe("draft model", () => {
     const doc = parseDraft(text, site)!;
     expect(doc.form.author).toBe("Octo");
     expect(serializeDraft({ ...doc, form: { ...doc.form, author: "Mona Lisa" } }, site)).toBe(
-      `---\ntitle: "Post"\ndraft: true\nauthor: "Mona Lisa"\ndraftId: "${ID}"\n---\n\nBody\n`,
+      `---\ntitle: "Post"\nauthor: "Mona Lisa"\ndraftId: "${ID}"\n---\n\nBody\n`,
     );
     expect(serializeDraft({ ...doc, form: { ...doc.form, author: " " } }, site)).not.toContain("author");
   });
@@ -57,6 +57,13 @@ describe("draft model", () => {
     expect(doc.form.author).toBe("");
     expect(serializeDraft({ ...doc, form: { ...doc.form, title: "New" } }, plain)).toContain('author: "Octo"');
     expect(newDraft(ID, plain).form.author).toBe("");
+  });
+
+  it("removes an old draft: true when the front matter is rewritten, and keeps the file as it was otherwise", () => {
+    const text = `---\ntitle: "Old"\ndraft: true\ndraftId: "${ID}"\n---\n\nBody\n`;
+    const doc = parseDraft(text, site)!;
+    expect(serializeDraft(doc, site)).toBe(text);
+    expect(serializeDraft({ ...doc, form: { ...doc.form, title: "New" } }, site)).toBe(`---\ntitle: "New"\ndraftId: "${ID}"\n---\n\nBody\n`);
   });
 
   describe("author_id", () => {
@@ -79,7 +86,7 @@ describe("draft model", () => {
       const doc = parseDraft(text, withId)!;
       expect(doc.form.authorId).toBe("octocat");
       expect(serializeDraft({ ...doc, form: { ...doc.form, author: "Guest", authorId: "" } }, withId)).toBe(
-        `---\ntitle: "Post"\ndraft: true\nauthor: "Guest"\ndraftId: "${ID}"\n---\n\nBody\n`,
+        `---\ntitle: "Post"\nauthor: "Guest"\ndraftId: "${ID}"\n---\n\nBody\n`,
       );
     });
 
@@ -87,7 +94,7 @@ describe("draft model", () => {
       const text = `---\ntitle: "Post"\ndraft: true\nauthor: "Old Name"\nauthor_id: "octocat"\ndraftId: "${ID}"\n---\n\nBody\n`;
       const saved = prepareSave(parseDraft(text, withId)!, withId, { rich: true, saved: text });
       expect(saved.author).toBe("Octo Cat");
-      expect(saved.content).toBe(text.replace("Old Name", "Octo Cat"));
+      expect(saved.content).toBe(text.replace("Old Name", "Octo Cat").replace("draft: true\n", ""));
       // Someone who is no longer a user: their name is kept.
       const former = text.replace('author_id: "octocat"', 'author_id: "former"');
       expect(prepareSave(parseDraft(former, withId)!, withId, { rich: true, saved: former }).content).toBe(former);
