@@ -3,7 +3,7 @@ import { parseDraft, prepareSave } from "../../src/web/lib/draft-model";
 import { roundTrip } from "../../src/web/lib/round-trip";
 import type { SiteSettings } from "../../src/web/lib/site-types";
 
-const site = { frontMatterFormat: "yaml", coverField: "image", authorField: "author", author: null, categories: [] } as unknown as SiteSettings;
+const site = { frontMatterFormat: "yaml", coverField: "image", authorField: "author", authorIdField: "author_id", author: null, login: "", users: [], categories: [] } as unknown as SiteSettings;
 
 // Posts written by hand or by other tools, in the shapes Hugo sites have.
 const SAMPLES: Record<string, string> = {

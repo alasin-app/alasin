@@ -238,6 +238,37 @@ function exampleOptions(ex: string[]): Map<string, ExampleOption[]> {
 }
 
 /**
+ * The author fields are always on since 1.0.0-pre.7: a commented-out
+ * `author_field` (or `author_id_field`) in [site] is turned on with the
+ * example's value, and the comments above both are brought up to date. A value
+ * the file sets is kept.
+ */
+function migrateAuthor(lines: string[], example: string, changes: string[]): void {
+  const options = exampleOptions(example.split("\n")).get("site") ?? [];
+  const header = lines.findIndex((l) => HEADER.exec(l)?.[1]!.trim() === "site" && !l.trim().startsWith("[["));
+  if (header === -1) return;
+  for (const key of ["author_field", "author_id_field"]) {
+    const option = options.find((o) => o.key === key);
+    if (!option || option.commented) continue;
+    let end = header + 1;
+    while (end < lines.length && !HEADER.test(lines[end]!)) end++;
+    const at = lines.slice(header + 1, end).findIndex((l) => new RegExp(`^\\s*(#\\s*)?${key}\\s*=`).test(l));
+    if (at === -1) continue;
+    const line = header + 1 + at;
+    const commented = lines[line]!.trim().startsWith("#");
+    const from = commentBlockAbove(lines, line, header);
+    const wanted = commented ? option.lines : [...option.lines.slice(0, -1), lines[line]!];
+    if (wanted.join("\n") === lines.slice(from, line + 1).join("\n")) continue;
+    lines.splice(from, line + 1 - from, ...wanted);
+    changes.push(
+      commented
+        ? `[site]: turned ${key} on (${option.lines.at(-1)!.split("=")[1]!.trim()}); author fields are now always used`
+        : `[site]: updated the description of ${key} (author fields are now always used)`,
+    );
+  }
+}
+
+/**
  * Options of alasin.example.toml missing from a section the file already has
  * are added, with their comments, after the option before them in the
  * example. Commented-out options are always added; an active one only if the
@@ -309,6 +340,7 @@ export function migrateAlasinToml(text: string, example?: string): Migration {
     changes.push("comments: dashes, arrows and quotes written in plain ASCII (no change in behaviour)");
   }
   if (example) {
+    migrateAuthor(lines, example, changes);
     addMissingSections(lines, example, changes);
     addMissingOptions(lines, example, changes, meaningOf);
   }

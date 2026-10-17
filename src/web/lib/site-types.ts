@@ -6,10 +6,10 @@ import type { Category } from "../../shared/categories";
 export interface SiteSettings {
   frontMatterFormat: "yaml" | "toml";
   coverField: string;
-  /** Front matter field for the author's name (null: the site has none). */
-  authorField: string | null;
-  /** Front matter field for the author's GitHub login (null when there is no author field). */
-  authorIdField: string | null;
+  /** Front matter field for the author's name, as last written. */
+  authorField: string;
+  /** Front matter field for the author's GitHub login: who wrote it. */
+  authorIdField: string;
   /** The signed-in user's name, and their GitHub login. */
   author: string | null;
   login: string;

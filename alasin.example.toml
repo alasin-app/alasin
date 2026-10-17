@@ -63,16 +63,15 @@ page_filename = "{slug}.md"
 # Front matter field holding a post's cover image. Type: string. Default: "image".
 cover_field = "image"
 
-# Front matter field for the author's name. New posts and pages get the user's
-# full name from their GitHub profile, and the lists show who wrote each one.
-# Leave unset if the site doesn't use one.
-# Type: string. Optional. Example: "author"
-# author_field = "author"
+# Front matter field for the author's name, as last written. New posts and pages
+# get the user's full name from their GitHub profile.
+# Type: string. Default: "author".
+author_field = "author"
 
-# With author_field set: front matter field for the author's GitHub login, which
-# identifies the author (names can change). Alasin shows the author's current
-# GitHub name for it, and writes that name to author_field on saving, so that
-# field keeps the last known name.
+# Front matter field for the author's GitHub login, which identifies the author
+# (names can change). Alasin shows the author's current GitHub name for it, and
+# writes that name to author_field on saving, so that field keeps the last known
+# name.
 # Type: string. Default: "author_id".
 author_id_field = "author_id"
 

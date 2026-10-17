@@ -63,8 +63,8 @@ type Folders = SiteSettings["folders"];
 /** What reading the files needs to know about the site. */
 export type IndexSettings = Pick<SiteSettings, "folders" | "authorField" | "authorIdField" | "media">;
 
-/** The settings an index was read with, to read everything again when they change (e.g. `author_field` set). */
-export const settingsKey = (site: IndexSettings): string => JSON.stringify([site.folders, site.authorField, site.authorIdField ?? null, site.media]);
+/** The settings an index was read with, to read everything again when they change (e.g. another `author_field`). */
+export const settingsKey = (site: IndexSettings): string => JSON.stringify([site.folders, site.authorField, site.authorIdField, site.media]);
 
 /** Whether a stored index can be brought up to date, or must be read again. */
 export const reusable = (index: ContentIndex | undefined, site: IndexSettings): index is ContentIndex =>
@@ -157,7 +157,7 @@ function item(path: string, sha: string, text: string, site: IndexSettings, bin:
   const name = origin.split("/").pop()!.replace(/\.md$/, "");
   const fallback = name === "index" ? origin.split("/").slice(-2, -1)[0]! : name;
   const draftId = fields.get("draftId");
-  const authorId = site.authorIdField ? str(fields.get(site.authorIdField)).trim() : "";
+  const authorId = str(fields.get(site.authorIdField)).trim();
   return {
     path,
     sha,
@@ -170,7 +170,7 @@ function item(path: string, sha: string, text: string, site: IndexSettings, bin:
     slug: str(fields.get("slug")),
     categories: list(fields.get("categories")),
     tags: list(fields.get("tags")),
-    author: site.authorField ? str(fields.get(site.authorField)).trim() : "",
+    author: str(fields.get(site.authorField)).trim(),
     ...(authorId ? { authorId } : {}),
     ...(typeof draftId === "string" ? { draftId } : {}),
     text: plainText(split ? split.body : text),
