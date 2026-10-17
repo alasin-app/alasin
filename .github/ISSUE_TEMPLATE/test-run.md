@@ -104,6 +104,8 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 - [ ] **4.25 Setup**: `npm run setup` asks nothing about users, and removes a `[users]` table from an older `alasin.toml`
 - [ ] **4.26 My recent posts on Home**: Below *My drafts*, *My recent posts* lists your published posts with the latest dates, 5, 10 or 20 of them (the choice is remembered on the device); a row opens the post
 - [ ] **4.27 Settings change**: Change `[site] author_field` (or a folder or media setting) and deploy, without new commits in the site repository: opening Posts reads the list again by itself, and authors with avatars show without tapping ↻
+- [ ] **4.28 Invite and remove (admin)**: As a repository admin, *Users* shows *Invite on GitHub* and a *Remove* on everyone but you; both open the repository's *Collaborators and teams* settings on GitHub in a new tab. Invite someone with Write: after they accept, coming back to *Users* lists them
+- [ ] **4.29 Invite and remove (not admin)**: As a writer who isn't an admin, *Users* has no *Invite* or *Remove*, only the note that admins invite and remove people
 
 ## Categories and media
 
