@@ -102,7 +102,7 @@ export async function readSession(c: Context<AppEnv>): Promise<Session | null> {
   const s = record.data;
   const expired =
     now - s.createdAt > maxAgeMs(config) || now - s.lastSeenAt > config.security.session_idle_days * DAY;
-  // The allowlist is re-checked on every request, so removing a user takes effect immediately.
+  // (Write access to the site repository is re-checked about once an hour: see requireSession.)
   if (expired) {
     c.executionCtx.waitUntil(c.env.KV.delete(kvKey(payload.sid)));
     return null;

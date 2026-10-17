@@ -22,6 +22,7 @@ import type { AppEnv } from "../app";
 import { ConflictError, Repo } from "../lib/repo";
 import { getUserToken } from "../session";
 import { draftPath } from "./drafts";
+import { lockedBy } from "../lib/lock-check";
 
 const ACTIONS = ["unpublish", "archive", "republish"] as const;
 type Action = (typeof ACTIONS)[number];
@@ -72,10 +73,8 @@ lifecycle.post("/", async (c: Context<AppEnv>) => {
   if (!origin || !kind) return c.json({ error: "invalid", message: "This can't be done to that file." }, 400);
 
   // Someone else is editing it.
-  const holder = await c.env.LOCKS.get(c.env.LOCKS.idFromName("locks")).holderOf(`file:${origin}`);
-  if (holder && holder.lockId !== lockId) {
-    return c.json({ error: "locked", message: `${holder.name ?? holder.login} is editing this. Try again when they're done.`, holder }, 409);
-  }
+  const locked = await lockedBy(c, `file:${origin}`, lockId);
+  if (locked) return locked;
 
   const { success } = await c.env.RL_COMMIT.limit({ key: `commit:${c.get("session").uid}` });
   if (!success) return c.json({ error: "rate_limited", message: "Too many saves. Wait a moment and try again." }, 429);
