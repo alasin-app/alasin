@@ -279,3 +279,13 @@ export function skeletonValuesFor(state: SiteState, items: Item[]): Record<strin
     MODULE_PATH: `github.com/${state.owner}/${state.repo}`,
   };
 }
+
+/**
+ * The site Worker's Workers Builds triggers: production from main; every other
+ * branch uploads a preview version (the dev branch's is the dev site). `branch`
+ * is the one built first.
+ */
+export const BUILD_TRIGGERS = [
+  { trigger_name: "Deploy main", branch_includes: ["main"], branch_excludes: [] as string[], deploy_command: "npx wrangler deploy", branch: "main" },
+  { trigger_name: "Preview other branches", branch_includes: ["*"], branch_excludes: ["main"], deploy_command: "npx wrangler versions upload", branch: "dev" },
+];

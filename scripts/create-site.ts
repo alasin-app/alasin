@@ -14,8 +14,10 @@
 //
 // Answers and what was made are kept in deployments/<site>/create-site.json
 // after each step, so a re-run (--site <name>) asks nothing already answered
-// and continues where it stopped. The Workers and the site's and app's domains
-// come in a later version.
+// and continues where it stopped. Then the site Worker: created, given the
+// site's domain, and connected to the repository with Workers Builds (needs a
+// user API token in CLOUDFLARE_BUILDS_TOKEN). Alasin's own Workers and the
+// app's domain come in a later version.
 
 import { spawnSync } from "node:child_process";
 import { resolve as resolveDns } from "node:dns/promises";
@@ -42,6 +44,7 @@ import {
   skeletonValuesFor,
 } from "./lib/create-site";
 import { zoneFor } from "./lib/cloudflare-api";
+import { attachDomain, connectBuilds, createPlaceholderWorker } from "./lib/site-worker";
 import { fillPlaceholders, PLACEHOLDER_FILES, unfilled } from "./lib/skeleton";
 import { parse as parseToml } from "smol-toml";
 import { SITE_NAME } from "./lib/deployments";
@@ -305,6 +308,28 @@ async function create(state: SiteState, plan: PlannedItem[]) {
     createRepository(state, plan);
     made(repo.key);
   } else ok(`${repo.name}: ${repo.status === "not-ours" ? "exists, not changed" : "already there"}`);
+
+  step("Site Worker");
+  const worker = slot("site-worker")!;
+  if (worker.status === "new" && !state.created.includes(worker.key)) {
+    createPlaceholderWorker(worker.name);
+    made(worker.key);
+    ok(`${worker.name}: created (a placeholder page until its first build)`);
+  }
+  const siteDomain = slot("domain:site");
+  if (siteDomain?.status === "new" && !state.created.includes(siteDomain.key) && mine(worker)) {
+    await attachDomain(worker.name, siteDomain.name);
+    made(siteDomain.key);
+    ok(`${worker.name}: served at https://${siteDomain.name}/`);
+  }
+  const buildsKey = `builds:${worker.name}`;
+  if (mine(worker) && mine(repo) && !state.created.includes(buildsKey)) {
+    const builds = await connectBuilds(worker.name, repo.name);
+    made(buildsKey);
+    ok(`${repo.name} connected with Workers Builds: main → production, other branches → previews`);
+    for (const b of builds) info(`  first build of ${b.branch} started (${b.build})`);
+    info("  Follow them in the dashboard: Workers & Pages → the site Worker → Deployments / Builds.");
+  } else if (state.created.includes(buildsKey)) ok(`${worker.name}: connected with Workers Builds`);
 
   const later = plan.filter((p) => p.status === "new" && !state.created.includes(p.key));
   if (later.length) {

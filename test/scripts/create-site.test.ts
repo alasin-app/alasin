@@ -2,6 +2,7 @@
 import { describe, expect, it } from "vitest";
 import {
   alreadyDeployedWarning,
+  BUILD_TRIGGERS,
   cloudflareName,
   type Existing,
   hostnameProblem,
@@ -163,6 +164,12 @@ describe("a site deployed earlier", () => {
 });
 
 describe("creating a site", () => {
+  it("deploys only main to production; every other branch, dev included, is a preview", () => {
+    const [prod, preview] = BUILD_TRIGGERS;
+    expect(prod).toMatchObject({ branch_includes: ["main"], deploy_command: "npx wrangler deploy", branch: "main" });
+    expect(preview).toMatchObject({ branch_includes: ["*"], branch_excludes: ["main"], deploy_command: "npx wrangler versions upload", branch: "dev" });
+  });
+
   it("looks for a host's zone from the most specific name", () => {
     expect(zoneCandidates("img.blog.example.com")).toEqual(["img.blog.example.com", "blog.example.com", "example.com"]);
     expect(zoneCandidates("example.com")).toEqual(["example.com"]);
