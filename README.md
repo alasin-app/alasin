@@ -420,3 +420,5 @@ npm run typecheck
 ## Licence
 
 [MIT](LICENSE). Runtime dependencies: [Hono](https://hono.dev) (MIT), [Zod](https://zod.dev) (MIT), [smol-toml](https://github.com/squirrelchat/smol-toml) (BSD-3-Clause), [Preact](https://preactjs.com) (MIT), [Lucide](https://lucide.dev) (ISC).
+
+The sample photos in `templates/sample/images/` are not covered by the MIT licence: each keeps its own (public domain, CC0 or CC BY), with its author and source in [`templates/sample/CREDITS.md`](templates/sample/CREDITS.md). The skeleton site's theme, [PaperMod](https://github.com/adityatelange/hugo-PaperMod) (MIT), is fetched when a site is built, not included here.
