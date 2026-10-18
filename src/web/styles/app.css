@@ -2066,16 +2066,31 @@ img {
 
 
 /* Media library: months, newest first, opened one at a time as needed. */
-.media-filter {
+.media-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   margin: 4px var(--gutter-right) 0 var(--gutter);
+}
+
+.media-select {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.media-toolbar + .media-year {
+  margin-top: 12px;
+}
+
+.bin-photos {
+  margin-top: 20px;
 }
 
 .media-year {
   margin-top: 20px;
-}
-
-.media-filter + .media-year {
-  margin-top: 12px;
 }
 
 .media-month-header {

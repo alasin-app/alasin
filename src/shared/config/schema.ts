@@ -147,7 +147,9 @@ const media = z
       .describe("Top-level prefixes of `MEDIA` the media library may list. `\"\"` means the bucket root."),
   })
   .strict()
-  .describe("The site's existing public image bucket (`MEDIA` binding). Alasin never overwrites or deletes objects there.");
+  .describe(
+    "The site's existing public image bucket (`MEDIA` binding). Alasin never overwrites objects there; an image leaves it only when it's deleted in *Media* (orphaned images only), into the Bin.",
+  );
 
 const drafts = z
   .object({

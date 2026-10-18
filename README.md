@@ -168,7 +168,7 @@ The site repository and the GitHub App used to log in. Secrets go in Worker secr
 
 ### `[media]`
 
-The site's existing public image bucket (`MEDIA` binding). Alasin never overwrites or deletes objects there.
+The site's existing public image bucket (`MEDIA` binding). Alasin never overwrites objects there; an image leaves it only when it's deleted in *Media* (orphaned images only), into the Bin.
 
 | Option | Type | Default | Example | Description |
 | --- | --- | --- | --- | --- |
@@ -364,7 +364,7 @@ Secrets are rotated by hand, and Alasin reminds you when it's time. `npm run set
 - **Sessions:** an encrypted, `HttpOnly`, `Secure`, `SameSite=Lax` `__Host-` cookie that refers to a server-side session in KV. Idle and absolute timeouts; logout deletes the session server-side.
 - **Tokens:** GitHub tokens never reach the browser. They are stored encrypted (AES-GCM) in KV and refreshed before expiry.
 - **Browser:** a strict Content-Security-Policy (no inline or third-party scripts, no `eval`; WebAssembly is allowed only for the bundled WebP encoder, needed because iOS browsers can't encode WebP), CSRF protection on every state-changing request, HSTS and other security headers. No analytics or trackers.
-- **Data:** drafts, archived items and the Bin are folders of the site repository (`drafts/`, `archive/`, `bin/`; keep it private). The app deletes posts, pages and drafts from the repository only when the Bin is emptied; the one other deletion is a category's term page, when the category is deleted in *Categories* (after a confirmation that names how many posts use it). Images never go into git: draft images are in a private R2 bucket, published images in your public bucket, where the app never overwrites or deletes anything.
+- **Data:** drafts, archived items and the Bin are folders of the site repository (`drafts/`, `archive/`, `bin/`; keep it private). The app deletes posts, pages and drafts from the repository only when the Bin is emptied; the one other deletion is a category's term page, when the category is deleted in *Categories* (after a confirmation that names how many posts use it). Images never go into git: draft images are in a private R2 bucket, published images in your public bucket, where the app never overwrites anything. A published image leaves it only when it's deleted in *Media* (orphaned images only): it moves to the Bin, in the private bucket under `media-bin/`, and is deleted only when the Bin is emptied.
 - **Logs** contain request IDs, routes, status codes and GitHub user IDs only.
 
 **Rotating secrets** (per deployment; add `-- --env dev` for the dev app):
