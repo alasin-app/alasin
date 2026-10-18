@@ -7,6 +7,7 @@ const values: SkeletonValues = {
   SITE_TITLE: 'The "Example" site',
   LANGUAGE: "en",
   MEDIA_URL: "https://media.example.com/",
+  DEV_MEDIA_URL: "https://pub-0123.r2.dev/",
   SITE_WORKER: "example-com",
   MODULE_PATH: "github.com/octocat/example.com",
 };

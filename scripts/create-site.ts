@@ -1,21 +1,26 @@
 // SPDX-License-Identifier: MIT
 //
-// npm run create-site [-- --site <name>] [--dry-run]
+// npm run create-site [-- --site <name>] [--dry-run] [--yes]
 //
-// Plans a new site with its environments (#251): asks for the site repository,
-// the Alasin name, the environments and production's domains, checks GitHub,
-// Cloudflare and DNS for what already exists, and prints what would be
-// created. Anything that exists but wasn't made by this deployment gets a
-// warning and needs the repository name typed to go on. The answers are kept
-// in deployments/<site>/create-site.json, so a re-run (--site <name>) asks
-// nothing already answered.
+// Creates a new site with its environments (#251): asks for the site
+// repository, the Alasin name, the environments and production's domains,
+// checks GitHub, Cloudflare and DNS for what already exists, and prints the
+// plan. Anything that exists but wasn't made by this deployment gets a warning
+// and needs the repository name typed to go on; it is only ever reused, never
+// changed. Then, after a confirmation (--yes skips it), it creates what's new:
+// the buckets (the dev media bucket with its public r2.dev URL, production's
+// with its domain), and the private site repository from the skeleton, with
+// main and a dev branch, cloned to deployments/<site>/site/.
 //
-// This version plans only: creating the items comes in later versions.
+// Answers and what was made are kept in deployments/<site>/create-site.json
+// after each step, so a re-run (--site <name>) asks nothing already answered
+// and continues where it stopped. The Workers and the site's and app's domains
+// come in a later version.
 
 import { spawnSync } from "node:child_process";
 import { resolve as resolveDns } from "node:dns/promises";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { join, relative } from "node:path";
 import { DEPLOYMENTS, repoRoot } from "./lib/args";
 import { capture } from "./lib/proc";
 import {
@@ -27,17 +32,22 @@ import {
   type KnownNames,
   namesFromAlasinWrangler,
   parseRepository,
+  type PlannedItem,
   planItems,
   planLines,
+  r2DevUrl,
   type SiteState,
   siteItems,
   siteWorkerName,
+  skeletonValuesFor,
 } from "./lib/create-site";
+import { zoneFor } from "./lib/cloudflare-api";
+import { fillPlaceholders, PLACEHOLDER_FILES, unfilled } from "./lib/skeleton";
 import { parse as parseToml } from "smol-toml";
 import { SITE_NAME } from "./lib/deployments";
 import { swallowedOptions, swallowedOptionsMessage } from "./lib/npm-args";
 import * as cf from "./setup/cloudflare";
-import { ask, bold, closePrompt, dim, info, ok, red, step, warn } from "./setup/prompt";
+import { ask, bold, closePrompt, confirm, dim, info, ok, red, step, warn } from "./setup/prompt";
 
 const statePath = (repo: string) => join(repoRoot, DEPLOYMENTS, repo, "create-site.json");
 
@@ -55,20 +65,22 @@ function writeState(state: SiteState) {
   writeFileSync(path, `${JSON.stringify(state, null, 2)}\n`);
 }
 
-function parse(argv: string[]): { site?: string; dryRun: boolean } {
+function parse(argv: string[]): { site?: string; dryRun: boolean; yes: boolean } {
   const swallowed = swallowedOptions(process.env);
   if (swallowed.length) throw new Error(swallowedOptionsMessage("create-site", swallowed));
   let site: string | undefined;
   let dryRun = false;
+  let yes = false;
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]!;
     if (a === "--dry-run") dryRun = true;
+    else if (a === "--yes") yes = true;
     else if (a === "--site") site = argv[++i];
     else if (a.startsWith("--site=")) site = a.slice(7);
-    else throw new Error(`Unexpected argument ${a}. Options: --site <name>, --dry-run.`);
+    else throw new Error(`Unexpected argument ${a}. Options: --site <name>, --dry-run, --yes.`);
   }
   if (site !== undefined && !SITE_NAME.test(site)) throw new Error(`--site must be a site repository name, got "${site ?? ""}"`);
-  return { site, dryRun };
+  return { site, dryRun, yes };
 }
 
 async function askAnswers(previous: SiteState | null): Promise<SiteState> {
@@ -85,6 +97,10 @@ async function askAnswers(previous: SiteState | null): Promise<SiteState> {
     ({ owner, repo } = parseRepository(answer) as { owner: string; repo: string });
   } else ok(`Site repository: ${owner}/${repo}`);
 
+  const title = previous?.title ?? (await ask("Site title", { default: repo! }));
+  if (previous?.title) ok(`Site title: ${title}`);
+  const language = previous?.language ?? (await ask("Site language (Hugo locale, e.g. en or fi)", { default: "en", validate: (v) => (/^[a-z]{2,3}(-[A-Za-z]{2,4})?$/.test(v) ? null : "a locale like en or fi") }));
+  if (previous?.language) ok(`Site language: ${language}`);
   const alasinName = previous?.alasinName ?? (await ask("Alasin name (base name of its Cloudflare Worker)", { default: "alasin" }));
   if (previous?.alasinName) ok(`Alasin name: ${alasinName}`);
 
@@ -117,7 +133,19 @@ async function askAnswers(previous: SiteState | null): Promise<SiteState> {
       else domains[key] = (await ask(question, { validate: hostnameProblem })).toLowerCase();
     }
   }
-  return { version: 1, owner: owner!, repo: repo!, alasinName, environments, jurisdiction, domains, created: previous?.created ?? [] };
+  return {
+    version: 1,
+    owner: owner!,
+    repo: repo!,
+    title,
+    language,
+    alasinName,
+    environments,
+    jurisdiction,
+    domains,
+    created: previous?.created ?? [],
+    ...(previous?.devMediaUrl ? { devMediaUrl: previous.devMediaUrl } : {}),
+  };
 }
 
 /** True / false, or null if GitHub couldn't be asked. */
@@ -167,6 +195,8 @@ function knownNames(state: SiteState): KnownNames {
     }
   }
   const repository = `${state.owner}/${state.repo}`;
+  // A repository this deployment made holds the skeleton's own Wrangler file, not an earlier deployment's.
+  if (state.created.includes("repo")) return known;
   for (const file of ["wrangler.jsonc", "wrangler.json", "wrangler.toml"]) {
     const text = repoFile(repository, file);
     if (text === null) continue;
@@ -189,6 +219,99 @@ async function check(items: Item[], jurisdiction: string): Promise<Existing> {
   }
   if (items.some((i) => i.kind === "repo" && existing.get(i.key) === null)) warn("GitHub couldn't be asked (gh auth login): the repository can't be checked.");
   return existing;
+}
+
+function files(dir: string): string[] {
+  return readdirSync(dir).flatMap((name) => {
+    const path = join(dir, name);
+    return statSync(path).isDirectory() ? files(path) : [path];
+  });
+}
+
+/** Runs a command where the user sees its output; throws if it fails. */
+function runVisible(cmd: string, args: string[], cwd: string) {
+  const r = spawnSync(cmd, args, { cwd, stdio: "inherit" });
+  if (r.error || r.status !== 0) throw new Error(`${cmd} ${args.slice(0, 3).join(" ")} … failed`);
+}
+
+/** wrangler, quietly; its output if it fails. */
+function wrangler(args: string[]): string {
+  const r = capture("wrangler", args);
+  if (r.code !== 0) throw new Error(`wrangler ${args.slice(0, 4).join(" ")} failed:\n${(r.stderr || r.stdout).slice(-2000)}`);
+  return r.stdout + r.stderr;
+}
+
+/** The site repository: the skeleton filled in, committed to main, a dev branch, cloned in deployments/<site>/site/. */
+function createRepository(state: SiteState, items: Item[]) {
+  const dir = join(repoRoot, DEPLOYMENTS, state.repo, "site");
+  const shown = relative(repoRoot, dir);
+  if (existsSync(dir) && readdirSync(dir).length) throw new Error(`${shown}/ isn't empty: move it away first (nothing was created on GitHub).`);
+  cpSync(join(repoRoot, "templates", "site"), dir, { recursive: true });
+  const values = skeletonValuesFor(state, items);
+  for (const file of PLACEHOLDER_FILES) writeFileSync(join(dir, file), fillPlaceholders(readFileSync(join(dir, file), "utf8"), values));
+  for (const path of files(dir)) {
+    const left = unfilled(readFileSync(path, "utf8"));
+    if (left.length) throw new Error(`${relative(dir, path)} still has ${left.join(", ")}`);
+  }
+  runVisible("git", ["init", "--quiet", "-b", "main"], dir);
+  runVisible("git", ["add", "-A"], dir);
+  runVisible("git", ["commit", "--quiet", "-m", "Create the site from Alasin's skeleton"], dir);
+  runVisible("gh", ["repo", "create", `${state.owner}/${state.repo}`, "--private", "--source", dir, "--remote", "origin", "--push", "--description", "A Hugo site written with Alasin"], dir);
+  runVisible("git", ["push", "--quiet", "origin", "main:refs/heads/dev"], dir);
+  runVisible("git", ["fetch", "--quiet", "origin"], dir);
+  runVisible("git", ["branch", "--quiet", "--track", "dev", "origin/dev"], dir);
+  ok(`${state.owner}/${state.repo}: created (private), with main and dev; cloned in ${shown}/`);
+}
+
+async function create(state: SiteState, plan: PlannedItem[]) {
+  const made = (key: string) => {
+    if (!state.created.includes(key)) state.created.push(key);
+    writeState(state);
+  };
+  const slot = (s: PlannedItem["slot"]) => plan.find((p) => p.slot === s);
+  const mine = (p: PlannedItem | undefined) => !!p && (p.status === "new" || p.status === "ours" || state.created.includes(p.key));
+  const j = (p: PlannedItem) => (p.jurisdiction ?? state.jurisdiction) || undefined;
+  const jArgs = (p: PlannedItem) => (j(p) ? ["-J", j(p)!] : []);
+
+  step("Buckets");
+  for (const p of plan.filter((x) => x.kind === "bucket" && x.status === "new" && !state.created.includes(x.key))) {
+    const r = cf.createBucket(p.name, j(p));
+    if (!r.ok) throw new Error(`Couldn't create bucket ${p.name}:\n${r.output.slice(-2000)}`);
+    made(p.key);
+    ok(`${p.name}: created`);
+  }
+  const devMedia = slot("media:dev");
+  if (devMedia && mine(devMedia) && !state.devMediaUrl) {
+    wrangler(["r2", "bucket", "dev-url", "enable", devMedia.name, ...jArgs(devMedia), "-y"]);
+    const url = r2DevUrl(wrangler(["r2", "bucket", "dev-url", "get", devMedia.name, ...jArgs(devMedia)]));
+    if (!url) throw new Error(`${devMedia.name}: its r2.dev URL couldn't be read`);
+    state.devMediaUrl = url;
+    writeState(state);
+    ok(`${devMedia.name}: public at ${url}`);
+  }
+  const mediaDomain = slot("domain:media");
+  const prodMedia = slot("media:production");
+  if (mediaDomain?.status === "new" && !state.created.includes(mediaDomain.key) && prodMedia && mine(prodMedia)) {
+    const zone = await zoneFor(mediaDomain.name);
+    if (!zone) throw new Error(`${mediaDomain.name}: none of its zones is in this Cloudflare account`);
+    wrangler(["r2", "bucket", "domain", "add", prodMedia.name, "--domain", mediaDomain.name, "--zone-id", zone.id, ...jArgs(prodMedia), "-y"]);
+    made(mediaDomain.key);
+    ok(`${prodMedia.name}: served at https://${mediaDomain.name}/`);
+  }
+
+  step("Site repository");
+  const repo = slot("repo")!;
+  if (repo.status === "new" && !state.created.includes(repo.key)) {
+    createRepository(state, plan);
+    made(repo.key);
+  } else ok(`${repo.name}: ${repo.status === "not-ours" ? "exists, not changed" : "already there"}`);
+
+  const later = plan.filter((p) => p.status === "new" && !state.created.includes(p.key));
+  if (later.length) {
+    step("Not yet");
+    info("These come in a later version of create-site:");
+    for (const p of later) info(`  ${p.name} (${p.role})`);
+  }
 }
 
 async function main() {
@@ -224,7 +347,17 @@ async function main() {
   }
   writeState(state);
   ok(`Answers saved in ${DEPLOYMENTS}/${state.repo}/create-site.json (run again with --site ${state.repo}).`);
-  info("This version only plans: creating the repository, buckets and Workers comes in a later version.");
+
+  const todo = plan.filter((p) => p.status === "new" && !state.created.includes(p.key)).length;
+  if (!todo && (!state.environments.includes("dev") || state.devMediaUrl)) {
+    info("Nothing new to create.");
+    return;
+  }
+  if (!args.yes && !(await confirm(`Create the new items now (${todo})?`, false))) {
+    info("Stopped before creating anything.");
+    return;
+  }
+  await create(state, plan);
 }
 
 main()

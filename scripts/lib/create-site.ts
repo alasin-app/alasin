@@ -26,6 +26,11 @@ export interface SiteState {
   jurisdiction: string;
   /** Production custom domains. */
   domains: { site?: string; app?: string; media?: string };
+  /** The site's title and Hugo locale, for the skeleton. */
+  title?: string;
+  language?: string;
+  /** The dev media bucket's public r2.dev URL, once it's turned on. */
+  devMediaUrl?: string;
   /** Keys of the items create-site made (see Item.key). */
   created: string[];
 }
@@ -192,12 +197,25 @@ export function siteWorkerName(file: string, text: string): string | null {
   }
 }
 
-/** Each item with its status: new, made by this deployment, or existing but not made by it. */
+/**
+ * Each item with its status: new, made by this deployment, or existing but not
+ * made by it. A domain this deployment added counts as its own even before DNS
+ * finds it; a bucket or repository it made that's gone is new again.
+ */
 export function planItems(items: Item[], existing: Existing, created: string[]): PlannedItem[] {
   const ours = new Set(created);
   return items.map((item) => {
     const exists = existing.get(item.key);
-    const status: Status = exists === null || exists === undefined ? "unknown" : !exists ? "new" : ours.has(item.key) ? "ours" : "not-ours";
+    const pendingDomain = item.kind === "domain" && ours.has(item.key) && exists !== true;
+    const status: Status = pendingDomain
+      ? "ours"
+      : exists === null || exists === undefined
+        ? "unknown"
+        : !exists
+          ? "new"
+          : ours.has(item.key)
+            ? "ours"
+            : "not-ours";
     return { ...item, status };
   });
 }
@@ -228,4 +246,36 @@ export function alreadyDeployedWarning(plan: PlannedItem[]): string | null {
     "This may be a live site, possibly production. create-site would only reuse these, never change or overwrite them:",
     "no commits to a repository with content, no changes to existing domains, no writes to buckets that aren't empty.",
   ].join("\n");
+}
+
+/** Zones a hostname may belong to, most specific first: img.a.example.com → a.example.com, example.com (and itself). */
+export function zoneCandidates(host: string): string[] {
+  const labels = host.split(".");
+  return labels.slice(0, -1).map((_, i) => labels.slice(i).join("."));
+}
+
+/** The public r2.dev URL in Wrangler's output, ending in "/"; null if there is none. */
+export function r2DevUrl(output: string): string | null {
+  const m = /https:\/\/pub-[0-9a-f]+\.r2\.dev/.exec(output);
+  return m ? `${m[0]}/` : null;
+}
+
+/** The skeleton's placeholder values for a site (see scripts/lib/skeleton.ts). */
+export function skeletonValuesFor(state: SiteState, items: Item[]): Record<string, string> {
+  const prod = state.environments.includes("production");
+  const devMedia = state.devMediaUrl ?? "";
+  const media = prod && state.domains.media ? `https://${state.domains.media}/` : devMedia;
+  const worker = items.find((i) => i.slot === "site-worker")?.name;
+  if (!worker) throw new Error("No site Worker in the plan");
+  if (!media) throw new Error("No media URL yet: the media bucket's address must exist before the site does");
+  return {
+    // Without production, main isn't the public site: root-relative links.
+    SITE_URL: prod && state.domains.site ? `https://${state.domains.site}` : "",
+    SITE_TITLE: state.title || state.repo,
+    LANGUAGE: state.language || "en",
+    MEDIA_URL: media,
+    DEV_MEDIA_URL: devMedia || media,
+    SITE_WORKER: worker,
+    MODULE_PATH: `github.com/${state.owner}/${state.repo}`,
+  };
 }
