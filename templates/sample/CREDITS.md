@@ -2,7 +2,7 @@
 
 The photos in `images/` are the sample images `create-site` puts in a new dev site (#260). They are **not** covered by Alasin's MIT licence: each keeps its own licence, listed below. All are public domain, CC0 or Creative Commons Attribution (CC BY), and come from [Wikimedia Commons](https://commons.wikimedia.org/).
 
-**Changes:** each is Wikimedia Commons' 1280 px wide version of the original, with all metadata (EXIF, XMP, IPTC, colour profile, comments) removed. Alasin adds smaller WebP sizes when it uploads them. No other changes.
+**Changes:** each is Wikimedia Commons' 1280 px wide version of the original, with all metadata (EXIF, XMP, IPTC, colour profile, comments) removed. Their smaller WebP sizes (480 and 960 px wide, quality 80, as Alasin makes them) are in `images/variants/`, under the same licences. No other changes.
 
 When a CC BY image is shown on a site, credit it as below: the sample site does this on its credits page.
 

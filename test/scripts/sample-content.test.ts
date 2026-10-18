@@ -3,12 +3,13 @@
 import { describe, expect, it } from "vitest";
 import { parseFields, splitFrontMatter } from "../../src/shared/frontmatter";
 import { isUlid } from "../../src/shared/ulid";
-import { creditsPage, jpegSize, ORPHAN, type SampleFile, sampleUploads } from "../../scripts/lib/sample-content";
+import { creditsPage, jpegSize, missingVariants, ORPHAN, type SampleFile, sampleUploads } from "../../scripts/lib/sample-content";
 import { fillPlaceholders, unfilled } from "../../scripts/lib/skeleton";
 
 const raw = import.meta.glob("../../templates/sample/repo/**/*.md", { query: "?raw", import: "default", eager: true }) as Record<string, string>;
 const files: SampleFile[] = Object.entries(raw).map(([p, text]) => ({ path: p.replace("../../templates/sample/repo/", ""), text }));
 const images = Object.keys(import.meta.glob("../../templates/sample/images/*.jpg")).map((p) => p.slice(p.lastIndexOf("/") + 1));
+const variants = Object.keys(import.meta.glob("../../templates/sample/images/variants/*.webp")).map((p) => p.slice(p.lastIndexOf("/") + 1));
 const credits = Object.values(import.meta.glob("../../templates/sample/CREDITS.md", { query: "?raw", import: "default", eager: true }) as Record<string, string>)[0]!;
 
 const fields = (f: SampleFile) => {
@@ -63,8 +64,8 @@ describe("dev sample content", () => {
       key: "2026/06/14/apple-blossoms.jpg",
       image: "apple-blossoms.jpg",
       variants: [
-        { key: "2026/06/14/apple-blossoms-480.webp", width: 480 },
-        { key: "2026/06/14/apple-blossoms-960.webp", width: 960 },
+        { key: "2026/06/14/apple-blossoms-480.webp", width: 480, file: "apple-blossoms-480.webp" },
+        { key: "2026/06/14/apple-blossoms-960.webp", width: 960, file: "apple-blossoms-960.webp" },
       ],
     });
     expect(uploads.filter((u) => u.bucket === "drafts").map((u) => u.key)).toEqual(["01M3QSRT00A684TDARGYVPZF45/shallow-water.jpg"]);
@@ -73,6 +74,12 @@ describe("dev sample content", () => {
     // The orphan isn't used by any file.
     expect(files.some((f) => f.text.includes(ORPHAN.key))).toBe(false);
     expect(uploads.some((u) => u.key === ORPHAN.key)).toBe(true);
+  });
+
+  it("has every size ready-made, and says which are missing for other widths", () => {
+    expect(missingVariants(uploads, variants)).toEqual([]);
+    const wider = sampleUploads(files, { contentPrefix: "/img/", widths: [320, 960], variantName: "{name}-{width}.{ext}", variantFormat: "webp", images, width: () => 1280 });
+    expect(missingVariants(wider, variants)).toContain("apple-blossoms-320.webp");
   });
 
   it("refuses a photo there's no sample image for", () => {

@@ -113,11 +113,12 @@ Without `--site`, the commands use `./alasin.toml` as before. If there's none an
 
 - the buckets, in the chosen jurisdiction: the dev media bucket with its public `r2.dev` URL, production's media bucket on its domain (the zone must be in the same Cloudflare account);
 - the private site repository: the skeleton site (`templates/site/`, PaperMod with Alasin's gallery, image and cover support) filled in and committed to `main`, a `dev` branch, and a clone in `deployments/<site>/site/`;
-- the site's Worker, on the production site's domain, connected to the repository with Cloudflare Workers Builds: `main` deploys production, every other branch uploads a preview (the `dev` branch's preview is the dev site). The first builds start at once.
+- the site's Worker, on the production site's domain, connected to the repository with Cloudflare Workers Builds: `main` deploys production, every other branch uploads a preview (the `dev` branch's preview is the dev site, whose address it prints). The first builds start at once;
+- for dev, the sample content (`templates/sample/`): committed to the `dev` branch, with its photos and their sizes uploaded to the dev buckets. It asks for a second author for some of the posts (a GitHub login, or a made-up one).
 
 Workers Builds doesn't accept Wrangler's login: it needs a user API token (*My Profile → API Tokens → Create Token → Start from scratch*: *Workers CI · Edit* and *Workers · Metadata Read-only*, for your account). Put it in `CLOUDFLARE_BUILDS_TOKEN` for the run, without it showing or staying in the shell's history: `read -rs CLOUDFLARE_BUILDS_TOKEN && export CLOUDFLARE_BUILDS_TOKEN`. Cloudflare's GitHub app must be able to see the site repository (on GitHub: *Settings → Applications → Cloudflare Workers and Pages → Configure*). If the account has several Workers Builds *build tokens* (the tokens builds deploy with; each connected Worker can have made one), `create-site` asks which to use, since some may have been deleted or rolled; `CLOUDFLARE_BUILD_TOKEN_NAME` chooses one without asking. It never creates one (that would need a token allowed to create other tokens): if none works, make one in the dashboard (*Workers & Pages → the site Worker → Settings → Builds → API token → Create new token*) and run it again.
 
-Each step is recorded as it's done, so a run that stops can be repeated and continues where it was. Alasin's own Workers, the app's domain and the dev sample content are coming.
+Each step is recorded as it's done, so a run that stops can be repeated and continues where it was. Alasin's own Workers and the app's domain are coming.
 
 Apart from an optional `.dev.vars`, nothing in `deployments/` is secret: Worker secrets stay in Cloudflare. It is untracked, though, so `git clean -x` deletes it. Back up each `alasin.toml`, or keep it in a private repository as below.
 
