@@ -26,9 +26,9 @@ export const PLACEHOLDER_FILES = ["hugo.toml", "wrangler.jsonc", "go.mod", "cont
 const PLACEHOLDER = /__([A-Z_]+)__/g;
 
 /** Fills every placeholder; throws on one without a value, so nothing half-filled is committed. */
-export function fillPlaceholders(text: string, values: SkeletonValues): string {
+export function fillPlaceholders(text: string, values: SkeletonValues | Record<string, string>): string {
   return text.replace(PLACEHOLDER, (match, name: string) => {
-    const value = (values as unknown as Record<string, string | undefined>)[name];
+    const value = (values as Record<string, string | undefined>)[name];
     if (value === undefined) throw new Error(`No value for ${match}`);
     // TOML and JSON strings: the values are plain, but quotes and backslashes must not break the file.
     return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');

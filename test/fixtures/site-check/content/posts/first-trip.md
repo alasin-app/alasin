@@ -22,4 +22,4 @@ Text with an inline image: ![a lake](/img/2026/10/01/lake.jpg)
 
 {{< /gallery >}}
 
-{{< youtube dQw4w9WgXcQ >}}
+{{< youtube aqz-KE-bpKQ >}}
