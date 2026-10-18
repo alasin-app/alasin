@@ -14,6 +14,8 @@ export interface SkeletonValues {
   LANGUAGE: string;
   /** The media bucket's public URL, ending in "/". */
   MEDIA_URL: string;
+  /** The dev media bucket's public URL, ending in "/", for preview builds (the dev site). */
+  DEV_MEDIA_URL: string;
   /** The site Worker's name. */
   SITE_WORKER: string;
   /** The Hugo module path of the site, e.g. github.com/owner/repo. */
@@ -21,7 +23,7 @@ export interface SkeletonValues {
 }
 
 /** The files that hold placeholders (relative to templates/site/). Other files are copied as they are. */
-export const PLACEHOLDER_FILES = ["hugo.toml", "wrangler.jsonc", "go.mod", "content/_index.md"];
+export const PLACEHOLDER_FILES = ["hugo.toml", "config/preview/hugo.toml", "wrangler.jsonc", "go.mod", "content/_index.md"];
 
 const PLACEHOLDER = /__([A-Z_]+)__/g;
 

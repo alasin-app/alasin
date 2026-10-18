@@ -1,0 +1,6 @@
+# Settings for preview builds: every branch except main (the dev site is the
+# dev branch's preview). Hugo merges them over ../../hugo.toml.
+
+[params.alasin]
+  # The dev media bucket's public URL: the dev site's photos are there.
+  mediaURL = "__DEV_MEDIA_URL__"

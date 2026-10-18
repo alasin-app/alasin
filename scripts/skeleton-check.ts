@@ -24,6 +24,7 @@ const values = {
   SITE_TITLE: "Example",
   LANGUAGE: "en",
   MEDIA_URL: "https://media.example.com/",
+  DEV_MEDIA_URL: "https://pub-0123.r2.dev/",
   SITE_WORKER: "example-com",
   MODULE_PATH: "github.com/octocat/example.com",
 };
@@ -101,6 +102,12 @@ try {
   expect(page("pages/credits/index.html").includes("apple-blossoms.jpg"), "sample: credits page");
   expect(!!page("categories/forests/index.html") && !!page("categories/coast/index.html"), "sample: category pages");
   expect(!page("posts/shallow-water/index.html") && !page("posts/an-older-trip/index.html") && !page("posts/a-deleted-post/index.html"), "sample: drafts, archive and Bin not on the site");
+
+  // A preview build (the dev site): the dev media bucket, root-relative links.
+  rmSync(join(dir, "public"), { recursive: true });
+  // As scripts/build.sh builds it.
+  run(join(dir, "node_modules", ".bin", "hugo"), ["--gc", "--logLevel", "error", "--baseURL", "/", "--environment", "preview"]);
+  expect(page("posts/dry-valleys/index.html").includes('src="https://pub-0123.r2.dev/2026/09/28/dry-valley.jpg"'), "preview build: photos from the dev media bucket");
 } finally {
   rmSync(dir, { recursive: true, force: true });
 }

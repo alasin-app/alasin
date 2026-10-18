@@ -109,7 +109,12 @@ npm run sites                              # lists the deployments with their Wo
 
 Without `--site`, the commands use `./alasin.toml` as before. If there's none and `deployments/` has exactly one site, they use that one and say so; with several, they ask for `--site`.
 
-`npm run create-site` plans a new site with its environments: it asks for the site repository, the Alasin name, the environments and production's domains, checks GitHub, Cloudflare and DNS, and lists what it would create. Anything that already exists but wasn't made by this deployment is flagged as possibly a live site, and going on needs the repository name typed. For a site deployed earlier, the names it already uses are read from `deployments/<site>/wrangler.toml` (Alasin's Workers and buckets) and from the site repository's own `wrangler.jsonc`/`.json`/`.toml` (the site Worker), so no second set is planned. Answers are kept in `deployments/<site>/create-site.json` (`--site <name>` re-runs without asking again; `--dry-run` only shows the plan). For now it plans only; creating the items is coming.
+`npm run create-site` plans a new site with its environments: it asks for the site repository, the Alasin name, the environments and production's domains, checks GitHub, Cloudflare and DNS, and lists what it would create. Anything that already exists but wasn't made by this deployment is flagged as possibly a live site, and going on needs the repository name typed. For a site deployed earlier, the names it already uses are read from `deployments/<site>/wrangler.toml` (Alasin's Workers and buckets) and from the site repository's own `wrangler.jsonc`/`.json`/`.toml` (the site Worker), so no second set is planned. Answers are kept in `deployments/<site>/create-site.json` (`--site <name>` re-runs without asking again; `--dry-run` only shows the plan). After a confirmation it creates what's new:
+
+- the buckets, in the chosen jurisdiction: the dev media bucket with its public `r2.dev` URL, production's media bucket on its domain (the zone must be in the same Cloudflare account);
+- the private site repository: the skeleton site (`templates/site/`, PaperMod with Alasin's gallery, image and cover support) filled in and committed to `main`, a `dev` branch, and a clone in `deployments/<site>/site/`.
+
+Each step is recorded as it's done, so a run that stops can be repeated and continues where it was. The Workers, the site's and app's domains and the dev sample content are coming.
 
 Apart from an optional `.dev.vars`, nothing in `deployments/` is secret: Worker secrets stay in Cloudflare. It is untracked, though, so `git clean -x` deletes it. Back up each `alasin.toml`, or keep it in a private repository as below.
 

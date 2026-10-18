@@ -8,6 +8,9 @@ import {
   namesFromAlasinWrangler,
   parseRepository,
   planItems,
+  r2DevUrl,
+  skeletonValuesFor,
+  zoneCandidates,
   planLines,
   siteItems,
   siteWorkerName,
@@ -147,5 +150,34 @@ describe("a site deployed earlier", () => {
     expect(alreadyDeployedWarning(plan)).toContain(
       "This site is already deployed: its own names are taken from deployments/my-site/wrangler.toml and octocat/My.Site/wrangler.jsonc, so no second set is planned.",
     );
+  });
+});
+
+describe("creating a site", () => {
+  it("looks for a host's zone from the most specific name", () => {
+    expect(zoneCandidates("img.blog.example.com")).toEqual(["img.blog.example.com", "blog.example.com", "example.com"]);
+    expect(zoneCandidates("example.com")).toEqual(["example.com"]);
+  });
+
+  it("reads the r2.dev URL from Wrangler's output", () => {
+    expect(r2DevUrl("Public access is enabled at 'https://pub-0123abc.r2.dev'.")).toBe("https://pub-0123abc.r2.dev/");
+    expect(r2DevUrl("Public access via the r2.dev URL is disabled.")).toBeNull();
+  });
+
+  it("fills the skeleton from the answers and the plan", () => {
+    const state = { version: 1 as const, ...answers, jurisdiction: "eu", created: [], title: "My site", devMediaUrl: "https://pub-0123.r2.dev/" };
+    expect(skeletonValuesFor(state, siteItems(state))).toEqual({
+      SITE_URL: "https://www.example.com",
+      SITE_TITLE: "My site",
+      LANGUAGE: "en",
+      MEDIA_URL: "https://media.example.com/",
+      DEV_MEDIA_URL: "https://pub-0123.r2.dev/",
+      SITE_WORKER: "my-site",
+      MODULE_PATH: "github.com/octocat/My.Site",
+    });
+    // Dev only: root-relative links, the dev bucket for both.
+    const dev = { ...state, environments: ["dev" as const], domains: {}, title: undefined };
+    expect(skeletonValuesFor(dev, siteItems(dev))).toMatchObject({ SITE_URL: "", SITE_TITLE: "My.Site", MEDIA_URL: "https://pub-0123.r2.dev/", DEV_MEDIA_URL: "https://pub-0123.r2.dev/" });
+    expect(() => skeletonValuesFor({ ...dev, devMediaUrl: undefined }, siteItems(dev))).toThrow("No media URL yet");
   });
 });
