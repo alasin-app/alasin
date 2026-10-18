@@ -109,6 +109,8 @@ npm run sites                              # lists the deployments with their Wo
 
 Without `--site`, the commands use `./alasin.toml` as before. If there's none and `deployments/` has exactly one site, they use that one and say so; with several, they ask for `--site`.
 
+`npm run create-site` plans a new site with its environments: it asks for the site repository, the Alasin name, the environments and production's domains, checks GitHub, Cloudflare and DNS, and lists what it would create. Anything that already exists but wasn't made by this deployment is flagged as possibly a live site, and going on needs the repository name typed. Answers are kept in `deployments/<site>/create-site.json` (`--site <name>` re-runs without asking again; `--dry-run` only shows the plan). For now it plans only; creating the items is coming.
+
 Apart from an optional `.dev.vars`, nothing in `deployments/` is secret: Worker secrets stay in Cloudflare. It is untracked, though, so `git clean -x` deletes it. Back up each `alasin.toml`, or keep it in a private repository as below.
 
 ### Keeping a deployment's configuration in its own repository
