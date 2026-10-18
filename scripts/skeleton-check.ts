@@ -6,7 +6,8 @@
 // up: a copy with the placeholders filled, plus test content using every
 // Alasin feature (test/fixtures/site-check/), built with the Hugo version the
 // skeleton pins. Then checks that covers, images, galleries, YouTube,
-// categories and sub-pages came out right. Needs Go (Hugo modules) and
+// categories and sub-pages came out right. A second build uses the dev site's
+// sample content (templates/sample/) instead. Needs Go (Hugo modules) and
 // network access for the theme. Run in CI, so a theme or Hugo update that
 // breaks the skeleton is caught.
 
@@ -15,6 +16,7 @@ import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, sta
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { repoRoot } from "./lib/args";
+import { creditsPage } from "./lib/sample-content";
 import { fillPlaceholders, PLACEHOLDER_FILES, unfilled } from "./lib/skeleton";
 
 const values = {
@@ -69,11 +71,36 @@ try {
   expect(post.includes("<figcaption>The forest at dawn</figcaption>"), "image title as caption");
   expect((post.match(/alasin-gallery-item/g) ?? []).length === 3, "gallery of three linked thumbnails");
   expect(post.includes("href=https://other.example.com/c.jpg"), "image from elsewhere left as it is");
-  expect(/youtube(-nocookie)?\.com\/embed\/dQw4w9WgXcQ/.test(post), "YouTube embed");
+  expect(/youtube(-nocookie)?\.com\/embed\/aqz-KE-bpKQ/.test(post), "YouTube embed");
   expect(post.includes("Jane Doe"), "author");
   expect(!!page("categories/travel/index.html") && !!page("tags/gallery/index.html"), "category and tag pages");
   expect(page("pages/about/index.html").includes("Team") && !!page("pages/about/team/index.html"), "page with a sub-page");
   expect(!existsSync(join(dir, "public", "drafts")) && !existsSync(join(dir, "public", "bin")), "drafts and Bin not built");
+
+  // The dev site's sample content, filled in as create-site will.
+  rmSync(join(dir, "content"), { recursive: true });
+  rmSync(join(dir, "public"), { recursive: true });
+  cpSync(join(repoRoot, "templates", "site", "content"), join(dir, "content"), { recursive: true });
+  const sample = join(repoRoot, "templates", "sample", "repo");
+  const sampleValues = { SITE_TITLE: "Example", AUTHOR_NAME: "Jane Doe", AUTHOR_ID: "jane-doe", SECOND_AUTHOR_NAME: "John Roe", SECOND_AUTHOR_ID: "john-roe" };
+  for (const path of files(sample)) {
+    const target = join(dir, relative(sample, path));
+    cpSync(path, target);
+    writeFileSync(target, fillPlaceholders(readFileSync(target, "utf8"), sampleValues));
+  }
+  const credits = creditsPage(readFileSync(join(repoRoot, "templates", "sample", "CREDITS.md"), "utf8"));
+  writeFileSync(join(dir, credits.path), credits.text);
+  console.log(run(join(dir, "node_modules", ".bin", "hugo"), ["--gc", "--minify", "--logLevel", "warn"]).trim());
+
+  const posts = page("posts/index.html");
+  expect(["spring-blossoms", "lakes-of-the-north", "into-the-forest", "along-the-coast", "dry-valleys"].every((s) => !!page(`posts/${s}/index.html`)), "sample: five posts");
+  expect(posts.includes("https://media.example.com/2026/09/28/dry-valley.jpg"), "sample: covers in the post list");
+  expect(page("index.html").includes("https://media.example.com/2026/07/02/fell-lake.jpg"), "sample: home page cover");
+  expect(page("posts/lakes-of-the-north/index.html").includes("John Roe"), "sample: second author");
+  expect(!!page("pages/about/team/index.html") && !!page("pages/about/history/index.html"), "sample: page with two sub-pages");
+  expect(page("pages/credits/index.html").includes("apple-blossoms.jpg"), "sample: credits page");
+  expect(!!page("categories/forests/index.html") && !!page("categories/coast/index.html"), "sample: category pages");
+  expect(!page("posts/shallow-water/index.html") && !page("posts/an-older-trip/index.html") && !page("posts/a-deleted-post/index.html"), "sample: drafts, archive and Bin not on the site");
 } finally {
   rmSync(dir, { recursive: true, force: true });
 }
