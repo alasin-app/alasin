@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { buildIndex } from "../../src/web/lib/content-index";
-import { ALLOWED_USER } from "../fixtures";
+import { buildIndex, mediaUsage } from "../../src/web/lib/content-index";
+import { parseConfig } from "../../src/shared/config/schema";
+import { ALLOWED_USER, testConfig } from "../fixtures";
 import { call, type FakeGitHub, fakeGitHub, login, mutating } from "./helpers";
 
 let gh: FakeGitHub;
@@ -15,7 +16,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const folders = { posts: "content/posts", pages: "content/pages", drafts: "drafts", archive: "archive", bin: "bin" };
+const folders = { content: "content", posts: "content/posts", pages: "content/pages", drafts: "drafts", archive: "archive", bin: "bin" };
 const site = { folders, authorField: "author", authorIdField: "author_id", media: { publicUrl: "https://media.example.com/", contentPrefix: "/img/", browse: [""], byMonth: true } };
 
 describe("content", () => {
@@ -23,12 +24,29 @@ describe("content", () => {
     await gh.repo.write("content/posts/2026/a.md", '---\ntitle: "A"\n---\nText\n');
     await gh.repo.write("content/pages/about.md", '---\ntitle: "About"\n---\n');
     await gh.repo.write("static/big.jpg", "not read");
+    await gh.repo.write("content/_index.md", '---\nimage: "/img/2015/01/19/home.jpg"\n---\n');
+    await gh.repo.write("content/projects/radio/index.md", "![](/img/2016/02/03/radio.jpg)\n");
     const res = await call("/api/content", { cookie });
     expect(res.status).toBe(200);
     expect(res.headers.get("Cache-Control")).toBe("private, no-store");
     const index = buildIndex(await res.json(), site);
     expect(index.commit).toBe(gh.repo.head);
-    expect(index.items.map((i) => i.path)).toEqual(["content/posts/2026/a.md", "content/pages/about.md"]);
+    expect(index.items.map((i) => i.path).sort()).toEqual(["content/pages/about.md", "content/posts/2026/a.md"]);
+    // The home page and other sections aren't items, but the images they use are used.
+    const used = mediaUsage(index);
+    expect(["2015/01/19/home.jpg", "2016/02/03/radio.jpg", "2016/02/03/other.jpg"].map(used)).toEqual([true, true, false]);
+  });
+
+  it("reads posts and pages without a common folder on their own, as before", async () => {
+    await gh.repo.write("posts/a.md", '---\ntitle: "A"\n---\n');
+    await gh.repo.write("pages/b.md", '---\ntitle: "B"\n---\n');
+    await gh.repo.write("README.md", "/img/2020/01/01/readme.jpg");
+    const config = parseConfig({ ...testConfig, site: { ...testConfig.site, posts_dir: "posts", pages_dir: "pages" } });
+    const res = await call("/api/content", { cookie }, { ALASIN_CONFIG_JSON: JSON.stringify(config) });
+    const own = { ...site, folders: { ...folders, content: "", posts: "posts", pages: "pages" } };
+    const index = buildIndex(await res.json(), own);
+    expect(index.items.map((i) => i.path).sort()).toEqual(["pages/b.md", "posts/a.md"]);
+    expect(mediaUsage(index)("2020/01/01/readme.jpg")).toBe(false);
   });
 
   it("gives the head commit, to check a cached list", async () => {
@@ -62,6 +80,7 @@ describe("content changes", () => {
   it("reads files only from the content folders", async () => {
     const res = await call("/api/content/files", mutating(cookie, { paths: ["wrangler.toml"] }));
     expect(res.status).toBe(400);
+    expect((await call("/api/content/files", mutating(cookie, { paths: ["content/_index.md"] }))).status).toBe(200);
     expect((await call("/api/content/files", mutating(cookie, { paths: ["content/posts/../../x.md"] }))).status).toBe(400);
     expect((await call("/api/content/changes?base=nope", { cookie })).status).toBe(400);
   });

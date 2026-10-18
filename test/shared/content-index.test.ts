@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { contentRoot } from "../../src/shared/content-root";
 import { buildIndex, changedPaths, imagesIn, INDEX_VERSION, itemFromFile, mediaUsage, plainText, reusable, settingsKey } from "../../src/web/lib/content-index";
 
-const folders = { posts: "content/posts", pages: "content/pages", drafts: "drafts", archive: "archive", bin: "bin" };
+const folders = { content: "content", posts: "content/posts", pages: "content/pages", drafts: "drafts", archive: "archive", bin: "bin" };
 const site = { folders, authorField: "author", authorIdField: "author_id", media: { publicUrl: "https://media.example.com/", contentPrefix: "/img/", browse: [""], byMonth: true } };
 
 const file = (name: string, text: string, oid = "a".repeat(40)) => ({ name, type: "blob", object: { oid, text, isBinary: false, isTruncated: false } });
@@ -109,6 +110,28 @@ describe("media usage", () => {
     );
     const used = mediaUsage(index);
     expect(["section.jpg", "b.jpg", "route-66.jpg", "route.jpg", "orphan.jpg"].map((n) => used(`2026/01/01/${n}`))).toEqual([true, true, true, true, false]);
+  });
+});
+
+describe("content folder", () => {
+  it("is the deepest folder holding posts and pages", () => {
+    expect(contentRoot("content/posts", "content/pages")).toBe("content");
+    expect(contentRoot("site/content/blog/posts", "site/content/pages")).toBe("site/content");
+    expect(contentRoot("content", "content/pages")).toBe("content");
+    expect(contentRoot("posts", "pages")).toBe("");
+    expect(contentRoot("content/posts", "contents/pages")).toBe("");
+  });
+
+  it("brings changes to the home page and other sections into the index", () => {
+    const changed = changedPaths(
+      [
+        { filename: "content/_index.md", status: "modified" },
+        { filename: "content/projects/x/index.md", status: "added" },
+        { filename: "static/a.md", status: "added" },
+      ],
+      folders,
+    );
+    expect(changed.read.sort()).toEqual(["content/_index.md", "content/projects/x/index.md"]);
   });
 });
 

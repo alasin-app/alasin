@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
 //
 // The site's posts and pages for the lists and the search, read in one
-// GitHub GraphQL request: the posts, pages, drafts, archive and Bin folders,
+// GitHub GraphQL request: the content folder (holding the posts and pages
+// folders, read whole for which images are used), the drafts, archive and Bin folders,
 // every Markdown file's text and blob SHA, and the branch's head commit (so
 // the browser can keep its index until the repository changes).
 //
@@ -31,6 +32,7 @@ import { copyDraftImages, MissingImageError } from "../lib/publish-media";
 import { ConflictError, Repo } from "../lib/repo";
 import { contentPath, draftImageRefs, draftInfo, maintainedFields, parseDay, replaceImageUrls, withFields } from "../../shared/publish";
 import { isUlid } from "../../shared/ulid";
+import { contentRoot } from "../../shared/content-root";
 import { lockedBy } from "../lib/lock-check";
 import { logError } from "../lib/log";
 import { getUserToken } from "../session";
@@ -44,25 +46,25 @@ function treeFields(depth: number): string {
   return `entries { name type object { ${blob} ... on Tree { ${treeFields(depth - 1)} } } }`;
 }
 
-export const CONTENT_FOLDERS = ["posts", "pages", "drafts", "archive", "bin"] as const;
+/** The folders Alasin reads: the content folder (with posts and pages in it) or, if they have none in common, those two. */
+export function contentDirs(config: AlasinConfig): Partial<Record<"content" | "posts" | "pages" | "drafts" | "archive" | "bin", string>> {
+  const { site, drafts, archive, bin } = config;
+  const root = contentRoot(site.posts_dir, site.pages_dir);
+  return { ...(root ? { content: root } : { posts: site.posts_dir, pages: site.pages_dir }), drafts: drafts.dir, archive: archive.dir, bin: bin.dir };
+}
 
 /** The GraphQL query and its variables: one aliased tree per folder. */
 export function contentQuery(config: AlasinConfig): { query: string; variables: Record<string, string> } {
-  const { site, drafts, archive, bin, github } = config;
-  const dirs: Record<(typeof CONTENT_FOLDERS)[number], string> = {
-    posts: site.posts_dir,
-    pages: site.pages_dir,
-    drafts: drafts.dir,
-    archive: archive.dir,
-    bin: bin.dir,
-  };
+  const { github } = config;
+  const dirs = Object.entries(contentDirs(config));
   const variables: Record<string, string> = { owner: github.owner, name: github.repo, ref: `refs/heads/${github.branch}` };
-  for (const f of CONTENT_FOLDERS) variables[f] = `${github.branch}:${dirs[f]}`;
-  const tree = treeFields(DEPTH - 1);
-  const query = `query(${["$owner", "$name", "$ref", ...CONTENT_FOLDERS.map((f) => `$${f}`)].map((v) => `${v}: String!`).join(", ")}) {
+  for (const [f, dir] of dirs) variables[f] = `${github.branch}:${dir}`;
+  // The content folder is a level above the posts folder: one level more, so posts are read as deep as before.
+  const tree = (f: string) => treeFields(f === "content" ? DEPTH : DEPTH - 1);
+  const query = `query(${["$owner", "$name", "$ref", ...dirs.map(([f]) => `$${f}`)].map((v) => `${v}: String!`).join(", ")}) {
   repository(owner: $owner, name: $name) {
     ref(qualifiedName: $ref) { target { oid } }
-${CONTENT_FOLDERS.map((f) => `    ${f}: object(expression: $${f}) { ... on Tree { ${tree} } }`).join("\n")}
+${dirs.map(([f]) => `    ${f}: object(expression: $${f}) { ... on Tree { ${tree(f)} } }`).join("\n")}
   }
 }`;
   return { query, variables };
@@ -136,8 +138,7 @@ const pathsBody = (max: number) =>
 async function contentPaths(c: Context<AppEnv>, max: number): Promise<string[] | null> {
   const parsed = pathsBody(max).safeParse(await c.req.json().catch(() => undefined));
   if (!parsed.success) return null;
-  const config = c.get("config");
-  const dirs = [config.site.posts_dir, config.site.pages_dir, config.drafts.dir, config.archive.dir, config.bin.dir];
+  const dirs = Object.values(contentDirs(c.get("config")));
   return parsed.data.paths.every((p) => dirs.some((d) => p.startsWith(`${d}/`))) ? parsed.data.paths : null;
 }
 

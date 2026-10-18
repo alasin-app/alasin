@@ -143,7 +143,7 @@ export class FakeRepo {
         const sha = tree.get(v.split(":").slice(1).join(":"));
         repository[k] = sha ? { oid: sha, text: this.blobs.get(sha)!, isBinary: false, isTruncated: false } : null;
       }
-      for (const f of ["posts", "pages", "drafts", "archive", "bin"]) {
+      for (const f of ["content", "posts", "pages", "drafts", "archive", "bin"]) {
         if (body.variables[f]) repository[f] = await this.contentTree(body.variables[f]!.split(":").slice(1).join(":"));
       }
       return Response.json({ data: { repository } });
