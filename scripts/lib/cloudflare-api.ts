@@ -48,7 +48,9 @@ export async function cloudflareApi<T>(path: string, init: { method?: string; bo
     body: init.body === undefined ? undefined : JSON.stringify(init.body),
   });
   const data = (await res.json().catch(() => ({}))) as { success?: boolean; result?: T; errors?: { message: string }[] };
-  if (!res.ok || !data.success) throw new Error(`Cloudflare API ${path}: ${data.errors?.map((e) => e.message).join("; ") || res.status}`);
+  // The account ID in the path isn't secret, but it isn't needed in messages either.
+  const shown = path.replace(/\/accounts\/[0-9a-f]{32}/, "/accounts/<account>");
+  if (!res.ok || !data.success) throw new Error(`Cloudflare API ${shown}: ${data.errors?.map((e) => e.message).join("; ") || res.status}`);
   return data.result as T;
 }
 

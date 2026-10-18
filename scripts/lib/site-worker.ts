@@ -58,11 +58,13 @@ export async function connectBuilds(worker: string, repository: string): Promise
       body: { provider_type: "github", provider_account_id: ownerId, provider_account_name: owner, repo_id: repoId, repo_name: repo },
     });
   } catch (err) {
-    throw new Error(
-      `${(err as Error).message}\nCloudflare's GitHub app must see ${repository}: on GitHub, Settings → Applications → Cloudflare Workers and Pages → Configure → Repository access. ` +
-        "If the app isn't installed for this account yet, connect any Worker to GitHub once in the dashboard (Settings → Builds → Connect).",
-      { cause: err },
-    );
+    const message = (err as Error).message;
+    // The Builds API answers "Invalid token" for account-owned tokens; it needs a user token.
+    const hint = /invalid token|authentication|unauthori[sz]ed|forbidden|\b10000\b/i.test(message)
+      ? "The token isn't accepted: Workers Builds needs a user API token, made under My Profile → API Tokens (not Manage Account → API Tokens), with Workers CI · Edit and Workers · Metadata Read-only."
+      : `Cloudflare's GitHub app must see ${repository}: on GitHub, Settings → Applications → Cloudflare Workers and Pages → Configure → Repository access. ` +
+        "If the app isn't installed for this account yet, connect any Worker to GitHub once in the dashboard (Settings → Builds → Connect).";
+    throw new Error(`${message}\n${hint}`, { cause: err });
   }
 
   const scripts = await api<{ id: string; tag: string }[]>("/workers/scripts");
