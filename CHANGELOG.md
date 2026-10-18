@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.1](https://github.com/oh2th/alasin/compare/v1.4.0...v1.4.1) (2026-10-18)
+
+
+### Bug Fixes
+
+* **media:** count images used anywhere in the content folder ([#237](https://github.com/oh2th/alasin/issues/237)) ([a47d555](https://github.com/oh2th/alasin/commit/a47d555d4956d29c360574c2ebdb30b6c824a55f))
+
 ## [1.4.0](https://github.com/oh2th/alasin/compare/v1.3.0...v1.4.0) (2026-10-18)
 
 
