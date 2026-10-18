@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/oh2th/alasin/compare/v1.3.0...v1.4.0) (2026-10-18)
+
+
+### Features
+
+* delete orphaned media images via the Bin ([#233](https://github.com/oh2th/alasin/issues/233)) ([4e8733b](https://github.com/oh2th/alasin/commit/4e8733b44685e15ca4c81657b952010b53a094b0)), closes [#160](https://github.com/oh2th/alasin/issues/160)
+
 ## [1.3.0](https://github.com/oh2th/alasin/compare/v1.2.0...v1.3.0) (2026-10-17)
 
 
