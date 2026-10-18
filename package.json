@@ -15,6 +15,7 @@
     "dev": "tsx scripts/alasin.ts dev",
     "deploy": "tsx scripts/alasin.ts deploy",
     "setup": "tsx scripts/setup/index.ts",
+    "create-site": "tsx scripts/create-site.ts",
     "sites": "tsx scripts/sites.ts",
     "test": "vitest run",
     "test:watch": "vitest",
