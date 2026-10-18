@@ -1,0 +1,16 @@
+// The site's Worker: Hugo's output served as static assets (no Worker script).
+// Built by Cloudflare Workers Builds from this repository: main deploys
+// production, other branches upload preview versions (the dev branch's is the
+// dev site). Wrangler runs the build itself before deploying, so the site
+// still builds if the dashboard's build command is changed.
+{
+  "name": "__SITE_WORKER__",
+  "compatibility_date": "2026-10-01",
+  "build": {
+    "command": "bash scripts/build.sh"
+  },
+  "assets": {
+    "directory": "./public",
+    "not_found_handling": "404-page"
+  }
+}

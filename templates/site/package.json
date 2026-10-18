@@ -1,0 +1,15 @@
+{
+  "name": "site",
+  "private": true,
+  "description": "Hugo, pinned so local builds and Workers Builds use the same version.",
+  "scripts": {
+    "dev": "hugo server",
+    "build": "hugo --gc --minify"
+  },
+  "devDependencies": {
+    "hugo-extended": "0.168.0"
+  },
+  "allowScripts": {
+    "hugo-extended": true
+  }
+}

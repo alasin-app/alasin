@@ -75,6 +75,7 @@ If you run a deployment, list its identifying terms in `.local/denylist` (gitign
 ## Code
 
 - TypeScript, small modules: `src/worker` (API), `src/web` (app), `src/shared` (config schema and helpers), `scripts` (setup and deploy).
+- `templates/site/` is the skeleton Hugo site that `create-site` writes, on the PaperMod theme. `npm run skeleton:check` builds it with test content (needs Go); CI runs it too.
 - Every source file starts with `// SPDX-License-Identifier: MIT`.
 - All user-visible text goes through `t()` in `src/web/lib/i18n.ts`, in English and Finnish.
 - New `alasin.toml` options go in `src/shared/config/schema.ts` with a description and in `alasin.example.toml`; then run `npm run docs:config`.
