@@ -45,6 +45,12 @@ export async function api<T>(path: string, init: { method?: string; body?: unkno
   return data as T;
 }
 
+/**
+ * A GitHub user's avatar through the Worker's proxy (32 px at 2x, or larger).
+ * `r` changes when the caching rules do, so copies kept under older ones aren't used.
+ */
+export const avatarUrl = (id: number, small = true) => `/api/avatar/${id}?${small ? "s=40&" : ""}r=2`;
+
 export interface Me {
   user: { id: number; login: string; name: string | null; avatar: string };
   version: string;

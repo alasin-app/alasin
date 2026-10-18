@@ -14,7 +14,7 @@ import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { fromLocalInput, slugify, toLocalInput } from "../../shared/frontmatter";
 import { youtubeId, youtubeShortcode } from "../../shared/youtube";
 import { categoryTree } from "../../shared/categories";
-import { api, ApiError, type Me, NetworkError } from "../lib/api";
+import { api, ApiError, avatarUrl, type Me, NetworkError } from "../lib/api";
 import { authorKey, authorName } from "../lib/authors";
 import { type DraftDoc, type DraftForm, newDraft, parseDraft, prepareSave, serializeDraft } from "../lib/draft-model";
 import { getLanguage, t, useLanguage } from "../lib/i18n";
@@ -804,7 +804,7 @@ export function Editor(props: { me: Me; source: EditSource }) {
       )}
       {(lock.state === "other" || lock.state === "lost") && (
         <div class="banner banner-info editor-banner lock-banner" role="status">
-          <img class="avatar-tiny" src={`/api/avatar/${lock.holder.uid}?s=40`} alt="" width={20} height={20} />
+          <img class="avatar-tiny" src={avatarUrl(lock.holder.uid)} alt="" width={20} height={20} />
           <div>
             <p>
               {lock.state === "other"

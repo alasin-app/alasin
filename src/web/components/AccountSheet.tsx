@@ -2,7 +2,7 @@
 
 import { TriangleAlert } from "lucide-preact";
 import { useState } from "preact/hooks";
-import type { Me } from "../lib/api";
+import { avatarUrl, type Me } from "../lib/api";
 import { getLanguage, LANGUAGES, type MessageKey, setLanguage, t, useLanguage } from "../lib/i18n";
 import { settings } from "../lib/settings";
 import { ActionSheet, Sheet } from "./Sheet";
@@ -16,7 +16,7 @@ export function AccountSheet(props: { open: boolean; onClose: () => void; me: Me
     <>
       <Sheet open={props.open && !confirming} onClose={props.onClose} title={t("account.title")} doneLabel={t("account.done")}>
         <div class="account-header">
-          <img class="avatar avatar-large" src={me.user.avatar} alt="" width={72} height={72} />
+          <img class="avatar avatar-large" src={avatarUrl(me.user.id, false)} alt="" width={72} height={72} />
           <div class="account-name">{me.user.name || me.user.login}</div>
           <div class="footnote">{t("account.signedInAs", { login: me.user.login })}</div>
         </div>
