@@ -10,6 +10,7 @@ import { Hono } from "hono";
 import { parse as parseToml } from "smol-toml";
 import { parse as parseYaml } from "yaml";
 import type { Category } from "../../shared/categories";
+import { contentRoot } from "../../shared/content-root";
 import { parseFields, splitFrontMatter } from "../../shared/frontmatter";
 import type { AppEnv } from "../app";
 import { members } from "../lib/access";
@@ -103,6 +104,7 @@ site.get("/", async (c) => {
       byMonth: config.media.path_pattern.startsWith("{yyyy}/{mm}/"),
     },
     folders: {
+      content: contentRoot(config.site.posts_dir, config.site.pages_dir),
       posts: config.site.posts_dir,
       pages: config.site.pages_dir,
       drafts: config.drafts.dir,
