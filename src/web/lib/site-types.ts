@@ -23,7 +23,8 @@ export interface SiteSettings {
   /** How Markdown refers to published images, to show them in the editor. */
   media: { publicUrl: string; contentPrefix: string; browse: string[]; byMonth: boolean };
   /** Folders of the site repository, as configured. */
-  folders: { posts: string; pages: string; drafts: string; archive: string; bin: string };
+  /** `content`: the folder holding posts and pages, read whole for image usage ("" if none). */
+  folders: { content: string; posts: string; pages: string; drafts: string; archive: string; bin: string };
   images: {
     widths: number[];
     quality: number;

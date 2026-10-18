@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT
 //
 // The list of posts and pages, built in the browser from GET /api/content:
-// every Markdown file of the posts, pages, drafts, archive and Bin folders,
-// with what the lists and the search need. Where a file is decides its state:
+// every Markdown file of the content (or posts and pages), drafts, archive and
+// Bin folders, with what the lists and the search need. Other files of the
+// content folder (the home page, other sections) only count for which images
+// are used. Where a file is decides its state:
 //
 //   <posts_dir>/…, <pages_dir>/…        published
 //   <drafts>/posts/…, <drafts>/pages/…  draft
@@ -45,7 +47,7 @@ export interface ContentItem {
 }
 
 /** Changes when the index gains fields, so older kept copies are read again. */
-export const INDEX_VERSION = 5;
+export const INDEX_VERSION = 6;
 
 export interface ContentIndex {
   version?: number;
@@ -187,15 +189,16 @@ export function buildIndex(response: unknown, site: IndexSettings): ContentIndex
   const items: ContentItem[] = [];
   const media: Record<string, string[]> = {};
   const seen = new Set<string>();
-  for (const key of ["posts", "pages", "drafts", "archive", "bin"] as const) {
+  for (const key of ["content", "posts", "pages", "drafts", "archive", "bin"] as const) {
     const dir = folders[key];
+    if (!repo[key] || (key === "content" && !dir)) continue;
     for (const f of files((repo[key] as { entries?: Entry[] } | null)?.entries)) {
       const path = `${dir}/${f.rel}`;
       if (seen.has(path)) continue;
       seen.add(path);
       const images = imagesIn(f.text, site);
       if (images.length) media[path] = images;
-      // Section list pages (_index.md) aren't posts or pages of their own.
+      // Section list pages (_index.md) and files outside posts and pages aren't items of their own.
       const it = itemFromFile(path, f.sha, f.text, site);
       if (it) items.push(it);
     }
@@ -212,7 +215,7 @@ export interface ChangedFile {
 
 /** Which listed paths to drop and which to read again after these changes. */
 export function changedPaths(files: ChangedFile[], folders: Folders): { remove: string[]; read: string[] } {
-  const dirs = [folders.posts, folders.pages, folders.drafts, folders.archive, folders.bin];
+  const dirs = [folders.content || folders.posts, folders.content || folders.pages, folders.drafts, folders.archive, folders.bin];
   const ours = (p: string | null | undefined) => !!p && p.endsWith(".md") && dirs.some((d) => p.startsWith(`${d}/`));
   const remove = new Set<string>();
   const read = new Set<string>();
@@ -241,7 +244,8 @@ const stemOf = (key: string) => key.replace(/\.[A-Za-z0-9]+$/, "");
 
 /**
  * Whether an image is used by any post or page (any state, the Bin included,
- * since those can come back). A reference to one of its size variants counts;
+ * since those can come back) or any other file of the content folder, such as
+ * the home page. A reference to one of its size variants counts;
  * when unsure (a name that ends in a number), it counts as used.
  */
 export function mediaUsage(index: ContentIndex): (key: string) => boolean {
