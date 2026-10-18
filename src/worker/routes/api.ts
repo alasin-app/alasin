@@ -43,11 +43,17 @@ const AVATAR_MAX_BYTES = 256 * 1024;
 
 /** How long an avatar is kept, at the edge and in the browser: as long as GitHub's own CDN keeps it, so a new picture shows within minutes. */
 const AVATAR_SECONDS = 300;
+/**
+ * Part of the upstream URL, so it's also the edge cache key: changed when the
+ * caching rules do, since copies cached earlier keep their old lifetime (a day
+ * before this was 2). GitHub ignores it.
+ */
+const AVATAR_REVISION = 2;
 
 // GitHub avatars are proxied so the CSP doesn't have to allow a third-party origin.
 api.get("/avatar/:id{[0-9]{1,12}}", async (c) => {
   const size = c.req.query("s") === "40" ? 40 : 96;
-  const upstream = await fetch(`https://avatars.githubusercontent.com/u/${c.req.param("id")}?s=${size}&v=4`, {
+  const upstream = await fetch(`https://avatars.githubusercontent.com/u/${c.req.param("id")}?s=${size}&v=4&r=${AVATAR_REVISION}`, {
     headers: { "User-Agent": "Alasin" },
     cf: { cacheTtl: AVATAR_SECONDS, cacheEverything: true },
   });
