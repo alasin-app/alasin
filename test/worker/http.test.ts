@@ -208,5 +208,7 @@ describe("avatar proxy", () => {
     expect(res.headers.get("ETag")).toBe('"avatar-v1"');
     expect((await call("/api/avatar/583231?s=40", { cookie, headers: { "If-None-Match": '"avatar-v1"' } })).status).toBe(304);
     expect((await call("/api/avatar/583231?s=40", { cookie, headers: { "If-None-Match": '"avatar-v0"' } })).status).toBe(200);
+    // A new edge cache key, so copies cached for a day under the old rules aren't used.
+    expect(gh.avatars[0]).toBe("https://avatars.githubusercontent.com/u/583231?s=40&v=4&r=2");
   });
 });

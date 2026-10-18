@@ -58,6 +58,8 @@ export function mutating(cookie: string, body?: unknown): RequestInit & { cookie
 export interface FakeGitHub {
   tokenRequests: Record<string, string>[];
   revoked: string[];
+  /** URLs of avatar requests, in order. */
+  avatars: string[];
   /** Users by access token. */
   users: Map<string, { id: number; login: string; name: string | null }>;
   nextTokens: { access_token: string; expires_in?: number; refresh_token?: string; refresh_token_expires_in?: number }[];
@@ -73,6 +75,7 @@ export function fakeGitHub(): FakeGitHub {
   const gh: FakeGitHub = {
     tokenRequests: [],
     revoked: [],
+    avatars: [],
     users: new Map(),
     nextTokens: [],
     failRefresh: false,
@@ -105,6 +108,7 @@ export function fakeGitHub(): FakeGitHub {
       return new Response(null, { status: 204 });
     }
     if (url.hostname === "avatars.githubusercontent.com") {
+      gh.avatars.push(url.href);
       return new Response(new Uint8Array([0x89, 0x50, 0x4e, 0x47]), { headers: { "Content-Type": "image/png", "Content-Length": "4", ETag: '"avatar-v1"' } });
     }
     const repoResponse = await gh.repo.handle(req);
