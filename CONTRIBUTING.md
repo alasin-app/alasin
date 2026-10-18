@@ -70,7 +70,7 @@ Release PRs are created with the workflow token, so CI doesn't run on them autom
 
 Alasin is generic. Nothing that identifies a real deployment — site names, domains, bucket names, usernames, account IDs, post content, screenshots of a real site — may appear in code, tests, docs, commit messages, branch names or PR text. Use `example.com`-style placeholders and synthetic test fixtures.
 
-If you run a deployment, list its identifying terms in `.local/denylist` (gitignored, one per line). The pre-commit and commit-msg hooks and `npm run lint` then refuse anything that contains them. Keep your own `alasin.toml`, `wrangler.toml` and `.dev.vars` in `.local/` or a separate private repository.
+If you run a deployment, list its identifying terms in `.local/denylist` (gitignored, one per line). The pre-commit and commit-msg hooks and `npm run lint` then refuse anything that contains them. Keep your own `alasin.toml`, `wrangler.toml` and `.dev.vars` in `deployments/<site>/` (gitignored; see the README's *Several sites*) or a separate private repository. Like `.local/`, nothing under `deployments/` can be committed: the hooks and `npm run lint` refuse it.
 
 ## Code
 

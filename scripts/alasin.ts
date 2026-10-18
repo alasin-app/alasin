@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 //
-// npm run build  [-- --env <name>] [--config <alasin.toml>] [--wrangler-config <wrangler.toml>]
+// npm run build  [-- --env <name>] [--site <name> | --config <alasin.toml>] [--wrangler-config <wrangler.toml>]
 // npm run dev    [-- ...same, --port <n>]
 // npm run deploy [-- ...same]
 //
@@ -9,7 +9,7 @@
 
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { parseArgs } from "./lib/args";
+import { deploymentLine, parseArgs } from "./lib/args";
 import { displayPath, loadAlasinConfig } from "./lib/config";
 import { capture, run, start } from "./lib/proc";
 import { generateWranglerConfig, REQUIRED_SECRETS } from "./lib/wrangler-config";
@@ -18,6 +18,8 @@ import { HOUSEKEEPING_HOWTO, housekeepingDue } from "../src/shared/housekeeping"
 async function main() {
   const [command, ...argv] = process.argv.slice(2);
   const args = parseArgs(argv);
+  const deployment = deploymentLine(args);
+  if (deployment) console.log(deployment);
   const envArgs = args.env ? ["--env", args.env] : [];
 
   switch (command) {

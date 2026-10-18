@@ -4,7 +4,7 @@
 // defaults. npm leaves the swallowed options as npm_config_* variables, so
 // they can be detected and reported.
 
-const OPTIONS = ["env", "config", "wrangler_config", "rotate_keys"] as const;
+const OPTIONS = ["env", "site", "config", "wrangler_config", "rotate_keys"] as const;
 
 /** Options npm swallowed, e.g. ["--env", "--config"]. */
 export function swallowedOptions(environment: Record<string, string | undefined>): string[] {
