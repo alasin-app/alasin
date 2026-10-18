@@ -44,7 +44,7 @@ import {
   skeletonValuesFor,
 } from "./lib/create-site";
 import { zoneFor } from "./lib/cloudflare-api";
-import { attachDomain, connectBuilds, createPlaceholderWorker } from "./lib/site-worker";
+import { attachDomain, type BuildToken, connectBuilds, createPlaceholderWorker } from "./lib/site-worker";
 import { fillPlaceholders, PLACEHOLDER_FILES, unfilled } from "./lib/skeleton";
 import { parse as parseToml } from "smol-toml";
 import { SITE_NAME } from "./lib/deployments";
@@ -266,6 +266,23 @@ function createRepository(state: SiteState, items: Item[]) {
   ok(`${state.owner}/${state.repo}: created (private), with main and dev; cloned in ${shown}/`);
 }
 
+/** The build token Workers Builds deploys with: CLOUDFLARE_BUILD_TOKEN_NAME, or asked from the list. */
+async function chooseBuildToken(tokens: BuildToken[]): Promise<BuildToken> {
+  const name = (t: BuildToken) => t.build_token_name || t.build_token_uuid;
+  const wanted = process.env.CLOUDFLARE_BUILD_TOKEN_NAME;
+  if (wanted) {
+    const found = tokens.find((t) => name(t) === wanted);
+    if (!found) throw new Error(`No build token named "${wanted}". There are: ${tokens.map(name).join(", ")}`);
+    return found;
+  }
+  step("Build token");
+  info("The account has several Workers Builds tokens (the tokens builds deploy with). Some may have been deleted or rolled:");
+  info("check under Workers & Pages → any connected Worker → Settings → Builds → API token which ones still work.");
+  tokens.forEach((t, i) => info(`  ${i + 1}. ${name(t)}`));
+  const n = await ask("Which one", { validate: (v) => (/^\d+$/.test(v) && +v >= 1 && +v <= tokens.length ? null : `a number from 1 to ${tokens.length}`) });
+  return tokens[+n - 1]!;
+}
+
 async function create(state: SiteState, plan: PlannedItem[]) {
   const made = (key: string) => {
     if (!state.created.includes(key)) state.created.push(key);
@@ -324,12 +341,12 @@ async function create(state: SiteState, plan: PlannedItem[]) {
   }
   const buildsKey = `builds:${worker.name}`;
   if (mine(worker) && mine(repo) && !state.created.includes(buildsKey)) {
-    const builds = await connectBuilds(worker.name, repo.name);
+    const builds = await connectBuilds(worker.name, repo.name, chooseBuildToken);
     made(buildsKey);
     ok(`${repo.name} connected with Workers Builds: main → production, other branches → previews`);
     for (const b of builds) info(`  first build of ${b.branch} started (${b.build})`);
     info("  Follow them in the dashboard: Workers & Pages → the site Worker → Deployments / Builds.");
-  } else if (state.created.includes(buildsKey)) ok(`${worker.name}: connected with Workers Builds`);
+  } else if (state.created.includes(buildsKey)) ok(`${worker.name}: connected with Workers Builds (to connect again, e.g. with another build token, remove "${buildsKey}" from create-site.json)`);
 
   const later = plan.filter((p) => p.status === "new" && !state.created.includes(p.key));
   if (later.length) {

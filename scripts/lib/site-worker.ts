@@ -36,13 +36,22 @@ interface Trigger {
   trigger_name: string;
   branch_includes: string[];
   branch_excludes: string[];
+  build_token_uuid?: string;
+}
+
+export interface BuildToken {
+  build_token_uuid: string;
+  build_token_name?: string;
 }
 
 /**
  * Connects the repository to the Worker with Workers Builds and starts the
  * first builds (main, and dev for the dev site). Returns the started builds.
+ * `chooseToken` picks the account's build token (the token Workers Builds
+ * deploys with) when there are several: some may have been deleted or rolled,
+ * and the API doesn't say which. Existing triggers are switched to it.
  */
-export async function connectBuilds(worker: string, repository: string): Promise<{ branch: string; build: string }[]> {
+export async function connectBuilds(worker: string, repository: string, chooseToken: (tokens: BuildToken[]) => Promise<BuildToken>): Promise<{ branch: string; build: string }[]> {
   const token = buildsToken();
   const acc = accountId();
   const api = <T>(path: string, init: { method?: string; body?: unknown } = {}) => cloudflareApi<T>(`/accounts/${acc}${path}`, { ...init, token });
@@ -71,19 +80,23 @@ export async function connectBuilds(worker: string, repository: string): Promise
   const tag = scripts.find((s) => s.id === worker)?.tag;
   if (!tag) throw new Error(`Worker ${worker} not found in the account`);
 
-  const tokens = await api<{ build_token_uuid: string; build_token_name?: string }[]>("/builds/tokens");
+  const tokens = await api<BuildToken[]>("/builds/tokens");
   if (!tokens.length) throw new Error("This account has no Workers Builds token yet: connect any Worker to GitHub once in the dashboard (Settings → Builds → Connect), then run again.");
+  const buildToken = tokens.length === 1 ? tokens[0]! : await chooseToken(tokens);
 
   const existing = await api<Trigger[]>(`/builds/workers/${tag}/triggers`).catch(() => [] as Trigger[]);
   const started: { branch: string; build: string }[] = [];
   for (const t of BUILD_TRIGGERS) {
     let trigger = existing.find((e) => e.trigger_name === t.trigger_name);
+    if (trigger && trigger.build_token_uuid !== buildToken.build_token_uuid) {
+      trigger = await api<Trigger>(`/builds/triggers/${trigger.trigger_uuid}`, { method: "PATCH", body: { build_token_uuid: buildToken.build_token_uuid } });
+    }
     trigger ??= await api<Trigger>("/builds/triggers", {
       method: "POST",
       body: {
         external_script_id: tag,
         repo_connection_uuid: connection.repo_connection_uuid,
-        build_token_uuid: tokens[0]!.build_token_uuid,
+        build_token_uuid: buildToken.build_token_uuid,
         trigger_name: t.trigger_name,
         // The build itself is in wrangler.jsonc (scripts/build.sh), so Wrangler runs it before deploying.
         build_command: "",
