@@ -357,7 +357,7 @@ function addSampleContent(state: SiteState, plan: PlannedItem[], made: (key: str
     runVisible("git", ["switch", "--quiet", "main"], dir);
     made("sample:content");
     ok(`${samples.length} files committed to the dev branch: home page, pages, posts, drafts, archive, Bin, categories, credits`);
-  }
+  } else ok("Committed to the dev branch earlier");
 
   if (!state.created.includes("sample:photos")) {
     const bucket = { media: plan.find((p) => p.slot === "media:dev")!, drafts: plan.find((p) => p.slot === "drafts:dev")! };
@@ -378,7 +378,7 @@ function addSampleContent(state: SiteState, plan: PlannedItem[], made: (key: str
     }
     made("sample:photos");
     ok(`${n} photo files uploaded to the dev buckets`);
-  }
+  } else ok("Photos uploaded to the dev buckets earlier");
 }
 
 async function create(state: SiteState, plan: PlannedItem[]) {
@@ -392,7 +392,9 @@ async function create(state: SiteState, plan: PlannedItem[]) {
   const jArgs = (p: PlannedItem) => (j(p) ? ["-J", j(p)!] : []);
 
   step("Buckets");
-  for (const p of plan.filter((x) => x.kind === "bucket" && x.status === "new" && !state.created.includes(x.key))) {
+  const newBuckets = plan.filter((x) => x.kind === "bucket" && x.status === "new" && !state.created.includes(x.key));
+  if (!newBuckets.length) ok("All there");
+  for (const p of newBuckets) {
     const r = cf.createBucket(p.name, j(p));
     if (!r.ok) throw new Error(`Couldn't create bucket ${p.name}:\n${r.output.slice(-2000)}`);
     made(p.key);
@@ -442,7 +444,7 @@ async function create(state: SiteState, plan: PlannedItem[]) {
     const builds = await connectBuilds(worker.name, repo.name, chooseBuildToken);
     made(buildsKey);
     ok(`${repo.name} connected with Workers Builds: main → production, other branches → previews`);
-    for (const b of builds) info(`  first build of ${b.branch} started (${b.build})`);
+    for (const b of builds) info(`  build of ${b.branch} started (${b.build})`);
     info("  Follow them in the dashboard: Workers & Pages → the site Worker → Deployments / Builds.");
     info("  If they fail right after Initializing with \"The build token … has been deleted or rolled\", choose or create another");
     info("  under Settings → Builds → API token and retry the builds there.");
