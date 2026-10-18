@@ -24,12 +24,16 @@ import {
   type Existing,
   hostnameProblem,
   type Item,
+  type KnownNames,
+  namesFromAlasinWrangler,
   parseRepository,
   planItems,
   planLines,
   type SiteState,
   siteItems,
+  siteWorkerName,
 } from "./lib/create-site";
+import { parse as parseToml } from "smol-toml";
 import { SITE_NAME } from "./lib/deployments";
 import { swallowedOptions, swallowedOptionsMessage } from "./lib/npm-args";
 import * as cf from "./setup/cloudflare";
@@ -140,13 +144,46 @@ async function domainInUse(host: string): Promise<boolean | null> {
   }
 }
 
+/** A file of the repository's default branch through gh, or null. */
+function repoFile(repository: string, path: string): string | null {
+  const r = spawnSync("gh", ["api", `repos/${repository}/contents/${path}`, "--jq", ".content"], { encoding: "utf8" });
+  if (r.error || r.status !== 0 || !r.stdout.trim()) return null;
+  return Buffer.from(r.stdout.replace(/\s/g, ""), "base64").toString("utf8");
+}
+
+/**
+ * Names this site's existing deployment already uses: the Alasin Workers and
+ * buckets in deployments/<repo>/wrangler.toml, and the site Worker in the site
+ * repository's own Wrangler file.
+ */
+function knownNames(state: SiteState): KnownNames {
+  const known: KnownNames = {};
+  const local = join(DEPLOYMENTS, state.repo, "wrangler.toml");
+  if (existsSync(join(repoRoot, local))) {
+    try {
+      Object.assign(known, namesFromAlasinWrangler(parseToml(readFileSync(join(repoRoot, local), "utf8")) as Record<string, unknown>, local));
+    } catch {
+      warn(`${local} can't be read: its names aren't used.`);
+    }
+  }
+  const repository = `${state.owner}/${state.repo}`;
+  for (const file of ["wrangler.jsonc", "wrangler.json", "wrangler.toml"]) {
+    const text = repoFile(repository, file);
+    if (text === null) continue;
+    const name = siteWorkerName(file, text);
+    if (name) known["site-worker"] = { name, source: `${repository}/${file}` };
+    break;
+  }
+  return known;
+}
+
 async function check(items: Item[], jurisdiction: string): Promise<Existing> {
   const existing: Existing = new Map();
   const cloudflare = cf.whoami().loggedIn;
   if (!cloudflare) warn("Not logged in to Cloudflare (npx wrangler login): buckets and Workers can't be checked.");
   for (const item of items) {
     if (item.kind === "repo") existing.set(item.key, repoExists(item.name));
-    else if (item.kind === "bucket") existing.set(item.key, cloudflare ? cf.bucketExists(item.name, jurisdiction || undefined) : null);
+    else if (item.kind === "bucket") existing.set(item.key, cloudflare ? cf.bucketExists(item.name, (item.jurisdiction ?? jurisdiction) || undefined) : null);
     else if (item.kind === "worker") existing.set(item.key, cloudflare ? workerExists(item.name) : null);
     else existing.set(item.key, await domainInUse(item.name));
   }
@@ -166,7 +203,7 @@ async function main() {
   }
 
   step("Checking what exists");
-  const items = siteItems(state);
+  const items = siteItems(state, knownNames(state));
   const plan = planItems(items, await check(items, state.jurisdiction), state.created);
 
   step("Plan");

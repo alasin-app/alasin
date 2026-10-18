@@ -4,7 +4,14 @@
 // tells new items from ones this deployment made earlier and ones that exist
 // but weren't made by it (possibly a live site: warned about, never changed).
 //
+// A site deployed earlier (before create-site, or by hand) keeps its own
+// names: they're read from deployments/<repo>/wrangler.toml and the site
+// repository's Wrangler file, and used instead of derived ones, so no second
+// set is planned.
+//
 // No file, network or process access here, so tests can use it.
+
+import { parse as parseToml } from "smol-toml";
 
 export type Environment = "production" | "dev";
 
@@ -23,13 +30,35 @@ export interface SiteState {
   created: string[];
 }
 
+/** What an item is for, independent of its name. */
+export type Slot =
+  | "repo"
+  | "media:production"
+  | "drafts:production"
+  | "media:dev"
+  | "drafts:dev"
+  | "site-worker"
+  | "alasin:production"
+  | "alasin:dev"
+  | "domain:site"
+  | "domain:app"
+  | "domain:media";
+
+/** Names an existing deployment already uses, with the file each came from. */
+export type KnownNames = Partial<Record<Slot, { name: string; source: string; jurisdiction?: string }>>;
+
 export interface Item {
+  slot: Slot;
   /** e.g. "repo", "bucket:my-site-media", "worker:my-site", "domain:www.example.com". */
   key: string;
   kind: "repo" | "bucket" | "worker" | "domain";
   name: string;
   /** What it's for, in the plan. */
   role: string;
+  /** Where the name came from, when an existing deployment already uses it. */
+  deployed?: string;
+  /** An existing bucket's own jurisdiction (otherwise the answered one). */
+  jurisdiction?: string;
 }
 
 /** Whether an item exists: true, false, or null when it couldn't be checked. */
@@ -70,34 +99,97 @@ export function cloudflareName(value: string): string {
     .replace(/-+$/, "");
 }
 
-/** Every item create-site makes for these answers, in the order it makes them. */
-export function siteItems(state: Pick<SiteState, "owner" | "repo" | "alasinName" | "environments" | "domains">): Item[] {
+/**
+ * Every item create-site makes for these answers, in the order it makes them.
+ * A name an existing deployment already uses (`known`) replaces the derived one.
+ */
+export function siteItems(state: Pick<SiteState, "owner" | "repo" | "alasinName" | "environments" | "domains">, known: KnownNames = {}): Item[] {
   const site = cloudflareName(state.repo);
   const alasin = cloudflareName(state.alasinName);
-  const items: Item[] = [{ key: "repo", kind: "repo", name: `${state.owner}/${state.repo}`, role: "site repository (private; main and dev branches)" }];
-  const bucket = (name: string, role: string) => items.push({ key: `bucket:${name}`, kind: "bucket", name, role });
-  const worker = (name: string, role: string) => items.push({ key: `worker:${name}`, kind: "worker", name, role });
-  const domain = (name: string | undefined, role: string) => name && items.push({ key: `domain:${name}`, kind: "domain", name, role });
+  const items: Item[] = [];
+  const add = (slot: Slot, kind: Item["kind"], derived: string | undefined, role: string) => {
+    const name = known[slot]?.name ?? derived;
+    if (!name) return;
+    const key = kind === "repo" ? "repo" : `${kind}:${name}`;
+    const k = known[slot];
+    items.push({ slot, key, kind, name, role, ...(k ? { deployed: k.source } : {}), ...(k?.jurisdiction !== undefined ? { jurisdiction: k.jurisdiction } : {}) });
+  };
 
   const prod = state.environments.includes("production");
   const dev = state.environments.includes("dev");
+  add("repo", "repo", `${state.owner}/${state.repo}`, "site repository (private; main and dev branches)");
   if (prod) {
-    bucket(`${site}-media`, "production media (public)");
-    bucket(`${site}-drafts`, "production drafts (private)");
+    add("media:production", "bucket", `${site}-media`, "production media (public)");
+    add("drafts:production", "bucket", `${site}-drafts`, "production drafts (private)");
   }
   if (dev) {
-    bucket(`${site}-dev-media`, "dev media (public r2.dev URL)");
-    bucket(`${site}-dev-drafts`, "dev drafts (private)");
+    add("media:dev", "bucket", `${site}-dev-media`, "dev media (public r2.dev URL)");
+    add("drafts:dev", "bucket", `${site}-dev-drafts`, "dev drafts (private)");
   }
-  worker(site, prod ? "site Worker (main → production; dev branch → dev preview)" : "site Worker (dev branch preview)");
-  if (prod) worker(alasin, "Alasin, production");
-  if (dev) worker(`${alasin}-dev`, "Alasin, dev");
+  add("site-worker", "worker", site, prod ? "site Worker (main → production; dev branch → dev preview)" : "site Worker (dev branch preview)");
+  if (prod) add("alasin:production", "worker", alasin, "Alasin, production");
+  if (dev) add("alasin:dev", "worker", `${alasin}-dev`, "Alasin, dev");
   if (prod) {
-    domain(state.domains.site, "production site");
-    domain(state.domains.app, "production Alasin");
-    domain(state.domains.media, "production media");
+    add("domain:site", "domain", state.domains.site, "production site");
+    add("domain:app", "domain", state.domains.app, "production Alasin");
+    add("domain:media", "domain", state.domains.media, "production media");
   }
   return items;
+}
+
+type Table = Record<string, unknown>;
+const table = (v: unknown): Table => (v && typeof v === "object" && !Array.isArray(v) ? (v as Table) : {});
+const str = (v: unknown) => (typeof v === "string" && v ? v : undefined);
+
+/** The Alasin Workers and their MEDIA / DRAFTS buckets in a deployment's wrangler.toml (production and [env.dev]). */
+export function namesFromAlasinWrangler(wrangler: Table, source: string): KnownNames {
+  const known: KnownNames = {};
+  const take = (slot: Slot, name: string | undefined, jurisdiction?: string) => name && (known[slot] = { name, source, ...(jurisdiction !== undefined ? { jurisdiction } : {}) });
+  const buckets = (t: Table, env: "production" | "dev") => {
+    for (const b of Array.isArray(t.r2_buckets) ? t.r2_buckets : []) {
+      const { binding, bucket_name, jurisdiction } = table(b);
+      const j = str(jurisdiction) ?? "";
+      if (binding === "MEDIA") take(`media:${env}`, str(bucket_name), j);
+      if (binding === "DRAFTS") take(`drafts:${env}`, str(bucket_name), j);
+    }
+  };
+  take("alasin:production", str(wrangler.name));
+  buckets(wrangler, "production");
+  const dev = table(table(wrangler.env).dev);
+  take("alasin:dev", str(dev.name));
+  buckets(dev, "dev");
+  return known;
+}
+
+/** JSONC → JSON: drops comments and trailing commas, leaving strings (e.g. URLs with //) alone. */
+export function stripJsonc(text: string): string {
+  let out = "";
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i]!;
+    if (c === '"') {
+      const start = i;
+      for (i++; i < text.length && text[i] !== '"'; i++) if (text[i] === "\\") i++;
+      out += text.slice(start, i + 1);
+    } else if (c === "/" && text[i + 1] === "/") {
+      while (i < text.length && text[i] !== "\n") i++;
+      out += "\n";
+    } else if (c === "/" && text[i + 1] === "*") {
+      i = text.indexOf("*/", i + 2);
+      if (i === -1) break;
+      i++;
+    } else out += c;
+  }
+  return out.replace(/,(\s*[}\]])/g, "$1");
+}
+
+/** The Worker name in a site repository's wrangler.jsonc / wrangler.json / wrangler.toml; null if none can be read. */
+export function siteWorkerName(file: string, text: string): string | null {
+  try {
+    const config = file.endsWith(".toml") ? (parseToml(text) as Table) : (JSON.parse(stripJsonc(text)) as Table);
+    return str(config.name) ?? null;
+  } catch {
+    return null;
+  }
 }
 
 /** Each item with its status: new, made by this deployment, or existing but not made by it. */
@@ -120,7 +212,7 @@ const STATUS_TEXT: Record<Status, string> = {
 /** The plan, one line per item. */
 export function planLines(plan: PlannedItem[]): string[] {
   const width = Math.max(...plan.map((p) => p.name.length));
-  return plan.map((p) => `${p.name.padEnd(width)}  ${p.role}: ${STATUS_TEXT[p.status]}`);
+  return plan.map((p) => `${p.name.padEnd(width)}  ${p.role}${p.deployed ? ` [as in ${p.deployed}]` : ""}: ${STATUS_TEXT[p.status]}`);
 }
 
 /** The warning for items that exist but weren't made by this deployment; null if there are none. */
@@ -128,7 +220,9 @@ export function alreadyDeployedWarning(plan: PlannedItem[]): string | null {
   const foreign = plan.filter((p) => p.status === "not-ours");
   if (!foreign.length) return null;
   const where = (p: PlannedItem) => (p.kind === "repo" ? "on GitHub" : p.kind === "domain" ? "in DNS" : "in Cloudflare");
+  const sources = [...new Set(plan.flatMap((p) => (p.deployed ? [p.deployed] : [])))];
   return [
+    ...(sources.length ? [`This site is already deployed: its own names are taken from ${sources.join(" and ")}, so no second set is planned.`] : []),
     "Some of this site already exists, and wasn't made by this deployment:",
     ...foreign.map((p) => `  - ${p.name} (${p.role.replace(/ \(.*\)$/, "")}) ${where(p)}`),
     "This may be a live site, possibly production. create-site would only reuse these, never change or overwrite them:",
