@@ -2,6 +2,10 @@
 # configs, denylist). Never commit anything from here.
 .local/
 
+# Each site's configuration and repository clone (npm run setup -- --site <name>).
+# Never commit anything from here.
+deployments/
+
 # Real deployment configuration and local secrets (copy from the *.example.* files)
 alasin.toml
 wrangler.toml

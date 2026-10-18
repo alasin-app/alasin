@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 //
-// npm run setup [-- --env <name>] [--config <alasin.toml>] [--wrangler-config <wrangler.toml>] [--rotate-keys] [--rotate-github]
+// npm run setup [-- --env <name>] [--site <name> | --config <alasin.toml>] [--wrangler-config <wrangler.toml>] [--rotate-keys] [--rotate-github]
 //
 // Interactive and safe to re-run: every step checks the current state first
 // and only asks for, creates or changes what is missing. Re-running for one
@@ -11,7 +11,7 @@ import { randomBytes } from "node:crypto";
 import { dirname, join } from "node:path";
 import { parse } from "smol-toml";
 import { ConfigError, selectEnvironment } from "../../src/shared/config/schema";
-import { parseArgs, repoRoot } from "../lib/args";
+import { deploymentLine, parseArgs, repoRoot } from "../lib/args";
 import { displayPath, loadAlasinConfig } from "../lib/config";
 import { appendSection, setValue, type TomlValue } from "../lib/toml-edit";
 import { normalizeUrl, urlProblem } from "../lib/urls";
@@ -544,9 +544,11 @@ function finalCheck() {
 async function main() {
   const unexpected = args.rest.filter((a) => a !== "--rotate-keys" && a !== "--rotate-github");
   if (unexpected.length) {
-    throw new Error(`Unexpected argument(s): ${unexpected.join(" ")}. Options: --env <name>, --config <alasin.toml>, --wrangler-config <wrangler.toml>, --rotate-keys, --rotate-github.`);
+    throw new Error(`Unexpected argument(s): ${unexpected.join(" ")}. Options: --env <name>, --site <name>, --config <alasin.toml>, --wrangler-config <wrangler.toml>, --rotate-keys, --rotate-github.`);
   }
   console.log(bold(`Alasin setup — environment: ${env ?? "default (production)"}`));
+  const deployment = deploymentLine(args);
+  if (deployment) console.log(deployment);
   console.log(dim(`alasin.toml:   ${displayPath(args.configPath)}\nwrangler.toml: ${displayPath(args.wranglerPath)}`));
   ensureFiles();
   await checkPrerequisites();

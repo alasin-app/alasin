@@ -6,7 +6,7 @@
 // Terms come from the gitignored file `.local/denylist` (one per line, `#`
 // comments allowed, matched case-insensitively). Without that file the check
 // passes, so contributors who have no private deployment are not affected.
-// Independently of the denylist, it always fails if a path under `.local/` is
+// Independently of the denylist, it always fails if a path under `.local/` or `deployments/` is
 // staged or tracked.
 //
 //   --staged          staged file names and contents (pre-commit hook)
@@ -65,6 +65,7 @@ function scanBlob(label, buf) {
 
 function checkLocalPath(path) {
   if (path === ".local" || path.startsWith(".local/")) findings.push(`${path}: files under .local/ must never be committed`);
+  if (path === "deployments" || path.startsWith("deployments/")) findings.push(`${path}: files under deployments/ must never be committed`);
 }
 
 const [mode, arg] = process.argv.slice(2);
