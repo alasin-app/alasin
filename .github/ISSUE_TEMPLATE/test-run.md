@@ -29,6 +29,7 @@ Tick a check when it passes. For a failure, add a sub-issue (*Sub-issues* → *C
 - [ ] **1.12 iOS Safari**: 1.4–1.10 in Safari on iOS, including *Add to Home Screen* (icon and standalone mode)
 - [ ] **1.13 Hide sidebar**: Window ≥ 768 px: the button at the bottom of the sidebar shrinks it to icons (names as tooltips; the environment badge stays at the top) and back; the choice is remembered on the device
 - [ ] **1.14 Plain ASCII configuration**: `alasin.example.toml` and `wrangler.example.toml` show correctly in an editor that doesn't read UTF-8; `npm run setup` on an older `alasin.toml` and `wrangler.toml` reports "comments … written in plain ASCII", rewrites only comment lines, and the deployment works as before
+- [ ] **1.15 Several sites**: Move a deployment's `alasin.toml` and `wrangler.toml` (and `.dev.vars`, if any) into `deployments/<site>/` in the clone: `npm run sites` lists it with its Workers and app URLs; `npm run deploy -- --site <site>` (and `--env dev`) names the deployment and deploys as before; with no `./alasin.toml` and only that site, plain `npm run deploy` uses it and says so; with two sites, it asks for `--site`; `git status` shows nothing under `deployments/`
 
 ## Drafts, editor and photos
 

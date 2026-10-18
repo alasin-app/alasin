@@ -86,6 +86,31 @@ Create it, then:
 2. On the app's page, note the **App ID** and **Client ID**, click **Generate a new client secret**, and under **Private keys** click **Generate a private key** (a `.pem` file downloads).
 3. Run `npm run setup` and answer **no** when it offers to create the app. It asks for these values, converts the key and stores everything as Worker secrets. Secrets never go in TOML files or git.
 
+### Several sites: the `deployments/` folder
+
+To run Alasin for more than one site from one clone, give each site its own folder in `deployments/`, named after its site repository. The folder is gitignored, and Alasin's checks skip it.
+
+```text
+deployments/
+  my-site/
+    alasin.toml     production, plus [env.dev] for a dev deployment
+    wrangler.toml
+    .dev.vars       only for local `npm run dev`
+    site/           optionally, a clone of the site repository
+```
+
+Choose the site with `--site` (or `ALASIN_SITE`):
+
+```sh
+npm run setup -- --site my-site            # creates deployments/my-site/ on the first run
+npm run deploy -- --site my-site --env dev
+npm run sites                              # lists the deployments with their Workers and app URLs
+```
+
+Without `--site`, the commands use `./alasin.toml` as before. If there's none and `deployments/` has exactly one site, they use that one and say so; with several, they ask for `--site`.
+
+Apart from an optional `.dev.vars`, nothing in `deployments/` is secret: Worker secrets stay in Cloudflare. It is untracked, though, so `git clean -x` deletes it. Back up each `alasin.toml`, or keep it in a private repository as below.
+
 ### Keeping a deployment's configuration in its own repository
 
 `alasin.toml`, `wrangler.toml` and `.dev.vars` are gitignored. To keep them under version control, put them in a separate **private** repository and point every command at it:
