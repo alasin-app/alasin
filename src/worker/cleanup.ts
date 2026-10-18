@@ -11,7 +11,8 @@
 // (in the drafts folder or in the Bin) and nothing in it changed for
 // `[drafts] cleanup_after_days` (so photos of a draft that is still only on
 // someone's device, or of an editing session in progress, are kept). If the
-// repository can't be read, nothing is deleted. Only DRAFTS is ever touched.
+// repository can't be read, nothing is deleted. Only DRAFTS is ever touched,
+// and only folders named by a draft ID (not the Bin's images in `media-bin/`).
 
 import type { AlasinConfig } from "../shared/config/schema";
 import { isUlid } from "../shared/ulid";

@@ -3,15 +3,18 @@
 // huge, so nothing is listed up front: the years first, the months of a year
 // when the list reaches it (names only, for the counts), and the thumbnails of a
 // month when it's opened. Images are only added from a post or page; here
-// they're found to look at or to reuse.
+// they're found to look at or to reuse, and orphaned ones can be moved to the
+// Bin.
 
 import { Check, ChevronDown, ChevronRight } from "lucide-preact";
 import { Fragment } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { groupImages, type LibraryImage } from "../../shared/media-library";
-import { api } from "../lib/api";
+import { api, ApiError } from "../lib/api";
 import { getLanguage, t, useLanguage } from "../lib/i18n";
+import { refreshMediaBin } from "../lib/media-bin";
 import type { SiteSettings } from "../lib/site-types";
+import { ActionSheet } from "./Sheet";
 
 interface Folders {
   folders: string[];
@@ -59,12 +62,15 @@ function Month(props: {
   initiallyOpen: boolean;
   filter: Filter;
   used: ((key: string) => boolean) | null;
+  /** Images moved to the Bin while the list is open. */
+  removed: Set<string>;
   selected?: string[];
   onToggle?: (key: string) => void;
 }) {
   const [open, setOpen] = useState(props.initiallyOpen);
   const [read, setImages] = useState<LibraryImage[] | null>(null);
-  const images = props.images ?? read;
+  const all = props.images ?? read;
+  const images = all && props.removed.size ? all.filter((img) => !props.removed.has(img.key)) : all;
   const [failed, setFailed] = useState(false);
   useEffect(() => {
     if (!open || images) return;
@@ -126,14 +132,24 @@ function Month(props: {
   );
 }
 
+/** Images moved to the Bin per request (see routes/media-bin.ts). */
+const DELETE_BATCH = 20;
+
 /**
  * The month list. With `onToggle`, tapping an image selects it (in the order
  * tapped, in `selected`); without, it opens the image. `used` tells which
  * images posts and pages use (null until the content is read), for the filter.
+ * With `manage`, orphaned images can be selected and moved to the Bin.
  */
-export function MediaLibrary(props: { site: SiteSettings; used: ((key: string) => boolean) | null; selected?: string[]; onToggle?: (key: string) => void }) {
+export function MediaLibrary(props: { site: SiteSettings; used: ((key: string) => boolean) | null; selected?: string[]; onToggle?: (key: string) => void; manage?: boolean }) {
   useLanguage();
   const [filter, setFilter] = useState<Filter>("all");
+  /** Selecting orphaned images to delete, and which. */
+  const [picked, setPicked] = useState<string[] | null>(null);
+  const [removed, setRemoved] = useState<Set<string>>(new Set());
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
   const { browse, byMonth } = props.site.media;
   /** Year folders whose months aren't listed yet, newest first. */
   const [years, setYears] = useState<string[] | null>(null);
@@ -184,6 +200,36 @@ export function MediaLibrary(props: { site: SiteSettings; used: ((key: string) =
     return () => seen.disconnect();
   }, [years, loading]);
 
+  const chooseFilter = (f: Filter) => {
+    setFilter(f);
+    if (f !== "orphaned") setPicked(null);
+  };
+  const togglePicked = (key: string) => setPicked((p) => (p ? (p.includes(key) ? p.filter((k) => k !== key) : [...p, key]) : p));
+
+  // Only what is still orphaned: content read meanwhile may use some of them now.
+  const deleteKeys = () => (picked ?? []).filter((k) => props.used && !props.used(k));
+  const moveToBin = async () => {
+    const keys = deleteKeys();
+    setBusy(true);
+    setMessage(null);
+    const done: string[] = [];
+    try {
+      for (let i = 0; i < keys.length; i += DELETE_BATCH) {
+        const batch = keys.slice(i, i + DELETE_BATCH);
+        await api("/api/media-bin/delete", { method: "POST", body: { keys: batch } });
+        done.push(...batch);
+      }
+      setPicked(null);
+    } catch (err) {
+      setMessage(err instanceof ApiError ? err.message : t("error.generic"));
+      setPicked((p) => p?.filter((k) => !done.includes(k)) ?? null);
+    } finally {
+      setRemoved((r) => new Set([...r, ...done]));
+      setBusy(false);
+      void refreshMediaBin();
+    }
+  };
+
   if (!byMonth) {
     return (
       <div class="empty-state">
@@ -212,13 +258,33 @@ export function MediaLibrary(props: { site: SiteSettings; used: ((key: string) =
   }
   return (
     <div class="media-library">
-      <div class="media-filter segmented segmented-small" role="radiogroup" aria-label={t("media.filter")}>
-        {(["all", "used", "orphaned"] as const).map((f) => (
-          <button type="button" role="radio" aria-checked={filter === f} class={filter === f ? "selected" : ""} disabled={f !== "all" && !props.used} onClick={() => setFilter(f)}>
-            {t(`media.filter.${f}`)}
-          </button>
-        ))}
+      <div class="media-toolbar">
+        <div class="media-filter segmented segmented-small" role="radiogroup" aria-label={t("media.filter")}>
+          {(["all", "used", "orphaned"] as const).map((f) => (
+            <button type="button" role="radio" aria-checked={filter === f} class={filter === f ? "selected" : ""} disabled={f !== "all" && !props.used} onClick={() => chooseFilter(f)}>
+              {t(`media.filter.${f}`)}
+            </button>
+          ))}
+        </div>
+        {props.manage && filter === "orphaned" && (
+          <div class="media-select">
+            {picked && (
+              <button type="button" class="btn btn-small btn-plain destructive" disabled={busy || !picked.length} onClick={() => setConfirming(true)}>
+                {picked.length ? t("media.deleteN", { n: String(picked.length) }) : t("media.delete")}
+              </button>
+            )}
+            <button type="button" class="btn btn-small btn-plain" disabled={busy} onClick={() => setPicked(picked ? null : [])}>
+              {picked ? t("common.cancel") : t("media.select")}
+            </button>
+          </div>
+        )}
       </div>
+      {picked && <p class="secondary list-note">{t("media.selectHint")}</p>}
+      {message && (
+        <p class="banner banner-error editor-banner" role="alert">
+          {message}
+        </p>
+      )}
       {months.map((m, i) => {
         // A year heading wherever the year changes.
         const year = MONTH.exec(m.prefix)![1]!;
@@ -226,13 +292,31 @@ export function MediaLibrary(props: { site: SiteSettings; used: ((key: string) =
         return (
           <Fragment key={m.prefix}>
             {newYear && <h2 class="list-title media-year">{year}</h2>}
-            <Month site={props.site} prefix={m.prefix} images={m.images} initiallyOpen={i === 0} filter={filter} used={props.used} selected={props.selected} onToggle={props.onToggle} />
+            <Month
+              site={props.site}
+              prefix={m.prefix}
+              images={m.images}
+              initiallyOpen={i === 0}
+              filter={filter}
+              used={props.used}
+              removed={removed}
+              selected={picked ?? props.selected}
+              onToggle={picked ? togglePicked : props.onToggle}
+            />
           </Fragment>
         );
       })}
       <div ref={end} class="media-end">
         {(!years || years.length > 0) && <span class="spinner" aria-hidden="true" />}
       </div>
+      <ActionSheet
+        open={confirming}
+        onClose={() => setConfirming(false)}
+        title={deleteKeys().length === 1 ? t("media.deleteTitleOne") : t("media.deleteTitle", { n: String(deleteKeys().length) })}
+        message={t("media.deleteMessage")}
+        actions={[{ label: t("media.moveToBin"), destructive: true, onSelect: () => void moveToBin() }]}
+        cancelLabel={t("common.cancel")}
+      />
     </div>
   );
 }

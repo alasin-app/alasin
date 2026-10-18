@@ -54,7 +54,7 @@ Alasin uses the R2 bucket that already serves your site's images (binding `MEDIA
 - its **jurisdiction**, shown on the bucket's page (for example **EU**). A bucket created with a jurisdiction can only be reached by a binding that names the same jurisdiction, so setup asks for it;
 - the bucket's **public custom domain** under the bucket's **Settings → Custom Domains** (e.g. `https://media.example.com/`).
 
-Alasin only adds objects to this bucket. It never overwrites or deletes anything there.
+Alasin adds objects to this bucket and never overwrites anything there. An image is removed only when someone deletes it in *Media* (only images no post or page uses); it then waits in the Bin, in Alasin's private drafts bucket, until the Bin is emptied.
 
 ### A hostname for the app
 
