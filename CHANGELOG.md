@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.5.0](https://github.com/oh2th/alasin/compare/v1.4.1...v1.5.0) (2026-10-18)
+
+
+### Features
+
+* **users:** show newly accepted collaborators right away ([#232](https://github.com/oh2th/alasin/issues/232)) ([eca3f7a](https://github.com/oh2th/alasin/commit/eca3f7ade20eaa348508120d3d3a7ae598b937fa))
+
+
+### Bug Fixes
+
+* don't serve avatars cached at the edge under the old one-day rule ([#247](https://github.com/oh2th/alasin/issues/247)) ([ab35039](https://github.com/oh2th/alasin/commit/ab35039d35068ca1dc295997d6db955a481fad9f))
+* show a new GitHub avatar within minutes instead of up to two days ([eca3f7a](https://github.com/oh2th/alasin/commit/eca3f7ade20eaa348508120d3d3a7ae598b937fa))
+
 ## [1.4.1](https://github.com/oh2th/alasin/compare/v1.4.0...v1.4.1) (2026-10-18)
 
 
