@@ -1,0 +1,14 @@
+{{- /* Markdown images, as Alasin writes them: ![alt](/img/… "caption").
+  Inside a gallery, a linked thumbnail; on their own, a figure with the
+  title as its caption. */ -}}
+{{- $src := partial "alasin/media-url.html" .Destination -}}
+{{- if .Page.Store.Get "inGallery" -}}
+<a class="alasin-gallery-item" href="{{ $src }}" target="_blank" rel="noopener"><img src="{{ $src }}" alt="{{ .Text }}" loading="lazy" decoding="async"></a>
+{{- else if .IsBlock -}}
+<figure class="alasin-figure">
+  <img src="{{ $src }}" alt="{{ .Text }}" loading="lazy" decoding="async">
+  {{- with .Title }}<figcaption>{{ . }}</figcaption>{{ end }}
+</figure>
+{{- else -}}
+<img src="{{ $src }}" alt="{{ .Text }}" loading="lazy" decoding="async">
+{{- end -}}

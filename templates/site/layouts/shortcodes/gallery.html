@@ -1,0 +1,11 @@
+{{- /* {{< gallery caption="…" >}} ![](/img/…) ![](/img/…) {{< /gallery >}}:
+  the images Alasin puts in a gallery, as a grid of thumbnails linking to the
+  full images. The name matches [editor] gallery_shortcode in alasin.toml. */ -}}
+{{- .Page.Store.Set "inGallery" true -}}
+<div class="alasin-gallery">
+{{ .Inner | strings.TrimSpace | .Page.RenderString (dict "display" "block") }}
+</div>
+{{- with .Get "caption" }}
+<p class="alasin-gallery-caption">{{ . }}</p>
+{{- end }}
+{{- .Page.Store.Set "inGallery" false -}}
