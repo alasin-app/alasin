@@ -197,12 +197,25 @@ export function siteWorkerName(file: string, text: string): string | null {
   }
 }
 
-/** Each item with its status: new, made by this deployment, or existing but not made by it. */
+/**
+ * Each item with its status: new, made by this deployment, or existing but not
+ * made by it. A domain this deployment added counts as its own even before DNS
+ * finds it; a bucket or repository it made that's gone is new again.
+ */
 export function planItems(items: Item[], existing: Existing, created: string[]): PlannedItem[] {
   const ours = new Set(created);
   return items.map((item) => {
     const exists = existing.get(item.key);
-    const status: Status = exists === null || exists === undefined ? "unknown" : !exists ? "new" : ours.has(item.key) ? "ours" : "not-ours";
+    const pendingDomain = item.kind === "domain" && ours.has(item.key) && exists !== true;
+    const status: Status = pendingDomain
+      ? "ours"
+      : exists === null || exists === undefined
+        ? "unknown"
+        : !exists
+          ? "new"
+          : ours.has(item.key)
+            ? "ours"
+            : "not-ours";
     return { ...item, status };
   });
 }

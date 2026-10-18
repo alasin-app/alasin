@@ -89,6 +89,15 @@ describe("create-site plan", () => {
     expect(warning).not.toContain("my-site-dev-media");
   });
 
+  it("counts a domain it added as its own before DNS finds it, but plans a vanished bucket again", () => {
+    const items = siteItems(answers);
+    const existing: Existing = new Map(items.map((i) => [i.key, false]));
+    const plan = planItems(items, existing, ["domain:media.example.com", "bucket:my-site-media"]);
+    expect(plan.find((p) => p.key === "domain:media.example.com")!.status).toBe("ours");
+    expect(plan.find((p) => p.key === "bucket:my-site-media")!.status).toBe("new");
+    expect(plan.find((p) => p.key === "domain:www.example.com")!.status).toBe("new");
+  });
+
   it("has no warning for a re-run of its own deployment", () => {
     const items = siteItems(answers);
     const all = new Map(items.map((i) => [i.key, true]));

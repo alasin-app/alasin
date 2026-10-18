@@ -98,7 +98,9 @@ async function askAnswers(previous: SiteState | null): Promise<SiteState> {
   } else ok(`Site repository: ${owner}/${repo}`);
 
   const title = previous?.title ?? (await ask("Site title", { default: repo! }));
+  if (previous?.title) ok(`Site title: ${title}`);
   const language = previous?.language ?? (await ask("Site language (Hugo locale, e.g. en or fi)", { default: "en", validate: (v) => (/^[a-z]{2,3}(-[A-Za-z]{2,4})?$/.test(v) ? null : "a locale like en or fi") }));
+  if (previous?.language) ok(`Site language: ${language}`);
   const alasinName = previous?.alasinName ?? (await ask("Alasin name (base name of its Cloudflare Worker)", { default: "alasin" }));
   if (previous?.alasinName) ok(`Alasin name: ${alasinName}`);
 
@@ -193,6 +195,8 @@ function knownNames(state: SiteState): KnownNames {
     }
   }
   const repository = `${state.owner}/${state.repo}`;
+  // A repository this deployment made holds the skeleton's own Wrangler file, not an earlier deployment's.
+  if (state.created.includes("repo")) return known;
   for (const file of ["wrangler.jsonc", "wrangler.json", "wrangler.toml"]) {
     const text = repoFile(repository, file);
     if (text === null) continue;
