@@ -130,7 +130,9 @@ client_id = "Iv23liAbCdEfGhIjKlMn"
 # [media] - the site's existing PUBLIC image bucket (binding MEDIA in wrangler.toml).
 # -----------------------------------------------------------------------------
 #
-# Alasin only adds new objects here. It never overwrites or deletes anything.
+# Alasin adds new objects here and never overwrites anything. An image leaves
+# the bucket only when someone deletes it in Media (orphaned images only): it
+# moves to the Bin, in the DRAFTS bucket, until the Bin is emptied.
 [media]
 
 # Public base URL of the bucket, ending in "/". Its origin is allowed in the
@@ -212,7 +214,8 @@ dir = "archive"
 # -----------------------------------------------------------------------------
 #
 # Deleting a post, page or draft moves it here; nothing is removed until the
-# Bin is emptied. Images already published to MEDIA are never deleted.
+# Bin is emptied. Photos deleted in Media wait in the Bin too, in the DRAFTS
+# bucket under media-bin/.
 [bin]
 
 # Folder for the Bin in the site repository. Each item keeps the path it was

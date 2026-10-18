@@ -4,7 +4,8 @@
 // under the path it was deleted from, so it can be recovered to exactly that
 // place. Only "Delete permanently" and "Empty Bin" remove files from the
 // repository, and only inside the Bin. A deleted draft's photos stay in DRAFTS
-// until then; images already in MEDIA are never deleted.
+// until then; images already in MEDIA stay there (deleting those is
+// media-bin.ts).
 //
 //   POST /api/bin/delete  {path, sha, lockId?}   → {path}  (its place in the Bin)
 //   POST /api/bin/recover {path, sha, rename?}   → {path}  (where it went back to)

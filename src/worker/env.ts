@@ -8,9 +8,9 @@ export interface Env {
   /** Validated alasin.toml as JSON, injected by `npm run build|dev|deploy`. */
   ALASIN_CONFIG_JSON: string;
   ASSETS: Fetcher;
-  /** The site's public image bucket. Read and copy only, never delete or overwrite. */
+  /** The site's public image bucket. Never overwritten; images leave it only for the Bin (routes/media-bin.ts). */
   MEDIA: R2Bucket;
-  /** Private bucket for draft images. */
+  /** Private bucket for draft images, and for images in the Bin under `media-bin/`. */
   DRAFTS: R2Bucket;
   /** Sessions, encrypted GitHub tokens and OAuth state. */
   KV: KVNamespace;

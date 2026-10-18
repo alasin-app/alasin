@@ -13,6 +13,7 @@ import { drafts } from "./drafts";
 import { lifecycle } from "./lifecycle";
 import { locks } from "./locks";
 import { library } from "./library";
+import { mediaBin } from "./media-bin";
 import { media } from "./media";
 import { site } from "./site";
 import { users } from "./users";
@@ -63,6 +64,7 @@ api.route("/lifecycle", lifecycle);
 api.route("/locks", locks);
 api.route("/draft-media", media);
 api.route("/media", library);
+api.route("/media-bin", mediaBin);
 api.route("/site", site);
 api.route("/users", users);
 

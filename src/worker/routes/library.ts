@@ -2,7 +2,8 @@
 //
 // Browsing the public MEDIA bucket (read only), a level at a time so a large
 // library is never listed at once. Media is only added from a post or page;
-// here it can be found and reused.
+// here it can be found and reused (and orphaned images moved to the Bin, see
+// media-bin.ts).
 //
 //   GET /api/media/folders?prefix=   sub-folders of a folder (e.g. "" → years, "2026/" → months)
 //   GET /api/media/files?prefix=&cursor=   images in a folder, up to 1000 per page
@@ -16,12 +17,12 @@ import type { AlasinConfig } from "../../shared/config/schema";
 import { groupImages, type LibraryImage } from "../../shared/media-library";
 import type { AppEnv } from "../app";
 
-const IMAGE = /\.(jpe?g|png|webp|gif|avif)$/i;
+export const IMAGE = /\.(jpe?g|png|webp|gif|avif)$/i;
 
-const safe = (prefix: string) => prefix.length <= 512 && !prefix.includes("..") && !prefix.startsWith("/") && /^[A-Za-z0-9._/-]*$/.test(prefix);
+export const safe = (prefix: string) => prefix.length <= 512 && !prefix.includes("..") && !prefix.startsWith("/") && /^[A-Za-z0-9._/-]*$/.test(prefix);
 
 /** Inside one of the browse prefixes. */
-const inside = (config: AlasinConfig, key: string) => config.media.browse_prefixes.some((p) => key.startsWith(p));
+export const inside = (config: AlasinConfig, key: string) => config.media.browse_prefixes.some((p) => key.startsWith(p));
 
 /** On the way to one of them (or inside one): folders that may be listed. */
 const towards = (config: AlasinConfig, prefix: string) => inside(config, prefix) || config.media.browse_prefixes.some((p) => p.startsWith(prefix));
