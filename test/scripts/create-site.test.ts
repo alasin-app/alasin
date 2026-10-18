@@ -9,13 +9,14 @@ import {
   namesFromAlasinWrangler,
   parseRepository,
   planItems,
-  r2DevUrl,
-  skeletonValuesFor,
-  zoneCandidates,
   planLines,
+  previewUrl,
+  r2DevUrl,
   siteItems,
   siteWorkerName,
+  skeletonValuesFor,
   stripJsonc,
+  zoneCandidates,
 } from "../../scripts/lib/create-site";
 
 const answers = {
@@ -173,6 +174,11 @@ describe("creating a site", () => {
   it("looks for a host's zone from the most specific name", () => {
     expect(zoneCandidates("img.blog.example.com")).toEqual(["img.blog.example.com", "blog.example.com", "example.com"]);
     expect(zoneCandidates("example.com")).toEqual(["example.com"]);
+  });
+
+  it("gives the dev branch's preview address of the site Worker", () => {
+    expect(previewUrl("example-com", "dev", "octocat")).toBe("https://dev-example-com.octocat.workers.dev/");
+    expect(previewUrl("example-com", "Feature/New_Thing", "octocat")).toBe("https://feature-new-thing-example-com.octocat.workers.dev/");
   });
 
   it("reads the r2.dev URL from Wrangler's output", () => {

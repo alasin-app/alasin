@@ -20,8 +20,8 @@ export interface Upload {
   key: string;
   /** File in templates/sample/images/ it's made from. */
   image: string;
-  /** The smaller sizes, made from the image, as Alasin names them. */
-  variants: { key: string; width: number }[];
+  /** The smaller sizes, as Alasin names them; `file` is the ready-made one in templates/sample/images/variants/. */
+  variants: { key: string; width: number; file: string }[];
 }
 
 /** A photo in MEDIA that no content uses. */
@@ -55,7 +55,7 @@ export function sampleUploads(
     const variants = [...opts.widths]
       .sort((a, b) => a - b)
       .filter((v) => v < w)
-      .map((v) => ({ key: variantKey(key, v, opts.variantName, ext), width: v }));
+      .map((v) => ({ key: variantKey(key, v, opts.variantName, ext), width: v, file: image.replace(/\.[^.]+$/, `-${v}.${ext}`) }));
     uploads.set(`${bucket}:${key}`, { bucket, key, image, variants });
   };
   const base = (key: string) => key.slice(key.lastIndexOf("/") + 1);
@@ -92,4 +92,10 @@ export function jpegSize(bytes: Uint8Array): { width: number; height: number } |
     i += 2 + len;
   }
   return null;
+}
+
+/** The sizes the plan needs that aren't ready-made (templates/sample/images/variants/ has WebP at 480 and 960 px). */
+export function missingVariants(uploads: Upload[], available: string[]): string[] {
+  const have = new Set(available);
+  return [...new Set(uploads.flatMap((u) => u.variants.map((v) => v.file)).filter((f) => !have.has(f)))];
 }

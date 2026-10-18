@@ -31,6 +31,10 @@ export interface SiteState {
   language?: string;
   /** The dev media bucket's public r2.dev URL, once it's turned on. */
   devMediaUrl?: string;
+  /** The dev site: the dev branch's preview of the site Worker. */
+  devSiteUrl?: string;
+  /** The sample content's second author (the first is the person running create-site). */
+  secondAuthor?: { login: string; name: string };
   /** Keys of the items create-site made (see Item.key). */
   created: string[];
 }
@@ -289,3 +293,9 @@ export const BUILD_TRIGGERS = [
   { trigger_name: "Deploy main", branch_includes: ["main"], branch_excludes: [] as string[], deploy_command: "npx wrangler deploy", branch: "main" },
   { trigger_name: "Preview other branches", branch_includes: ["*"], branch_excludes: ["main"], deploy_command: "npx wrangler versions upload", branch: "dev" },
 ];
+
+/** A branch's preview address of a Worker: https://<branch>-<worker>.<subdomain>.workers.dev/ */
+export function previewUrl(worker: string, branch: string, subdomain: string): string {
+  const alias = branch.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  return `https://${alias}-${worker}.${subdomain}.workers.dev/`;
+}

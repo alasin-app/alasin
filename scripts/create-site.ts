@@ -37,13 +37,15 @@ import {
   type PlannedItem,
   planItems,
   planLines,
+  previewUrl,
   r2DevUrl,
   type SiteState,
   siteItems,
   siteWorkerName,
   skeletonValuesFor,
 } from "./lib/create-site";
-import { zoneFor } from "./lib/cloudflare-api";
+import { accountId, cloudflareApi, zoneFor } from "./lib/cloudflare-api";
+import { creditsPage, jpegSize, missingVariants, type SampleFile, sampleUploads } from "./lib/sample-content";
 import { attachDomain, type BuildToken, connectBuilds, createPlaceholderWorker } from "./lib/site-worker";
 import { fillPlaceholders, PLACEHOLDER_FILES, unfilled } from "./lib/skeleton";
 import { parse as parseToml } from "smol-toml";
@@ -125,6 +127,18 @@ async function askAnswers(previous: SiteState | null): Promise<SiteState> {
     jurisdiction = answer === "none" ? "" : answer;
   }
 
+  let secondAuthor = previous?.secondAuthor;
+  if (environments.includes("dev") && !secondAuthor) {
+    const login = await ask("Second author of the dev site's sample posts: a GitHub login (shows an avatar if they're a collaborator), or empty for a made-up one", {
+      default: "",
+      validate: (v) => (!v || /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$/.test(v) ? null : "a GitHub login, or empty"),
+    });
+    if (login) {
+      const r = spawnSync("gh", ["api", `users/${login}`, "--jq", ".name // .login"], { encoding: "utf8" });
+      secondAuthor = { login, name: r.status === 0 && r.stdout.trim() ? r.stdout.trim() : login };
+    } else secondAuthor = { login: "sample-author", name: "Sample Author" };
+  } else if (secondAuthor) ok(`Second sample author: ${secondAuthor.name} (@${secondAuthor.login})`);
+
   const domains = { ...previous?.domains };
   if (environments.includes("production")) {
     for (const [key, question] of [
@@ -148,6 +162,8 @@ async function askAnswers(previous: SiteState | null): Promise<SiteState> {
     domains,
     created: previous?.created ?? [],
     ...(previous?.devMediaUrl ? { devMediaUrl: previous.devMediaUrl } : {}),
+    ...(previous?.devSiteUrl ? { devSiteUrl: previous.devSiteUrl } : {}),
+    ...(secondAuthor ? { secondAuthor } : {}),
   };
 }
 
@@ -294,6 +310,77 @@ async function chooseBuildToken(tokens: BuildToken[]): Promise<BuildToken> {
   return tokens[+n - 1]!;
 }
 
+const SAMPLE = join(repoRoot, "templates", "sample");
+
+/** The dev site's sample content, filled in: the person running create-site and the second author. */
+function sampleFiles(state: SiteState): SampleFile[] {
+  const me = spawnSync("gh", ["api", "user", "--jq", "[.login, (.name // .login)] | @tsv"], { encoding: "utf8" });
+  if (me.status !== 0) throw new Error("GitHub: who you are can't be read (gh auth login)");
+  const [login, name] = me.stdout.trim().split("\t");
+  const second = state.secondAuthor ?? { login: "sample-author", name: "Sample Author" };
+  const values = { SITE_TITLE: state.title || state.repo, AUTHOR_NAME: name!, AUTHOR_ID: login!, SECOND_AUTHOR_NAME: second.name, SECOND_AUTHOR_ID: second.login };
+  const root = join(SAMPLE, "repo");
+  return [
+    ...files(root).map((path) => ({ path: relative(root, path), text: fillPlaceholders(readFileSync(path, "utf8"), values) })),
+    creditsPage(readFileSync(join(SAMPLE, "CREDITS.md"), "utf8")),
+  ];
+}
+
+/** Commits the sample content to the dev branch and uploads its photos (with their sizes) to the dev buckets. */
+function addSampleContent(state: SiteState, plan: PlannedItem[], made: (key: string) => void) {
+  step("Dev site's sample content");
+  const samples = sampleFiles(state);
+  const images = readdirSync(join(SAMPLE, "images")).filter((f) => f.endsWith(".jpg"));
+  const uploads = sampleUploads(samples, {
+    contentPrefix: "/img/",
+    widths: [480, 960, 1600],
+    variantName: "{name}-{width}.{ext}",
+    variantFormat: "webp",
+    images,
+    width: (image) => jpegSize(new Uint8Array(readFileSync(join(SAMPLE, "images", image))))?.width ?? 0,
+  });
+  const missing = missingVariants(uploads, readdirSync(join(SAMPLE, "images", "variants")));
+  if (missing.length) throw new Error(`Sample photo sizes missing in templates/sample/images/variants/: ${missing.join(", ")}`);
+
+  if (!state.created.includes("sample:content")) {
+    const dir = join(repoRoot, DEPLOYMENTS, state.repo, "site");
+    if (!existsSync(join(dir, ".git"))) throw new Error(`${relative(repoRoot, dir)}/ isn't a clone of the site repository`);
+    runVisible("git", ["switch", "--quiet", "dev"], dir);
+    runVisible("git", ["pull", "--quiet", "--ff-only"], dir);
+    for (const f of samples) {
+      mkdirSync(join(dir, f.path, ".."), { recursive: true });
+      writeFileSync(join(dir, f.path), f.text);
+    }
+    runVisible("git", ["add", "-A"], dir);
+    runVisible("git", ["commit", "--quiet", "-m", "Add the dev site's sample content"], dir);
+    runVisible("git", ["push", "--quiet", "origin", "dev"], dir);
+    runVisible("git", ["switch", "--quiet", "main"], dir);
+    made("sample:content");
+    ok(`${samples.length} files committed to the dev branch: home page, pages, posts, drafts, archive, Bin, categories, credits`);
+  }
+
+  if (!state.created.includes("sample:photos")) {
+    const bucket = { media: plan.find((p) => p.slot === "media:dev")!, drafts: plan.find((p) => p.slot === "drafts:dev")! };
+    let n = 0;
+    for (const u of uploads) {
+      const target = bucket[u.bucket];
+      const j = (target.jurisdiction ?? state.jurisdiction) || undefined;
+      const put = (key: string, file: string, type: string) =>
+        wrangler([
+          "r2", "object", "put", `${target.name}/${key}`, "--file", file, "--content-type", type, "--remote",
+          ...(u.bucket === "media" ? ["--cache-control", "public, max-age=604800"] : []),
+          ...(j ? ["-J", j] : []),
+        ]);
+      put(u.key, join(SAMPLE, "images", u.image), "image/jpeg");
+      for (const v of u.variants) put(v.key, join(SAMPLE, "images", "variants", v.file), "image/webp");
+      n += 1 + u.variants.length;
+      info(`  ${u.bucket === "media" ? "media" : "drafts"}: ${u.key} (+${u.variants.length} sizes)`);
+    }
+    made("sample:photos");
+    ok(`${n} photo files uploaded to the dev buckets`);
+  }
+}
+
 async function create(state: SiteState, plan: PlannedItem[]) {
   const made = (key: string) => {
     if (!state.created.includes(key)) state.created.push(key);
@@ -360,6 +447,17 @@ async function create(state: SiteState, plan: PlannedItem[]) {
     info("  If they fail right after Initializing with \"The build token … has been deleted or rolled\", choose or create another");
     info("  under Settings → Builds → API token and retry the builds there.");
   } else if (state.created.includes(buildsKey)) ok(`${worker.name}: connected with Workers Builds (to connect again, e.g. with another build token, remove "${buildsKey}" from create-site.json)`);
+  if (state.environments.includes("dev") && state.created.includes(buildsKey) && !state.devSiteUrl) {
+    const { subdomain } = await cloudflareApi<{ subdomain: string }>(`/accounts/${accountId()}/workers/subdomain`);
+    state.devSiteUrl = previewUrl(worker.name, "dev", subdomain);
+    writeState(state);
+  }
+  if (state.domains.site && state.environments.includes("production")) info(`  Production site: https://${state.domains.site}/`);
+  if (state.devSiteUrl) info(`  Dev site (the dev branch's preview): ${state.devSiteUrl}`);
+
+  if (state.environments.includes("dev") && mine(repo) && state.devMediaUrl && slot("media:dev") && mine(slot("media:dev"))) {
+    addSampleContent(state, plan, made);
+  }
 
   const later = plan.filter((p) => p.status === "new" && !state.created.includes(p.key));
   if (later.length) {
@@ -404,11 +502,13 @@ async function main() {
   ok(`Answers saved in ${DEPLOYMENTS}/${state.repo}/create-site.json (run again with --site ${state.repo}).`);
 
   const todo = plan.filter((p) => p.status === "new" && !state.created.includes(p.key)).length;
-  if (!todo && (!state.environments.includes("dev") || state.devMediaUrl)) {
+  const devPending = state.environments.includes("dev") && !(state.devMediaUrl && state.created.includes("sample:content") && state.created.includes("sample:photos"));
+  if (!todo && !devPending) {
     info("Nothing new to create.");
     return;
   }
-  if (!args.yes && !(await confirm(`Create the new items now (${todo})?`, false))) {
+  const what = [todo ? `the new items (${todo})` : "", devPending ? "the dev site's sample content" : ""].filter(Boolean).join(" and ");
+  if (!args.yes && !(await confirm(`Create ${what} now?`, false))) {
     info("Stopped before creating anything.");
     return;
   }
