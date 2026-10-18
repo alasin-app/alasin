@@ -79,7 +79,7 @@ site.get("/", async (c) => {
 
   const session = c.get("session");
   // Who can log in (the list, or the repository's writers), with full names from GitHub profiles.
-  const people = await members(c.env.KV, token, config);
+  const people = await members(c.env.KV, token, config, { includes: session.uid });
   const names = await profileNames(token, [...new Set([session.uid, ...people.map((u) => u.id)])]);
   const fullName = (u: { id: number }) => names.get(u.id) ?? (u.id === session.uid ? session.name : null);
   return c.json({

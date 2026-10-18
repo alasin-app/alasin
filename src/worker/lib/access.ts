@@ -41,15 +41,23 @@ export interface Member {
 
 const CACHE_SECONDS = 600;
 
+const cacheKey = (config: AlasinConfig) => `collaborators:${config.github.owner}/${config.github.repo}`;
+
 /**
  * Who can log in: the repository's collaborators with write access (asked
- * with the signed-in user's token, kept in KV for 10 minutes).
+ * with the signed-in user's token, kept in KV for 10 minutes). Read from
+ * GitHub again when `fresh`, or when the kept list lacks `includes` (a user
+ * whose sign-in proved write access: someone who has just accepted an
+ * invitation).
  */
-export async function members(kv: KVNamespace, token: string, config: AlasinConfig): Promise<Member[]> {
+export async function members(kv: KVNamespace, token: string, config: AlasinConfig, opts: { fresh?: boolean; includes?: number } = {}): Promise<Member[]> {
   const { owner, repo } = config.github;
-  const key = `collaborators:${owner}/${repo}`;
-  const kept = await kv.get(key);
-  if (kept) return JSON.parse(kept) as Member[];
+  const key = cacheKey(config);
+  const kept = opts.fresh ? null : await kv.get(key);
+  if (kept) {
+    const list = JSON.parse(kept) as Member[];
+    if (opts.includes === undefined || list.some((m) => m.id === opts.includes)) return list;
+  }
   const list: Member[] = [];
   for (let page = 1; page <= 10; page++) {
     const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/collaborators?permission=push&per_page=100&page=${page}`, { headers: headers(token) });
@@ -60,4 +68,10 @@ export async function members(kv: KVNamespace, token: string, config: AlasinConf
   }
   await kv.put(key, JSON.stringify(list), { expirationTtl: CACHE_SECONDS });
   return list;
+}
+
+/** After a sign-in with write access: drops a kept list without that user, so everyone's next read is fresh. */
+export async function forgetMembersWithout(kv: KVNamespace, config: AlasinConfig, id: number): Promise<void> {
+  const kept = await kv.get(cacheKey(config));
+  if (kept && !(JSON.parse(kept) as Member[]).some((m) => m.id === id)) await kv.delete(cacheKey(config));
 }

@@ -37,6 +37,35 @@ describe("users", () => {
     });
   });
 
+  it("shows someone who has just accepted an invitation, not the kept list", async () => {
+    const key = `collaborators:${gh.repo.owner}/${gh.repo.name}`;
+    gh.repo.collaborators.set(ALLOWED_USER.login, { permission: "admin", id: ALLOWED_USER.id });
+    gh.repo.collaborators.set("jane", { permission: "write", id: 424242 });
+    await env.KV.put(key, JSON.stringify([{ login: ALLOWED_USER.login, id: ALLOWED_USER.id }]));
+    const res = (await (await call("/api/users", { cookie })).json()) as { users: { login: string }[] };
+    expect(res.users.map((u) => u.login)).toEqual([ALLOWED_USER.login, "jane"]);
+    expect(JSON.parse((await env.KV.get(key))!)).toHaveLength(2);
+  });
+
+  it("drops a kept list without the user who signs in", async () => {
+    const key = `collaborators:${gh.repo.owner}/${gh.repo.name}`;
+    await env.KV.put(key, JSON.stringify([{ login: "jane", id: 424242 }]));
+    await login(gh, ALLOWED_USER);
+    expect(await env.KV.get(key)).toBeNull();
+    // A kept list that has them stays.
+    await env.KV.put(key, JSON.stringify([{ login: ALLOWED_USER.login, id: ALLOWED_USER.id }]));
+    await login(gh, ALLOWED_USER);
+    expect(await env.KV.get(key)).not.toBeNull();
+  });
+
+  it("reads the list again for a signed-in user who isn't in the kept one", async () => {
+    const key = `collaborators:${gh.repo.owner}/${gh.repo.name}`;
+    gh.repo.collaborators.set(ALLOWED_USER.login, { permission: "write", id: ALLOWED_USER.id });
+    await env.KV.put(key, JSON.stringify([{ login: "jane", id: 424242 }]));
+    const site = (await (await call("/api/site", { cookie })).json()) as { users: { login: string }[] };
+    expect(site.users.map((u) => u.login)).toContain(ALLOWED_USER.login);
+  });
+
   it("requires a session", async () => {
     expect((await call("/api/users")).status).toBe(401);
   });

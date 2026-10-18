@@ -105,7 +105,7 @@ export function fakeGitHub(): FakeGitHub {
       return new Response(null, { status: 204 });
     }
     if (url.hostname === "avatars.githubusercontent.com") {
-      return new Response(new Uint8Array([0x89, 0x50, 0x4e, 0x47]), { headers: { "Content-Type": "image/png", "Content-Length": "4" } });
+      return new Response(new Uint8Array([0x89, 0x50, 0x4e, 0x47]), { headers: { "Content-Type": "image/png", "Content-Length": "4", ETag: '"avatar-v1"' } });
     }
     const repoResponse = await gh.repo.handle(req);
     if (repoResponse) return repoResponse;

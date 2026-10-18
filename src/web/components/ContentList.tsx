@@ -7,7 +7,7 @@
 import { ChevronDown, ChevronRight, RotateCw, Search as SearchIcon, X } from "lucide-preact";
 import { useMemo, useState } from "preact/hooks";
 import { categoryTree } from "../../shared/categories";
-import { api, ApiError, type Me } from "../lib/api";
+import { api, ApiError, avatarUrl, type Me } from "../lib/api";
 import { authorKey, authorName, authorUser } from "../lib/authors";
 import { type ContentItem, type ItemKind, valueCounts } from "../lib/content-index";
 import { getLanguage, t, useLanguage } from "../lib/i18n";
@@ -48,7 +48,7 @@ function Byline(props: { item: ContentItem; site: SiteSettings; updated?: LastUp
   if (!name && !updated) return null;
   return (
     <span class="row-byline">
-      {user && <img class="avatar-tiny" src={`/api/avatar/${user.id}?s=40`} alt="" width={16} height={16} />}
+      {user && <img class="avatar-tiny" src={avatarUrl(user.id)} alt="" width={16} height={16} />}
       {name && <span>{name}</span>}
       {updated && <span class="secondary">{t("content.updatedBy", { name: by, date: when })}</span>}
     </span>

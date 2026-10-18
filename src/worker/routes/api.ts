@@ -41,19 +41,26 @@ api.get("/me", (c) => {
 const AVATAR_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
 const AVATAR_MAX_BYTES = 256 * 1024;
 
+/** How long an avatar is kept, at the edge and in the browser: as long as GitHub's own CDN keeps it, so a new picture shows within minutes. */
+const AVATAR_SECONDS = 300;
+
 // GitHub avatars are proxied so the CSP doesn't have to allow a third-party origin.
 api.get("/avatar/:id{[0-9]{1,12}}", async (c) => {
   const size = c.req.query("s") === "40" ? 40 : 96;
   const upstream = await fetch(`https://avatars.githubusercontent.com/u/${c.req.param("id")}?s=${size}&v=4`, {
     headers: { "User-Agent": "Alasin" },
-    cf: { cacheTtl: 86400, cacheEverything: true },
+    cf: { cacheTtl: AVATAR_SECONDS, cacheEverything: true },
   });
   const type = (upstream.headers.get("Content-Type") ?? "").split(";")[0]!.trim();
   const length = Number(upstream.headers.get("Content-Length") ?? "0");
   if (!upstream.ok || !AVATAR_TYPES.has(type) || length > AVATAR_MAX_BYTES) return c.body(null, 404);
+  // GitHub's ETag lets the browser check for a new picture cheaply once its copy is old.
+  const etag = upstream.headers.get("ETag");
+  const cache = { "Cache-Control": `private, max-age=${AVATAR_SECONDS}`, ...(etag ? { ETag: etag } : {}) };
+  if (etag && c.req.header("If-None-Match") === etag) return c.body(null, 304, cache);
   const body = await upstream.arrayBuffer();
   if (body.byteLength > AVATAR_MAX_BYTES) return c.body(null, 404);
-  return c.body(body, 200, { "Content-Type": type, "Cache-Control": "private, max-age=86400" });
+  return c.body(body, 200, { "Content-Type": type, ...cache });
 });
 
 api.route("/bin", bin);
