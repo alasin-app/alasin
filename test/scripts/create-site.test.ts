@@ -1,6 +1,18 @@
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
-import { alreadyDeployedWarning, cloudflareName, type Existing, hostnameProblem, parseRepository, planItems, planLines, siteItems } from "../../scripts/lib/create-site";
+import {
+  alreadyDeployedWarning,
+  cloudflareName,
+  type Existing,
+  hostnameProblem,
+  namesFromAlasinWrangler,
+  parseRepository,
+  planItems,
+  planLines,
+  siteItems,
+  siteWorkerName,
+  stripJsonc,
+} from "../../scripts/lib/create-site";
 
 const answers = {
   owner: "octocat",
@@ -78,5 +90,62 @@ describe("create-site plan", () => {
     const items = siteItems(answers);
     const all = new Map(items.map((i) => [i.key, true]));
     expect(alreadyDeployedWarning(planItems(items, all, items.map((i) => i.key)))).toBeNull();
+  });
+});
+
+describe("a site deployed earlier", () => {
+  const wrangler = {
+    name: "alasin",
+    r2_buckets: [
+      { binding: "MEDIA", bucket_name: "old-media", jurisdiction: "eu" },
+      { binding: "DRAFTS", bucket_name: "old-media-drafts", jurisdiction: "eu" },
+    ],
+    env: { dev: { name: "alasin-test", r2_buckets: [{ binding: "DRAFTS", bucket_name: "old-drafts-dev" }] } },
+  };
+
+  it("takes the Alasin Workers and buckets from the deployment's wrangler.toml", () => {
+    const known = namesFromAlasinWrangler(wrangler, "deployments/my-site/wrangler.toml");
+    expect(known).toEqual({
+      "alasin:production": { name: "alasin", source: "deployments/my-site/wrangler.toml" },
+      "media:production": { name: "old-media", source: "deployments/my-site/wrangler.toml", jurisdiction: "eu" },
+      "drafts:production": { name: "old-media-drafts", source: "deployments/my-site/wrangler.toml", jurisdiction: "eu" },
+      "alasin:dev": { name: "alasin-test", source: "deployments/my-site/wrangler.toml" },
+      "drafts:dev": { name: "old-drafts-dev", source: "deployments/my-site/wrangler.toml", jurisdiction: "" },
+    });
+    expect(namesFromAlasinWrangler({}, "x")).toEqual({});
+  });
+
+  it("reads the site Worker's name from JSONC, JSON or TOML", () => {
+    const jsonc = `// The site, as static assets.\n{\n  "name": "example-com", // built by Workers Builds\n  /* see https://example.com/docs */\n  "routes": [{ "pattern": "https://www.example.com/*" },],\n}\n`;
+    expect(siteWorkerName("wrangler.jsonc", jsonc)).toBe("example-com");
+    expect(siteWorkerName("wrangler.json", '{"name":"a"}')).toBe("a");
+    expect(siteWorkerName("wrangler.toml", 'name = "b"\n')).toBe("b");
+    expect(siteWorkerName("wrangler.jsonc", "{ not json")).toBeNull();
+    expect(stripJsonc('{"url": "https://x//y", "a": 1,}')).toBe('{"url": "https://x//y", "a": 1}');
+  });
+
+  it("plans existing names instead of a second set, and says where they came from", () => {
+    const known = { ...namesFromAlasinWrangler(wrangler, "deployments/my-site/wrangler.toml"), "site-worker": { name: "example-com", source: "octocat/My.Site/wrangler.jsonc" } };
+    const items = siteItems(answers, known);
+    expect(items.map((i) => i.name)).toEqual([
+      "octocat/My.Site",
+      "old-media",
+      "old-media-drafts",
+      "my-site-dev-media",
+      "old-drafts-dev",
+      "example-com",
+      "alasin",
+      "alasin-test",
+      "www.example.com",
+      "alasin.example.com",
+      "media.example.com",
+    ]);
+    expect(items.find((i) => i.name === "old-media")).toMatchObject({ deployed: "deployments/my-site/wrangler.toml", jurisdiction: "eu" });
+
+    const plan = planItems(items, new Map(items.map((i) => [i.key, i.name !== "my-site-dev-media"])), []);
+    expect(planLines(plan)[1]).toContain("[as in deployments/my-site/wrangler.toml]: EXISTS");
+    expect(alreadyDeployedWarning(plan)).toContain(
+      "This site is already deployed: its own names are taken from deployments/my-site/wrangler.toml and octocat/My.Site/wrangler.jsonc, so no second set is planned.",
+    );
   });
 });
