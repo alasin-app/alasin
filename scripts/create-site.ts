@@ -14,8 +14,10 @@
 //
 // Answers and what was made are kept in deployments/<site>/create-site.json
 // after each step, so a re-run (--site <name>) asks nothing already answered
-// and continues where it stopped. The Workers and the site's and app's domains
-// come in a later version.
+// and continues where it stopped. Then the site Worker: created, given the
+// site's domain, and connected to the repository with Workers Builds (needs a
+// user API token in CLOUDFLARE_BUILDS_TOKEN). Alasin's own Workers and the
+// app's domain come in a later version.
 
 import { spawnSync } from "node:child_process";
 import { resolve as resolveDns } from "node:dns/promises";
@@ -42,6 +44,7 @@ import {
   skeletonValuesFor,
 } from "./lib/create-site";
 import { zoneFor } from "./lib/cloudflare-api";
+import { attachDomain, type BuildToken, connectBuilds, createPlaceholderWorker } from "./lib/site-worker";
 import { fillPlaceholders, PLACEHOLDER_FILES, unfilled } from "./lib/skeleton";
 import { parse as parseToml } from "smol-toml";
 import { SITE_NAME } from "./lib/deployments";
@@ -263,6 +266,34 @@ function createRepository(state: SiteState, items: Item[]) {
   ok(`${state.owner}/${state.repo}: created (private), with main and dev; cloned in ${shown}/`);
 }
 
+/** The build token Workers Builds deploys with: CLOUDFLARE_BUILD_TOKEN_NAME, or asked from the list. */
+async function chooseBuildToken(tokens: BuildToken[]): Promise<BuildToken> {
+  const name = (t: BuildToken) => t.build_token_name || t.build_token_uuid;
+  const wanted = process.env.CLOUDFLARE_BUILD_TOKEN_NAME;
+  if (wanted) {
+    const found = tokens.find((t) => name(t) === wanted);
+    if (!found) throw new Error(`No build token named "${wanted}". There are: ${tokens.map(name).join(", ")}`);
+    return found;
+  }
+  step("Build token");
+  info("The account has several Workers Builds tokens (the tokens builds deploy with). Some may have been deleted or rolled:");
+  info("check under Workers & Pages → any connected Worker → Settings → Builds → API token which ones still work.");
+  tokens.forEach((t, i) => info(`  ${i + 1}. ${name(t)}`));
+  info("  0. None of these works");
+  const n = await ask("Which one", { validate: (v) => (/^\d+$/.test(v) && +v <= tokens.length ? null : `a number from 0 to ${tokens.length}`) });
+  if (n === "0") {
+    throw new Error(
+      [
+        "Make a new build token in the dashboard, then run create-site again and choose it:",
+        "  Workers & Pages → the site Worker → Settings → Builds → API token → Create new token → Save.",
+        "  (Or set CLOUDFLARE_BUILD_TOKEN_NAME to its name to choose it without asking.)",
+        "The site Worker and everything before it are kept; the next run continues with Workers Builds.",
+      ].join("\n"),
+    );
+  }
+  return tokens[+n - 1]!;
+}
+
 async function create(state: SiteState, plan: PlannedItem[]) {
   const made = (key: string) => {
     if (!state.created.includes(key)) state.created.push(key);
@@ -305,6 +336,30 @@ async function create(state: SiteState, plan: PlannedItem[]) {
     createRepository(state, plan);
     made(repo.key);
   } else ok(`${repo.name}: ${repo.status === "not-ours" ? "exists, not changed" : "already there"}`);
+
+  step("Site Worker");
+  const worker = slot("site-worker")!;
+  if (worker.status === "new" && !state.created.includes(worker.key)) {
+    createPlaceholderWorker(worker.name);
+    made(worker.key);
+    ok(`${worker.name}: created (a placeholder page until its first build)`);
+  }
+  const siteDomain = slot("domain:site");
+  if (siteDomain?.status === "new" && !state.created.includes(siteDomain.key) && mine(worker)) {
+    await attachDomain(worker.name, siteDomain.name);
+    made(siteDomain.key);
+    ok(`${worker.name}: served at https://${siteDomain.name}/`);
+  }
+  const buildsKey = `builds:${worker.name}`;
+  if (mine(worker) && mine(repo) && !state.created.includes(buildsKey)) {
+    const builds = await connectBuilds(worker.name, repo.name, chooseBuildToken);
+    made(buildsKey);
+    ok(`${repo.name} connected with Workers Builds: main → production, other branches → previews`);
+    for (const b of builds) info(`  first build of ${b.branch} started (${b.build})`);
+    info("  Follow them in the dashboard: Workers & Pages → the site Worker → Deployments / Builds.");
+    info("  If they fail right after Initializing with \"The build token … has been deleted or rolled\", choose or create another");
+    info("  under Settings → Builds → API token and retry the builds there.");
+  } else if (state.created.includes(buildsKey)) ok(`${worker.name}: connected with Workers Builds (to connect again, e.g. with another build token, remove "${buildsKey}" from create-site.json)`);
 
   const later = plan.filter((p) => p.status === "new" && !state.created.includes(p.key));
   if (later.length) {
