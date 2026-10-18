@@ -104,7 +104,7 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 - [ ] **4.25 Setup**: `npm run setup` asks nothing about users, and removes a `[users]` table from an older `alasin.toml`
 - [ ] **4.26 My recent posts on Home**: Below *My drafts*, *My recent posts* lists your published posts with the latest dates, 5, 10 or 20 of them (the choice is remembered on the device); a row opens the post
 - [ ] **4.27 Settings change**: Change `[site] author_field` (or a folder or media setting) and deploy, without new commits in the site repository: opening Posts reads the list again by itself, and authors with avatars show without tapping ↻
-- [ ] **4.28 Invite and remove (admin)**: As a repository admin, *Users* shows *Invite on GitHub* and a *Remove* on everyone but you; both open the repository's *Collaborators and teams* settings on GitHub in a new tab. Invite someone with Write: after they accept, coming back to *Users* lists them
+- [ ] **4.28 Invite and remove (admin)**: As a repository admin, *Users* shows *Invite on GitHub* and a *Remove* on everyone but you; both open the repository's *Collaborators and teams* settings on GitHub in a new tab. Invite someone with Write: as soon as they accept, coming back to *Users* lists them (no waiting); once they sign in, they're also in the author lists of everyone else's app after a reload
 - [ ] **4.29 Invite and remove (not admin)**: As a writer who isn't an admin, *Users* has no *Invite* or *Remove*, only the note that admins invite and remove people
 
 ## Categories and media
@@ -148,3 +148,4 @@ Posts have `author_id` (the GitHub login) and `author` (the name).
 - [ ] **A.6 Mine on Home**: *My drafts* and *My recent posts* follow `author_id`, also for posts with an older name in `author:`
 - [ ] **A.7 Author required**: Remove the author of a draft (*Someone else* with an empty name isn't possible; edit the file on GitHub to remove both lines): *Save* and *Publish* say "Choose an author first." and open the details
 - [ ] **A.8 Setup**: `npm run setup` on an `alasin.toml` with `# author_field = "author"` commented out turns it on and reports it; one that sets it keeps its value and gets the new description
+- [ ] **A.9 New avatar**: Change your picture on GitHub: within about 10 minutes, reloading the app shows the new one in the account sheet, *Users*, the lists and the editor's lock banner, without clearing the browser's data

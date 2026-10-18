@@ -4,7 +4,7 @@
 import { ChevronRight, Ellipsis, FileText, House, Image, Newspaper, PanelLeftClose, PanelLeftOpen, PenLine, Plus, Tags, Trash2, Users } from "lucide-preact";
 import type { ComponentType } from "preact";
 import { useMemo, useState } from "preact/hooks";
-import type { Me } from "../lib/api";
+import { avatarUrl, type Me } from "../lib/api";
 import { type MessageKey, t, useLanguage } from "../lib/i18n";
 import { type DraftKind, hrefFor, linkHandler, navigate, type Section, useRoute } from "../lib/router";
 import { ulid } from "../../shared/ulid";
@@ -53,7 +53,7 @@ export function EnvBadge() {
 function AvatarButton(props: { me: Me; onClick: () => void }) {
   return (
     <button type="button" class="avatar-button" onClick={props.onClick} aria-label={t("account.title")}>
-      <img class="avatar" src={`${props.me.user.avatar}?s=40`} alt="" width={32} height={32} />
+      <img class="avatar" src={avatarUrl(props.me.user.id)} alt="" width={32} height={32} />
     </button>
   );
 }

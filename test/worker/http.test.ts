@@ -200,4 +200,13 @@ describe("avatar proxy", () => {
     expect((await call("/api/avatar/..%2F..%2Fevil", { cookie })).status).toBe(404);
     expect((await call("/api/avatar/abc", { cookie })).status).toBe(404);
   });
+
+  it("is kept only minutes, and checked again with GitHub's ETag", async () => {
+    const { cookie } = await login(gh, ALLOWED_USER);
+    const res = await call("/api/avatar/583231?s=40", { cookie });
+    expect(res.headers.get("Cache-Control")).toBe("private, max-age=300");
+    expect(res.headers.get("ETag")).toBe('"avatar-v1"');
+    expect((await call("/api/avatar/583231?s=40", { cookie, headers: { "If-None-Match": '"avatar-v1"' } })).status).toBe(304);
+    expect((await call("/api/avatar/583231?s=40", { cookie, headers: { "If-None-Match": '"avatar-v0"' } })).status).toBe(200);
+  });
 });

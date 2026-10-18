@@ -2,7 +2,9 @@
 //
 // GET /api/users — who can log in to this deployment: the site repository's
 // collaborators with write access, with their full names from GitHub and
-// their permission on the repository.
+// their permission on the repository. Always read from GitHub, not the kept
+// list, so someone who has just accepted an invitation shows at once (the page
+// is opened rarely).
 
 import { Hono } from "hono";
 import type { AppEnv } from "../app";
@@ -16,7 +18,7 @@ users.get("/", async (c) => {
   const config = c.get("config");
   const token = await getUserToken(c);
   const { owner, repo } = config.github;
-  const people = await members(c.env.KV, token, config);
+  const people = await members(c.env.KV, token, config, { fresh: true });
   const names = await profileNames(token, people.map((u) => u.id));
   const list = await Promise.all(
     people.map(async (u) => ({

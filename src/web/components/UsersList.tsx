@@ -6,7 +6,7 @@
 
 import { ExternalLink, UserPlus } from "lucide-preact";
 import { useEffect, useState } from "preact/hooks";
-import { api } from "../lib/api";
+import { api, avatarUrl } from "../lib/api";
 import { t, useLanguage } from "../lib/i18n";
 
 type Permission = "admin" | "maintain" | "write" | "triage" | "read" | "none";
@@ -66,7 +66,7 @@ export function UsersList() {
           const ok = u.permission !== null && CAN_WRITE.includes(u.permission);
           return (
             <li class="row user-row">
-              <img class="avatar" src={`/api/avatar/${u.id}?s=40`} alt="" width={32} height={32} />
+              <img class="avatar" src={avatarUrl(u.id)} alt="" width={32} height={32} />
               <span class="row-label">
                 {u.name ?? u.login}
                 {u.you && <span class="secondary"> · {t("users.you")}</span>}

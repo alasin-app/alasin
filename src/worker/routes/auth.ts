@@ -11,7 +11,7 @@ import { Hono, type Context } from "hono";
 import type { AppEnv } from "../app";
 import { clearCookie, OAUTH_COOKIE, readCookie, serializeCookie, SESSION_COOKIE } from "../lib/cookies";
 import { randomToken, safeEqual, sha256Base64Url } from "../lib/crypto";
-import { canWrite, repoPermission } from "../lib/access";
+import { canWrite, forgetMembersWithout, repoPermission } from "../lib/access";
 import { exchangeCode, getAuthenticatedUser, revokeToken } from "../lib/github";
 import { log, logError } from "../lib/log";
 import { createSession, destroySession, readSession } from "../session";
@@ -112,6 +112,7 @@ auth.get("/callback", async (c) => {
   if (previous) await destroySession(c, previous);
 
   const cookie = await createSession(c.env, config, user, tokens);
+  await forgetMembersWithout(c.env.KV, config, user.id);
   log({ rid, event: "login", uid: user.id });
   c.header("Set-Cookie", clearCookie(OAUTH_COOKIE), { append: true });
   c.header("Set-Cookie", cookie, { append: true });
