@@ -364,10 +364,13 @@ async function setUpAlasin(state: SiteState, plan: PlannedItem[], made: (key: st
   }
   // setup and deploy ask their own questions in this terminal.
   closePrompt();
-  for (const d of todo) {
+  for (const [i, d] of todo.entries()) {
     const worker = plan.find((p) => p.slot === d.slot)!;
     const envArgs = d.env ? ["--env", d.env] : [];
-    info(`\nNow npm run setup -- --site ${state.repo}${d.env ? ` --env ${d.env}` : ""} for ${worker.name}: it creates the GitHub App (in your browser), the KV namespace and the secrets.`);
+    const which = d.slot === "alasin:dev" ? "dev" : "production";
+    step(`Alasin, ${which} (${i + 1} of ${todo.length}): ${worker.name}`);
+    info(`npm run setup -- --site ${state.repo}${d.env ? ` --env ${d.env}` : ""}, then npm run deploy: setup asks its own questions here,`);
+    info(`and creates the ${which} GitHub App in your browser, the KV namespace and the secrets.`);
     runScript("scripts/setup/index.ts", ["--site", state.repo, ...envArgs]);
     runScript("scripts/alasin.ts", ["deploy", "--site", state.repo, ...envArgs]);
     made(worker.key);
