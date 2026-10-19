@@ -56,9 +56,9 @@ export async function connectBuilds(worker: string, repository: string, chooseTo
   const acc = accountId();
   const api = <T>(path: string, init: { method?: string; body?: unknown } = {}) => cloudflareApi<T>(`/accounts/${acc}${path}`, { ...init, token });
 
-  const gh = spawnSync("gh", ["api", `repos/${repository}`, "--jq", "[.id, .owner.id, .owner.login, .name] | @tsv"], { encoding: "utf8" });
+  const gh = spawnSync("gh", ["api", `repos/${repository}`, "--jq", "[.id, .owner.id, .owner.login, .owner.type, .name] | @tsv"], { encoding: "utf8" });
   if (gh.status !== 0) throw new Error(`GitHub: ${repository} can't be read (gh auth login)`);
-  const [repoId, ownerId, owner, repo] = gh.stdout.trim().split("\t");
+  const [repoId, ownerId, owner, ownerType, repo] = gh.stdout.trim().split("\t");
 
   let connection: { repo_connection_uuid: string };
   try {
@@ -71,8 +71,9 @@ export async function connectBuilds(worker: string, repository: string, chooseTo
     // The Builds API answers "Invalid token" for account-owned tokens; it needs a user token.
     const hint = /invalid token|authentication|unauthori[sz]ed|forbidden|\b10000\b/i.test(message)
       ? "The token isn't accepted: Workers Builds needs a user API token, made under My Profile → API Tokens (not Manage Account → API Tokens), with Workers CI · Edit and Workers · Metadata Read-only."
-      : `Cloudflare's GitHub app must see ${repository}: on GitHub, Settings → Applications → Cloudflare Workers and Pages → Configure → Repository access. ` +
-        "If the app isn't installed for this account yet, connect any Worker to GitHub once in the dashboard (Settings → Builds → Connect).";
+      : `Cloudflare's GitHub app must be installed on ${owner}, the repository's owner, and see ${repository}. ` +
+        `Check under ${ownerType === "Organization" ? `https://github.com/organizations/${owner}/settings/installations` : "https://github.com/settings/installations"} → Cloudflare Workers and Pages → Configure → Repository access. ` +
+        `If it isn't listed there, install it on ${owner}: in the Cloudflare dashboard, Workers & Pages → Create → Import a repository → GitHub, and pick ${owner} when GitHub asks where to install it.`;
     throw new Error(`${message}\n${hint}`, { cause: err });
   }
 
