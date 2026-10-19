@@ -18,6 +18,7 @@ import { normalizeUrl, urlProblem } from "../lib/urls";
 import { migrateAlasinToml, plainComments } from "../lib/migrate";
 import { today } from "../../src/shared/housekeeping";
 import { checkBindings, generateWranglerConfig, REQUIRED_SECRETS } from "../lib/wrangler-config";
+import { envWranglerSection } from "../lib/wrangler-env";
 import * as cf from "./cloudflare";
 import * as gh from "./github";
 import { ask, bold, closePrompt, confirm, dim, info, ok, red, step, warn } from "./prompt";
@@ -32,6 +33,7 @@ const PLACEHOLDERS = new Set<unknown>([
   "my-hugo-site",
   123456,
   "Iv23liAbCdEfGhIjKlMn",
+  12345678,
   "https://media.example.com/",
   "example-media",
   "example-media-drafts",
@@ -97,49 +99,6 @@ function setWrangler(key: string, value: TomlValue, arrayTable?: { table: string
     ? setValue(wranglerText, wranglerHeader(arrayTable.table, true), key, value, { where: arrayTable.where })
     : setValue(wranglerText, wranglerHeader(""), key, value);
   writeFileSync(args.wranglerPath, wranglerText);
-}
-
-function envWranglerSection(name: string, base: Table): string {
-  const envs = Object.keys((base.env as Table | undefined) ?? {}).length;
-  const ns = (n: number) => String(1000 * (envs + 2) + n);
-  const media = ((base.r2_buckets as Table[] | undefined) ?? []).find((b) => b.binding === "MEDIA") ?? {};
-  const mediaJ = media.jurisdiction ? `\njurisdiction = ${JSON.stringify(media.jurisdiction)}` : "";
-  return `# --- [env.${name}] - added by npm run setup -- --env ${name} ---
-[env.${name}]
-name = ${JSON.stringify(`${String(base.name ?? "alasin")}-${name}`)}
-workers_dev = true
-
-[[env.${name}.r2_buckets]]
-binding = "MEDIA"
-bucket_name = ${JSON.stringify(media.bucket_name ?? "example-media")}${mediaJ}
-
-[[env.${name}.r2_buckets]]
-binding = "DRAFTS"
-bucket_name = "example-media-drafts"
-
-[[env.${name}.kv_namespaces]]
-binding = "KV"
-id = "00000000000000000000000000000000"
-
-[[env.${name}.durable_objects.bindings]]
-name = "LOCKS"
-class_name = "EditLocks"
-
-[[env.${name}.ratelimits]]
-name = "RL_AUTH"
-namespace_id = "${ns(1)}"
-simple = { limit = 10, period = 60 }
-
-[[env.${name}.ratelimits]]
-name = "RL_UPLOAD"
-namespace_id = "${ns(2)}"
-simple = { limit = 120, period = 60 }
-
-[[env.${name}.ratelimits]]
-name = "RL_COMMIT"
-namespace_id = "${ns(3)}"
-simple = { limit = 30, period = 60 }
-`;
 }
 
 // ── validators ───────────────────────────────────────────────────────────────
@@ -365,6 +324,12 @@ function setupDomain() {
   const host = new URL(String(get(effective(), "app.url"))).hostname;
   if (host.endsWith(".workers.dev")) {
     setWrangler("workers_dev", true);
+    // An environment inherits the top-level routes: without its own, deploying it would take
+    // production's custom domain.
+    if (env && !Array.isArray(wranglerTarget().routes)) {
+      setWrangler("routes", []);
+      ok(`[env.${env}] gets routes = [], so it never takes production's custom domain`);
+    }
     ok(`Using the workers.dev address ${host}`);
     return;
   }
@@ -445,7 +410,7 @@ async function setupGitHubApp(): Promise<Record<string, string>> {
   }
 
   // Installation ID (used by the daily cleanup's read-only token).
-  if (privateKey && !get(effective(), "github.installation_id")) {
+  if (privateKey && isUnset(get(effective(), "github.installation_id"))) {
     const appId = Number(get(effective(), "github.app_id"));
     for (;;) {
       await ask("Press Enter once the app is installed on the repository", { validate: () => null });
@@ -533,8 +498,8 @@ function finalCheck() {
   generateWranglerConfig({ wranglerPath: args.wranglerPath, env, config, outName: env ?? "default" });
   ok(`${displayPath(args.wranglerPath)}${envLabel} is complete`);
   const deployArgs = [
+    args.site && !args.siteImplicit ? `--site ${args.site}` : !args.site && args.configPath !== join(repoRoot, "alasin.toml") ? `--config ${displayPath(args.configPath)}` : "",
     env ? `--env ${env}` : "",
-    args.configPath !== join(repoRoot, "alasin.toml") ? `--config ${displayPath(args.configPath)}` : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -565,6 +530,9 @@ async function main() {
 main()
   .then(() => {
     closePrompt();
+    // Anything still open (e.g. a browser's connection to the GitHub App step) mustn't keep the process
+    // running: create-site waits for setup to exit before it deploys.
+    process.exit(0);
   })
   .catch((err: unknown) => {
     closePrompt();

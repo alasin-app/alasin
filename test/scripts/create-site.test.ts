@@ -100,6 +100,14 @@ describe("create-site plan", () => {
     expect(plan.find((p) => p.key === "domain:www.example.com")!.status).toBe("new");
   });
 
+  it("counts an item it started making as its own, so a re-run finishes it", () => {
+    const items = siteItems(answers);
+    const existing: Existing = new Map(items.map((i) => [i.key, true]));
+    const plan = planItems(items, existing, ["pending:worker:alasin-dev"]);
+    expect(plan.find((p) => p.key === "worker:alasin-dev")!.status).toBe("ours");
+    expect(plan.find((p) => p.key === "worker:alasin")!.status).toBe("not-ours");
+  });
+
   it("has no warning for a re-run of its own deployment", () => {
     const items = siteItems(answers);
     const all = new Map(items.map((i) => [i.key, true]));

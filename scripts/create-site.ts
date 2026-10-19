@@ -16,8 +16,10 @@
 // after each step, so a re-run (--site <name>) asks nothing already answered
 // and continues where it stopped. Then the site Worker: created, given the
 // site's domain, and connected to the repository with Workers Builds (needs a
-// user API token in CLOUDFLARE_BUILDS_TOKEN). Alasin's own Workers and the
-// app's domain come in a later version.
+// user API token in CLOUDFLARE_BUILDS_TOKEN); for dev, the sample content;
+// and last Alasin itself: its alasin.toml and wrangler.toml in
+// deployments/<site>/, then npm run setup and npm run deploy for each
+// environment (setup creates the GitHub App in the browser).
 
 import { spawnSync } from "node:child_process";
 import { resolve as resolveDns } from "node:dns/promises";
@@ -47,6 +49,7 @@ import {
 import { accountId, cloudflareApi, zoneFor } from "./lib/cloudflare-api";
 import { creditsPage, jpegSize, missingVariants, type SampleFile, sampleUploads } from "./lib/sample-content";
 import { attachDomain, type BuildToken, connectBuilds, createPlaceholderWorker } from "./lib/site-worker";
+import { siteConfigFor } from "./lib/site-config";
 import { fillPlaceholders, PLACEHOLDER_FILES, unfilled } from "./lib/skeleton";
 import { parse as parseToml } from "smol-toml";
 import { SITE_NAME } from "./lib/deployments";
@@ -206,7 +209,8 @@ function repoFile(repository: string, path: string): string | null {
 function knownNames(state: SiteState): KnownNames {
   const known: KnownNames = {};
   const local = join(DEPLOYMENTS, state.repo, "wrangler.toml");
-  if (existsSync(join(repoRoot, local))) {
+  // A configuration create-site wrote itself holds its own names, not an earlier deployment's.
+  if (existsSync(join(repoRoot, local)) && !state.created.includes("config")) {
     try {
       Object.assign(known, namesFromAlasinWrangler(parseToml(readFileSync(join(repoRoot, local), "utf8")) as Record<string, unknown>, local));
     } catch {
@@ -308,6 +312,75 @@ async function chooseBuildToken(tokens: BuildToken[]): Promise<BuildToken> {
     );
   }
   return tokens[+n - 1]!;
+}
+
+/** Runs one of Alasin's scripts (setup, deploy) in this terminal, as if started on its own. */
+function runScript(script: string, args: string[]) {
+  const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^npm_(config|package|lifecycle)_/i.test(k)));
+  const tsx = join(repoRoot, "node_modules", ".bin", process.platform === "win32" ? "tsx.cmd" : "tsx");
+  const r = spawnSync(tsx, [join(repoRoot, script), ...args], { cwd: repoRoot, stdio: "inherit", env, shell: process.platform === "win32" });
+  if (r.error || r.status !== 0) throw new Error(`${script} ${args.join(" ")} didn't finish. Run create-site again to continue from there.`);
+}
+
+/**
+ * Alasin itself: this site's alasin.toml and wrangler.toml (production and
+ * [env.dev], or dev alone), then npm run setup (GitHub App in the browser, KV,
+ * secrets, the app's domain) and npm run deploy for each environment.
+ */
+async function setUpAlasin(state: SiteState, plan: PlannedItem[], made: (key: string) => void) {
+  step("Alasin");
+  const dir = join(repoRoot, DEPLOYMENTS, state.repo);
+  const shown = relative(repoRoot, dir);
+  const prod = state.environments.includes("production");
+  const dev = state.environments.includes("dev");
+  if (!state.created.includes("config")) {
+    if (existsSync(join(dir, "alasin.toml")) || existsSync(join(dir, "wrangler.toml"))) {
+      warn(`${shown}/ already has an Alasin configuration create-site didn't write: it's left as it is. Set it up with npm run setup -- --site ${state.repo}.`);
+      return;
+    }
+    let devAppUrl: string | undefined;
+    if (dev) {
+      const { subdomain } = await cloudflareApi<{ subdomain: string }>(`/accounts/${accountId()}/workers/subdomain`);
+      devAppUrl = `https://${plan.find((p) => p.slot === "alasin:dev")!.name}.${subdomain}.workers.dev`;
+    }
+    const { alasin, wrangler } = siteConfigFor(state, plan, {
+      alasinExample: readFileSync(join(repoRoot, "alasin.example.toml"), "utf8"),
+      wranglerExample: readFileSync(join(repoRoot, "wrangler.example.toml"), "utf8"),
+      devAppUrl,
+    });
+    writeFileSync(join(dir, "alasin.toml"), alasin);
+    writeFileSync(join(dir, "wrangler.toml"), wrangler);
+    made("config");
+    ok(`${shown}/alasin.toml and wrangler.toml written${prod && dev ? " (production and [env.dev])" : ""}`);
+  }
+
+  // The base configuration is production, or dev when there's only dev; with both, dev is [env.dev].
+  const deployments: { env?: string; slot: PlannedItem["slot"] }[] = prod
+    ? [{ slot: "alasin:production" }, ...(dev ? [{ env: "dev", slot: "alasin:dev" as const }] : [])]
+    : [{ slot: "alasin:dev" }];
+  const todo = deployments.filter((d) => !state.created.includes(plan.find((p) => p.slot === d.slot)!.key));
+  if (!todo.length) {
+    ok("Set up and deployed");
+    return;
+  }
+  // setup and deploy ask their own questions in this terminal.
+  closePrompt();
+  for (const [i, d] of todo.entries()) {
+    const worker = plan.find((p) => p.slot === d.slot)!;
+    // setup already creates the Worker (with its secrets): it's this deployment's from here on.
+    made(`pending:${worker.key}`);
+    const envArgs = d.env ? ["--env", d.env] : [];
+    const which = d.slot === "alasin:dev" ? "dev" : "production";
+    step(`Alasin, ${which} (${i + 1} of ${todo.length}): ${worker.name}`);
+    info(`npm run setup -- --site ${state.repo}${d.env ? ` --env ${d.env}` : ""}, then npm run deploy: setup asks its own questions here,`);
+    info(`and creates the ${which} GitHub App in your browser, the KV namespace and the secrets.`);
+    runScript("scripts/setup/index.ts", ["--site", state.repo, ...envArgs]);
+    runScript("scripts/alasin.ts", ["deploy", "--site", state.repo, ...envArgs]);
+    made(worker.key);
+    const appDomain = !d.env && prod ? plan.find((p) => p.slot === "domain:app") : undefined;
+    if (appDomain) made(appDomain.key);
+    ok(`${worker.name}: deployed`);
+  }
 }
 
 const SAMPLE = join(repoRoot, "templates", "sample");
@@ -461,12 +534,8 @@ async function create(state: SiteState, plan: PlannedItem[]) {
     addSampleContent(state, plan, made);
   }
 
-  const later = plan.filter((p) => p.status === "new" && !state.created.includes(p.key));
-  if (later.length) {
-    step("Not yet");
-    info("These come in a later version of create-site:");
-    for (const p of later) info(`  ${p.name} (${p.role})`);
-  }
+  if (mine(repo) && (!state.environments.includes("dev") || state.devSiteUrl)) await setUpAlasin(state, plan, made);
+  else warn("Alasin itself is set up once the site Worker is connected with Workers Builds (the dev site's address is needed).");
 }
 
 async function main() {
@@ -505,11 +574,17 @@ async function main() {
 
   const todo = plan.filter((p) => p.status === "new" && !state.created.includes(p.key)).length;
   const devPending = state.environments.includes("dev") && !(state.devMediaUrl && state.created.includes("sample:content") && state.created.includes("sample:photos"));
-  if (!todo && !devPending) {
+  // An Alasin deployment that was started but not finished.
+  const alasinPending = plan.some(
+    (p) => (p.slot === "alasin:production" || p.slot === "alasin:dev") && state.created.includes(`pending:${p.key}`) && !state.created.includes(p.key),
+  );
+  if (!todo && !devPending && !alasinPending) {
     info("Nothing new to create.");
     return;
   }
-  const what = [todo ? `the new items (${todo})` : "", devPending ? "the dev site's sample content" : ""].filter(Boolean).join(" and ");
+  const what = [todo ? `the new items (${todo})` : "", devPending ? "the dev site's sample content" : "", alasinPending ? "the unfinished Alasin deployment" : ""]
+    .filter(Boolean)
+    .join(" and ");
   if (!args.yes && !(await confirm(`Create ${what} now?`, false))) {
     info("Stopped before creating anything.");
     return;

@@ -207,7 +207,8 @@ export function siteWorkerName(file: string, text: string): string | null {
  * finds it; a bucket or repository it made that's gone is new again.
  */
 export function planItems(items: Item[], existing: Existing, created: string[]): PlannedItem[] {
-  const ours = new Set(created);
+  // "pending:<key>": create-site started making it (e.g. a Worker setup made before its deploy finished).
+  const ours = new Set(created.map((k) => k.replace(/^pending:/, "")));
   return items.map((item) => {
     const exists = existing.get(item.key);
     const pendingDomain = item.kind === "domain" && ours.has(item.key) && exists !== true;
