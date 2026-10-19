@@ -47,6 +47,9 @@ describe("a new site's Alasin configuration", () => {
       "https://pub-0123.r2.dev/",
       "DEV",
     ]);
+    // Dev's own GitHub App is still to be made by setup: the example's placeholders, not production's.
+    const devGithub = ((raw.env as Table).dev as Table).github as Table;
+    expect([devGithub.app_id, devGithub.client_id, devGithub.installation_id]).toEqual([123456, "Iv23liAbCdEfGhIjKlMn", 12345678]);
 
     const w = parse(wrangler) as Table;
     expect(w.name).toBe("alasin-example");

@@ -33,6 +33,7 @@ const PLACEHOLDERS = new Set<unknown>([
   "my-hugo-site",
   123456,
   "Iv23liAbCdEfGhIjKlMn",
+  12345678,
   "https://media.example.com/",
   "example-media",
   "example-media-drafts",
@@ -403,7 +404,7 @@ async function setupGitHubApp(): Promise<Record<string, string>> {
   }
 
   // Installation ID (used by the daily cleanup's read-only token).
-  if (privateKey && !get(effective(), "github.installation_id")) {
+  if (privateKey && isUnset(get(effective(), "github.installation_id"))) {
     const appId = Number(get(effective(), "github.app_id"));
     for (;;) {
       await ask("Press Enter once the app is installed on the repository", { validate: () => null });

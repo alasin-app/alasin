@@ -46,6 +46,11 @@ export function siteConfigFor(
   if (prod && dev) {
     alasin = setValue(alasin, "[env.dev.app]", "url", origin(opts.devAppUrl!));
     alasin = setValue(alasin, "[env.dev.github]", "branch", "dev");
+    // Dev has its own GitHub App (an app has one login callback): the example's placeholders, which
+    // setup treats as not set yet, so dev doesn't inherit production's app and installation.
+    alasin = setValue(alasin, "[env.dev.github]", "app_id", 123456);
+    alasin = setValue(alasin, "[env.dev.github]", "client_id", "Iv23liAbCdEfGhIjKlMn");
+    alasin = setValue(alasin, "[env.dev.github]", "installation_id", 12345678);
     alasin = setValue(alasin, "[env.dev.site]", "url", origin(state.devSiteUrl!));
     alasin = setValue(alasin, "[env.dev.media]", "public_url", state.devMediaUrl!);
     alasin = setValue(alasin, "[env.dev.ui]", "environment_label", "DEV");
