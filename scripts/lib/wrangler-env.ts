@@ -31,6 +31,8 @@ export function envWranglerSection(
 [env.${name}]
 name = ${JSON.stringify(opts.worker ?? `${String(base.name ?? "alasin")}-${name}`)}
 workers_dev = true
+# Not production's custom domain: environments inherit the top-level routes otherwise.
+routes = []
 
 [[env.${name}.r2_buckets]]
 binding = "MEDIA"

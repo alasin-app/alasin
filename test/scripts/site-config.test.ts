@@ -57,6 +57,8 @@ describe("a new site's Alasin configuration", () => {
     const wd = (w.env as Table).dev as Table;
     expect(wd.name).toBe("alasin-example-dev");
     expect(wd.workers_dev).toBe(true);
+    // Its own routes, so deploying dev never takes production's custom domain.
+    expect(wd.routes).toEqual([]);
     expect(buckets(wd)).toEqual({ MEDIA: ["example-com-dev-media", "eu"], DRAFTS: ["example-com-dev-drafts", "eu"] });
   });
 

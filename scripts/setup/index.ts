@@ -324,6 +324,12 @@ function setupDomain() {
   const host = new URL(String(get(effective(), "app.url"))).hostname;
   if (host.endsWith(".workers.dev")) {
     setWrangler("workers_dev", true);
+    // An environment inherits the top-level routes: without its own, deploying it would take
+    // production's custom domain.
+    if (env && !Array.isArray(wranglerTarget().routes)) {
+      setWrangler("routes", []);
+      ok(`[env.${env}] gets routes = [], so it never takes production's custom domain`);
+    }
     ok(`Using the workers.dev address ${host}`);
     return;
   }
