@@ -2,6 +2,7 @@
 //
 // npm run create-site [-- --site <name>] [--dry-run] [--yes]
 // npm run create-site -- --site <name> --reset-dev
+// npm run create-site -- --site <name> --remove | --remove-dev [--dry-run]
 //
 // Creates a new site with its environments (#251): asks for the site
 // repository, the Alasin name, the environments and production's domains,
@@ -51,6 +52,8 @@ import { accountId, cloudflareApi, deleteObject, listObjects, zoneFor } from "./
 import { creditsPage, jpegSize, missingVariants, type SampleFile, sampleUploads } from "./lib/sample-content";
 import { attachDomain, type BuildToken, connectBuilds, createPlaceholderWorker } from "./lib/site-worker";
 import { siteConfigFor } from "./lib/site-config";
+import { removalLines, removalSteps, type RemoveMode } from "./lib/removal";
+import { removeSite } from "./lib/site-removal";
 import { fillPlaceholders, PLACEHOLDER_FILES, unfilled } from "./lib/skeleton";
 import { parse as parseToml } from "smol-toml";
 import { SITE_NAME } from "./lib/deployments";
@@ -74,25 +77,30 @@ function writeState(state: SiteState) {
   writeFileSync(path, `${JSON.stringify(state, null, 2)}\n`);
 }
 
-function parse(argv: string[]): { site?: string; dryRun: boolean; yes: boolean; resetDev: boolean } {
+function parse(argv: string[]): { site?: string; dryRun: boolean; yes: boolean; resetDev: boolean; remove?: RemoveMode } {
   const swallowed = swallowedOptions(process.env);
   if (swallowed.length) throw new Error(swallowedOptionsMessage("create-site", swallowed));
   let site: string | undefined;
   let dryRun = false;
   let yes = false;
   let resetDev = false;
+  let remove: RemoveMode | undefined;
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]!;
     if (a === "--dry-run") dryRun = true;
     else if (a === "--yes") yes = true;
     else if (a === "--reset-dev") resetDev = true;
+    else if (a === "--remove") remove = "all";
+    else if (a === "--remove-dev") remove = "dev";
     else if (a === "--site") site = argv[++i];
     else if (a.startsWith("--site=")) site = a.slice(7);
-    else throw new Error(`Unexpected argument ${a}. Options: --site <name>, --dry-run, --yes, --reset-dev.`);
+    else throw new Error(`Unexpected argument ${a}. Options: --site <name>, --dry-run, --yes, --reset-dev, --remove, --remove-dev.`);
   }
   if (site !== undefined && !SITE_NAME.test(site)) throw new Error(`--site must be a site repository name, got "${site ?? ""}"`);
   if (resetDev && !site) throw new Error("--reset-dev needs --site <name>: the site whose dev content to reset.");
-  return { site, dryRun, yes, resetDev };
+  if (remove && !site) throw new Error("--remove and --remove-dev need --site <name>: the site to remove.");
+  if (remove && resetDev) throw new Error("Give --reset-dev or a removal, not both.");
+  return { site, dryRun, yes, resetDev, ...(remove ? { remove } : {}) };
 }
 
 async function askAnswers(previous: SiteState | null): Promise<SiteState> {
@@ -624,6 +632,8 @@ async function main() {
   console.log(bold("Alasin create-site") + dim(args.dryRun ? " (dry run)" : ""));
   const previous = args.site ? readState(args.site) : null;
   if (args.resetDev && !previous) throw new Error(`No ${DEPLOYMENTS}/${args.site}/create-site.json: only a site create-site made can be reset.`);
+  if (args.remove && !previous) throw new Error(`No ${DEPLOYMENTS}/${args.site}/create-site.json: only a site create-site made can be removed, and only what it made.`);
+  if (args.remove === "dev" && !previous!.environments.includes("dev")) throw new Error("This site has no dev environment.");
   if (args.site && !previous) info(`No ${DEPLOYMENTS}/${args.site}/create-site.json yet: starting a new site.`);
   const state = await askAnswers(previous);
   if (!args.site) {
@@ -637,6 +647,31 @@ async function main() {
 
   if (args.resetDev) {
     await resetDev(state, plan);
+    return;
+  }
+  if (args.remove) {
+    const steps = removalSteps(state, items, args.remove);
+    step(args.remove === "dev" ? "Remove the dev environment" : "Remove the site");
+    for (const line of removalLines(steps)) info(line);
+    info("Only what this site's create-site made is removed; the rest is listed as kept.");
+    if (args.dryRun) return;
+    console.log(`  ${red("This can't be undone: the buckets' photos" + (args.remove === "dev" ? ", the dev branch" : " and the repository with its history") + " are deleted.")}`);
+    const typed = await ask(`To remove, type the repository name (${state.owner}/${state.repo}); anything else stops`, { default: "stop", validate: () => null });
+    if (typed !== `${state.owner}/${state.repo}`) {
+      info("Stopped. Nothing was removed.");
+      return;
+    }
+    await removeSite(steps, args.remove, items, {
+      state,
+      plan,
+      dir: join(repoRoot, DEPLOYMENTS, state.repo),
+      save: writeState,
+      ask: (q) => ask(q, { default: "", validate: () => null }),
+      info,
+      ok,
+      warn,
+      step,
+    });
     return;
   }
 

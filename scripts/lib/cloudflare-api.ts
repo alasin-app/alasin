@@ -89,3 +89,12 @@ export async function deleteObject(bucket: string, key: string, jurisdiction?: s
   });
   if (!res.ok && res.status !== 404) throw new Error(`Deleting ${bucket}/${key}: ${res.status}`);
 }
+
+/** DELETE through the API; something already gone (404) counts as done. */
+export async function apiDelete(path: string, headers: Record<string, string> = {}): Promise<void> {
+  const res = await fetch(`https://api.cloudflare.com/client/v4${path}`, { method: "DELETE", headers: { Authorization: `Bearer ${apiToken()}`, ...headers } });
+  if (res.ok || res.status === 404) return;
+  const data = (await res.json().catch(() => ({}))) as { errors?: { message: string }[] };
+  const shown = path.replace(/\/accounts\/[0-9a-f]{32}/, "/accounts/<account>");
+  throw new Error(`Cloudflare API DELETE ${shown}: ${data.errors?.map((e) => e.message).join("; ") || res.status}`);
+}
