@@ -1,6 +1,6 @@
 # Site
 
-A [Hugo](https://gohugo.io/) site written with [Alasin](https://github.com/oh2th/alasin) and served by a Cloudflare Worker.
+A [Hugo](https://gohugo.io/) site written with [Alasin](https://github.com/alasin-app/alasin) and served by a Cloudflare Worker.
 
 ## Layout
 
