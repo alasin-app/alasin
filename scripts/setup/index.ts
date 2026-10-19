@@ -18,6 +18,7 @@ import { normalizeUrl, urlProblem } from "../lib/urls";
 import { migrateAlasinToml, plainComments } from "../lib/migrate";
 import { today } from "../../src/shared/housekeeping";
 import { checkBindings, generateWranglerConfig, REQUIRED_SECRETS } from "../lib/wrangler-config";
+import { envWranglerSection } from "../lib/wrangler-env";
 import * as cf from "./cloudflare";
 import * as gh from "./github";
 import { ask, bold, closePrompt, confirm, dim, info, ok, red, step, warn } from "./prompt";
@@ -97,49 +98,6 @@ function setWrangler(key: string, value: TomlValue, arrayTable?: { table: string
     ? setValue(wranglerText, wranglerHeader(arrayTable.table, true), key, value, { where: arrayTable.where })
     : setValue(wranglerText, wranglerHeader(""), key, value);
   writeFileSync(args.wranglerPath, wranglerText);
-}
-
-function envWranglerSection(name: string, base: Table): string {
-  const envs = Object.keys((base.env as Table | undefined) ?? {}).length;
-  const ns = (n: number) => String(1000 * (envs + 2) + n);
-  const media = ((base.r2_buckets as Table[] | undefined) ?? []).find((b) => b.binding === "MEDIA") ?? {};
-  const mediaJ = media.jurisdiction ? `\njurisdiction = ${JSON.stringify(media.jurisdiction)}` : "";
-  return `# --- [env.${name}] - added by npm run setup -- --env ${name} ---
-[env.${name}]
-name = ${JSON.stringify(`${String(base.name ?? "alasin")}-${name}`)}
-workers_dev = true
-
-[[env.${name}.r2_buckets]]
-binding = "MEDIA"
-bucket_name = ${JSON.stringify(media.bucket_name ?? "example-media")}${mediaJ}
-
-[[env.${name}.r2_buckets]]
-binding = "DRAFTS"
-bucket_name = "example-media-drafts"
-
-[[env.${name}.kv_namespaces]]
-binding = "KV"
-id = "00000000000000000000000000000000"
-
-[[env.${name}.durable_objects.bindings]]
-name = "LOCKS"
-class_name = "EditLocks"
-
-[[env.${name}.ratelimits]]
-name = "RL_AUTH"
-namespace_id = "${ns(1)}"
-simple = { limit = 10, period = 60 }
-
-[[env.${name}.ratelimits]]
-name = "RL_UPLOAD"
-namespace_id = "${ns(2)}"
-simple = { limit = 120, period = 60 }
-
-[[env.${name}.ratelimits]]
-name = "RL_COMMIT"
-namespace_id = "${ns(3)}"
-simple = { limit = 30, period = 60 }
-`;
 }
 
 // ── validators ───────────────────────────────────────────────────────────────
