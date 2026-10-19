@@ -15,6 +15,7 @@ import { deploymentLine, parseArgs, repoRoot } from "../lib/args";
 import { displayPath, loadAlasinConfig } from "../lib/config";
 import { appendSection, setValue, type TomlValue } from "../lib/toml-edit";
 import { normalizeUrl, urlProblem } from "../lib/urls";
+import { poll } from "../lib/poll";
 import { migrateAlasinToml, plainComments } from "../lib/migrate";
 import { today } from "../../src/shared/housekeeping";
 import { checkBindings, generateWranglerConfig, REQUIRED_SECRETS } from "../lib/wrangler-config";
@@ -414,7 +415,8 @@ async function setupGitHubApp(): Promise<Record<string, string>> {
     const appId = Number(get(effective(), "github.app_id"));
     for (;;) {
       await ask("Press Enter once the app is installed on the repository", { validate: () => null });
-      const id = await gh.findInstallation(appId, privateKey, owner, repo).catch(() => null);
+      info("Checking (GitHub can take a few seconds)…");
+      const id = await poll(() => gh.findInstallation(appId, privateKey, owner, repo).catch(() => null), Boolean);
       if (id) {
         setAlasin("github", "installation_id", id);
         ok(`Installed on ${owner}/${repo} (installation ${id})`);

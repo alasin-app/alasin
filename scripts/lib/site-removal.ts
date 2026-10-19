@@ -9,6 +9,7 @@ import { join } from "node:path";
 import { parse } from "smol-toml";
 import { accountId, apiDelete, buildsToken, cloudflareApi, deleteObject, listObjects } from "./cloudflare-api";
 import type { Item, PlannedItem, SiteState } from "./create-site";
+import { poll } from "./poll";
 import { capture } from "./proc";
 import { devKeys, type RemoveMode, type RemovalStep } from "./removal";
 import { removeTables } from "./toml-edit";
@@ -104,7 +105,8 @@ async function deleteGitHubApp(state: SiteState, env: "production" | "dev", c: R
   c.info("and click Delete GitHub App, then type the app's name to confirm. Deleting it also uninstalls it.");
   for (;;) {
     await c.ask(`Press Enter once the ${env} GitHub App is deleted`);
-    if (!(await lookup())) {
+    c.info("Checking (GitHub can take a few seconds)…");
+    if (!(await poll(lookup, (a) => !a))) {
       c.ok(`${env} GitHub App ${id}: deleted`);
       return;
     }
