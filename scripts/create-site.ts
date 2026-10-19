@@ -367,6 +367,8 @@ async function setUpAlasin(state: SiteState, plan: PlannedItem[], made: (key: st
   closePrompt();
   for (const [i, d] of todo.entries()) {
     const worker = plan.find((p) => p.slot === d.slot)!;
+    // setup already creates the Worker (with its secrets): it's this deployment's from here on.
+    made(`pending:${worker.key}`);
     const envArgs = d.env ? ["--env", d.env] : [];
     const which = d.slot === "alasin:dev" ? "dev" : "production";
     step(`Alasin, ${which} (${i + 1} of ${todo.length}): ${worker.name}`);
@@ -572,11 +574,17 @@ async function main() {
 
   const todo = plan.filter((p) => p.status === "new" && !state.created.includes(p.key)).length;
   const devPending = state.environments.includes("dev") && !(state.devMediaUrl && state.created.includes("sample:content") && state.created.includes("sample:photos"));
-  if (!todo && !devPending) {
+  // An Alasin deployment that was started but not finished.
+  const alasinPending = plan.some(
+    (p) => (p.slot === "alasin:production" || p.slot === "alasin:dev") && state.created.includes(`pending:${p.key}`) && !state.created.includes(p.key),
+  );
+  if (!todo && !devPending && !alasinPending) {
     info("Nothing new to create.");
     return;
   }
-  const what = [todo ? `the new items (${todo})` : "", devPending ? "the dev site's sample content" : ""].filter(Boolean).join(" and ");
+  const what = [todo ? `the new items (${todo})` : "", devPending ? "the dev site's sample content" : "", alasinPending ? "the unfinished Alasin deployment" : ""]
+    .filter(Boolean)
+    .join(" and ");
   if (!args.yes && !(await confirm(`Create ${what} now?`, false))) {
     info("Stopped before creating anything.");
     return;
