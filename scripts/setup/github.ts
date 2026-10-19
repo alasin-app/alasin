@@ -112,12 +112,12 @@ export async function createAppWithManifest(opts: {
 <h1>GitHub App created</h1><p>You can close this tab and return to the terminal.</p></body>`);
           server.close();
           // The browser keeps its connection open; without this the process doesn't exit.
-          server.closeAllConnections();
+          server.closeIdleConnections();
           resolve({ id: data.id, slug: data.slug, clientId: data.client_id, clientSecret: data.client_secret, privateKeyPkcs8: pkcs8, htmlUrl: data.html_url });
         } catch (err) {
           res.writeHead(500, { "Content-Type": "text/plain" }).end("Creating the app failed; see the terminal.");
           server.close();
-          server.closeAllConnections();
+          server.closeIdleConnections();
           reject(err);
         }
         return;
