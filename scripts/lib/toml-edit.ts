@@ -152,3 +152,27 @@ export function removeValue(text: string, header: string, key: string): string {
 export function appendSection(text: string, section: string): string {
   return `${text.replace(/\n*$/, "\n")}\n${section.replace(/\n*$/, "\n")}`;
 }
+
+/**
+ * Removes every table whose name is `prefix` or starts with `prefix.` (e.g. "env.dev": [env.dev],
+ * [env.dev.app], [[env.dev.r2_buckets]]), with their keys, and a "# --- [prefix] …" marker line
+ * right before them. Everything else stays as it is.
+ */
+export function removeTables(text: string, prefix: string): string {
+  const lines = text.split("\n");
+  const header = /^\s*\[\[?\s*([^\]]+?)\s*\]\]?\s*(#.*)?$/;
+  const out: string[] = [];
+  let removing = false;
+  for (const line of lines) {
+    const m = header.exec(line);
+    if (m) removing = m[1] === prefix || m[1]!.startsWith(`${prefix}.`);
+    if (removing) continue;
+    out.push(line);
+  }
+  // Marker comments create-site and setup write before an environment's section.
+  const marker = new RegExp(`^# --- \\[${prefix.replace(/\./g, "\\.")}\\]`);
+  return out
+    .filter((l) => !marker.test(l))
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n");
+}
