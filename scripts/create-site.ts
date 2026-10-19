@@ -24,7 +24,6 @@
 // environment (setup creates the GitHub App in the browser).
 
 import { spawnSync } from "node:child_process";
-import { resolve as resolveDns } from "node:dns/promises";
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { DEPLOYMENTS, repoRoot } from "./lib/args";
@@ -48,7 +47,7 @@ import {
   siteWorkerName,
   skeletonValuesFor,
 } from "./lib/create-site";
-import { accountId, cloudflareApi, deleteObject, listObjects, zoneFor } from "./lib/cloudflare-api";
+import { accountId, cloudflareApi, deleteObject, hostnameInUse, listObjects, zoneFor } from "./lib/cloudflare-api";
 import { creditsPage, jpegSize, missingVariants, type SampleFile, sampleUploads } from "./lib/sample-content";
 import { attachDomain, type BuildToken, connectBuilds, createPlaceholderWorker } from "./lib/site-worker";
 import { siteConfigFor } from "./lib/site-config";
@@ -196,15 +195,6 @@ function workerExists(name: string): boolean | null {
   return /does not exist|\b10007\b|not found/i.test(r.stderr + r.stdout) ? false : null;
 }
 
-async function domainInUse(host: string): Promise<boolean | null> {
-  try {
-    await resolveDns(host);
-    return true;
-  } catch (err) {
-    const code = (err as { code?: string }).code;
-    return code === "ENOTFOUND" || code === "ENODATA" ? false : null;
-  }
-}
 
 /** A file of the repository's default branch through gh, or null. */
 function repoFile(repository: string, path: string): string | null {
@@ -250,7 +240,7 @@ async function check(items: Item[], jurisdiction: string): Promise<Existing> {
     if (item.kind === "repo") existing.set(item.key, repoExists(item.name));
     else if (item.kind === "bucket") existing.set(item.key, cloudflare ? cf.bucketExists(item.name, (item.jurisdiction ?? jurisdiction) || undefined) : null);
     else if (item.kind === "worker") existing.set(item.key, cloudflare ? workerExists(item.name) : null);
-    else existing.set(item.key, await domainInUse(item.name));
+    else existing.set(item.key, cloudflare ? await hostnameInUse(item.name) : null);
   }
   if (items.some((i) => i.kind === "repo" && existing.get(i.key) === null)) warn("GitHub couldn't be asked (gh auth login): the repository can't be checked.");
   return existing;

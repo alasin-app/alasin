@@ -5,6 +5,7 @@
 // refuses Wrangler's login, a user API token in CLOUDFLARE_BUILDS_TOKEN.
 // Tokens are kept in memory only, never written or printed.
 
+import { lookup, Resolver } from "node:dns/promises";
 import { zoneCandidates } from "./create-site";
 import { capture } from "./proc";
 
@@ -55,12 +56,44 @@ export async function cloudflareApi<T>(path: string, init: { method?: string; bo
 }
 
 /** The zone of the account a hostname belongs to, or null if none of its zones is there. */
-export async function zoneFor(host: string): Promise<{ id: string; name: string } | null> {
+export async function zoneFor(host: string): Promise<{ id: string; name: string; nameServers: string[] } | null> {
   for (const name of zoneCandidates(host)) {
-    const zones = await cloudflareApi<{ id: string; name: string }[]>(`/zones?name=${encodeURIComponent(name)}`);
-    if (zones.length) return { id: zones[0]!.id, name: zones[0]!.name };
+    const zones = await cloudflareApi<{ id: string; name: string; name_servers?: string[] }[]>(`/zones?name=${encodeURIComponent(name)}`);
+    if (zones.length) return { id: zones[0]!.id, name: zones[0]!.name, nameServers: zones[0]!.name_servers ?? [] };
   }
   return null;
+}
+
+/**
+ * Whether a hostname is already in use in this account: a Worker's custom
+ * domain (asked through the API), or any address or alias record (asked of the
+ * zone's own Cloudflare nameservers). Never through the computer's resolver,
+ * which would remember a "not found" for a while after the name is created.
+ * null: its zone isn't in this account, or it couldn't be asked.
+ */
+export async function hostnameInUse(host: string): Promise<boolean | null> {
+  try {
+    const zone = await zoneFor(host);
+    if (!zone) return null;
+    const domains = await cloudflareApi<{ hostname: string }[]>(`/accounts/${accountId()}/workers/domains?hostname=${encodeURIComponent(host)}`);
+    if (domains.some((d) => d.hostname === host)) return true;
+    const ips = (await Promise.all(zone.nameServers.map((ns) => lookup(ns, { all: true }).catch(() => [])))).flat().map((a) => a.address);
+    if (!ips.length) return null;
+    const resolver = new Resolver({ timeout: 5000, tries: 2 });
+    resolver.setServers(ips);
+    const found = await Promise.all(
+      [resolver.resolve4(host), resolver.resolve6(host), resolver.resolveCname(host)].map((p) =>
+        p.then(
+          (r) => r.length > 0,
+          (err: { code?: string }) => (err.code === "ENODATA" || err.code === "ENOTFOUND" ? false : null),
+        ),
+      ),
+    );
+    if (found.includes(true)) return true;
+    return found.includes(null) ? null : false;
+  } catch {
+    return null;
+  }
 }
 
 /** Every object key in an R2 bucket (through the API: Wrangler can't list a bucket's objects). */
