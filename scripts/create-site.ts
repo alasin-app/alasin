@@ -209,7 +209,8 @@ function repoFile(repository: string, path: string): string | null {
 function knownNames(state: SiteState): KnownNames {
   const known: KnownNames = {};
   const local = join(DEPLOYMENTS, state.repo, "wrangler.toml");
-  if (existsSync(join(repoRoot, local))) {
+  // A configuration create-site wrote itself holds its own names, not an earlier deployment's.
+  if (existsSync(join(repoRoot, local)) && !state.created.includes("config")) {
     try {
       Object.assign(known, namesFromAlasinWrangler(parseToml(readFileSync(join(repoRoot, local), "utf8")) as Record<string, unknown>, local));
     } catch {

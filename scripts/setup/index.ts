@@ -491,8 +491,8 @@ function finalCheck() {
   generateWranglerConfig({ wranglerPath: args.wranglerPath, env, config, outName: env ?? "default" });
   ok(`${displayPath(args.wranglerPath)}${envLabel} is complete`);
   const deployArgs = [
+    args.site && !args.siteImplicit ? `--site ${args.site}` : !args.site && args.configPath !== join(repoRoot, "alasin.toml") ? `--config ${displayPath(args.configPath)}` : "",
     env ? `--env ${env}` : "",
-    args.configPath !== join(repoRoot, "alasin.toml") ? `--config ${displayPath(args.configPath)}` : "",
   ]
     .filter(Boolean)
     .join(" ");
