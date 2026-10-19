@@ -62,3 +62,30 @@ export async function zoneFor(host: string): Promise<{ id: string; name: string 
   }
   return null;
 }
+
+/** Every object key in an R2 bucket (through the API: Wrangler can't list a bucket's objects). */
+export async function listObjects(bucket: string, jurisdiction?: string): Promise<string[]> {
+  const keys: string[] = [];
+  let cursor: string | undefined;
+  do {
+    const res = await fetch(
+      `https://api.cloudflare.com/client/v4/accounts/${accountId()}/r2/buckets/${bucket}/objects?per_page=1000${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`,
+      { headers: { Authorization: `Bearer ${apiToken()}`, ...(jurisdiction ? { "cf-r2-jurisdiction": jurisdiction } : {}) } },
+    );
+    const data = (await res.json().catch(() => ({}))) as { success?: boolean; result?: { key: string }[]; result_info?: { cursor?: string; is_truncated?: boolean }; errors?: { message: string }[] };
+    if (!res.ok || !data.success) throw new Error(`Listing ${bucket}: ${data.errors?.map((e) => e.message).join("; ") || res.status}`);
+    keys.push(...(data.result ?? []).map((o) => o.key));
+    cursor = data.result_info?.is_truncated ? data.result_info.cursor : undefined;
+  } while (cursor);
+  return keys;
+}
+
+/** Deletes one object from an R2 bucket. */
+export async function deleteObject(bucket: string, key: string, jurisdiction?: string): Promise<void> {
+  const path = key.split("/").map(encodeURIComponent).join("/");
+  const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId()}/r2/buckets/${bucket}/objects/${path}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${apiToken()}`, ...(jurisdiction ? { "cf-r2-jurisdiction": jurisdiction } : {}) },
+  });
+  if (!res.ok && res.status !== 404) throw new Error(`Deleting ${bucket}/${key}: ${res.status}`);
+}

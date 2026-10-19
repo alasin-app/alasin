@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 //
 // npm run create-site [-- --site <name>] [--dry-run] [--yes]
+// npm run create-site -- --site <name> --reset-dev
 //
 // Creates a new site with its environments (#251): asks for the site
 // repository, the Alasin name, the environments and production's domains,
@@ -46,7 +47,7 @@ import {
   siteWorkerName,
   skeletonValuesFor,
 } from "./lib/create-site";
-import { accountId, cloudflareApi, zoneFor } from "./lib/cloudflare-api";
+import { accountId, cloudflareApi, deleteObject, listObjects, zoneFor } from "./lib/cloudflare-api";
 import { creditsPage, jpegSize, missingVariants, type SampleFile, sampleUploads } from "./lib/sample-content";
 import { attachDomain, type BuildToken, connectBuilds, createPlaceholderWorker } from "./lib/site-worker";
 import { siteConfigFor } from "./lib/site-config";
@@ -73,22 +74,25 @@ function writeState(state: SiteState) {
   writeFileSync(path, `${JSON.stringify(state, null, 2)}\n`);
 }
 
-function parse(argv: string[]): { site?: string; dryRun: boolean; yes: boolean } {
+function parse(argv: string[]): { site?: string; dryRun: boolean; yes: boolean; resetDev: boolean } {
   const swallowed = swallowedOptions(process.env);
   if (swallowed.length) throw new Error(swallowedOptionsMessage("create-site", swallowed));
   let site: string | undefined;
   let dryRun = false;
   let yes = false;
+  let resetDev = false;
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]!;
     if (a === "--dry-run") dryRun = true;
     else if (a === "--yes") yes = true;
+    else if (a === "--reset-dev") resetDev = true;
     else if (a === "--site") site = argv[++i];
     else if (a.startsWith("--site=")) site = a.slice(7);
-    else throw new Error(`Unexpected argument ${a}. Options: --site <name>, --dry-run, --yes.`);
+    else throw new Error(`Unexpected argument ${a}. Options: --site <name>, --dry-run, --yes, --reset-dev.`);
   }
   if (site !== undefined && !SITE_NAME.test(site)) throw new Error(`--site must be a site repository name, got "${site ?? ""}"`);
-  return { site, dryRun, yes };
+  if (resetDev && !site) throw new Error("--reset-dev needs --site <name>: the site whose dev content to reset.");
+  return { site, dryRun, yes, resetDev };
 }
 
 async function askAnswers(previous: SiteState | null): Promise<SiteState> {
@@ -399,10 +403,8 @@ function sampleFiles(state: SiteState): SampleFile[] {
   ];
 }
 
-/** Commits the sample content to the dev branch and uploads its photos (with their sizes) to the dev buckets. */
-function addSampleContent(state: SiteState, plan: PlannedItem[], made: (key: string) => void) {
-  step("Dev site's sample content");
-  const samples = sampleFiles(state);
+/** The sample photos to upload for these files, each with its ready-made sizes. */
+function samplePhotos(samples: SampleFile[]) {
   const images = readdirSync(join(SAMPLE, "images")).filter((f) => f.endsWith(".jpg"));
   const uploads = sampleUploads(samples, {
     contentPrefix: "/img/",
@@ -414,6 +416,43 @@ function addSampleContent(state: SiteState, plan: PlannedItem[], made: (key: str
   });
   const missing = missingVariants(uploads, readdirSync(join(SAMPLE, "images", "variants")));
   if (missing.length) throw new Error(`Sample photo sizes missing in templates/sample/images/variants/: ${missing.join(", ")}`);
+  return uploads;
+}
+
+/** The dev buckets: media and drafts, with their jurisdictions. */
+function devBuckets(state: SiteState, plan: PlannedItem[]) {
+  const b = (slot: PlannedItem["slot"]) => {
+    const p = plan.find((x) => x.slot === slot)!;
+    return { name: p.name, jurisdiction: (p.jurisdiction ?? state.jurisdiction) || undefined };
+  };
+  return { media: b("media:dev"), drafts: b("drafts:dev") };
+}
+
+/** Uploads the sample photos and their sizes to the dev buckets. */
+function uploadSamplePhotos(state: SiteState, plan: PlannedItem[], uploads: ReturnType<typeof samplePhotos>): number {
+  const bucket = devBuckets(state, plan);
+  let n = 0;
+  for (const u of uploads) {
+    const target = bucket[u.bucket];
+    const put = (key: string, file: string, type: string) =>
+      wrangler([
+        "r2", "object", "put", `${target.name}/${key}`, "--file", file, "--content-type", type, "--remote",
+        ...(u.bucket === "media" ? ["--cache-control", "public, max-age=604800"] : []),
+        ...(target.jurisdiction ? ["-J", target.jurisdiction] : []),
+      ]);
+    put(u.key, join(SAMPLE, "images", u.image), "image/jpeg");
+    for (const v of u.variants) put(v.key, join(SAMPLE, "images", "variants", v.file), "image/webp");
+    n += 1 + u.variants.length;
+    info(`  ${u.bucket}: ${u.key} (+${u.variants.length} sizes)`);
+  }
+  return n;
+}
+
+/** Commits the sample content to the dev branch and uploads its photos (with their sizes) to the dev buckets. */
+function addSampleContent(state: SiteState, plan: PlannedItem[], made: (key: string) => void) {
+  step("Dev site's sample content");
+  const samples = sampleFiles(state);
+  const uploads = samplePhotos(samples);
 
   if (!state.created.includes("sample:content")) {
     const dir = join(repoRoot, DEPLOYMENTS, state.repo, "site");
@@ -433,25 +472,67 @@ function addSampleContent(state: SiteState, plan: PlannedItem[], made: (key: str
   } else ok("Committed to the dev branch earlier");
 
   if (!state.created.includes("sample:photos")) {
-    const bucket = { media: plan.find((p) => p.slot === "media:dev")!, drafts: plan.find((p) => p.slot === "drafts:dev")! };
-    let n = 0;
-    for (const u of uploads) {
-      const target = bucket[u.bucket];
-      const j = (target.jurisdiction ?? state.jurisdiction) || undefined;
-      const put = (key: string, file: string, type: string) =>
-        wrangler([
-          "r2", "object", "put", `${target.name}/${key}`, "--file", file, "--content-type", type, "--remote",
-          ...(u.bucket === "media" ? ["--cache-control", "public, max-age=604800"] : []),
-          ...(j ? ["-J", j] : []),
-        ]);
-      put(u.key, join(SAMPLE, "images", u.image), "image/jpeg");
-      for (const v of u.variants) put(v.key, join(SAMPLE, "images", "variants", v.file), "image/webp");
-      n += 1 + u.variants.length;
-      info(`  ${u.bucket === "media" ? "media" : "drafts"}: ${u.key} (+${u.variants.length} sizes)`);
-    }
+    const n = uploadSamplePhotos(state, plan, uploads);
     made("sample:photos");
     ok(`${n} photo files uploaded to the dev buckets`);
   } else ok("Photos uploaded to the dev buckets earlier");
+}
+
+/**
+ * Puts the dev site back to the sample content: the dev branch gets main's
+ * files plus the sample content (one new commit), and the dev buckets are
+ * emptied and get the sample photos again. Only for a site whose sample content
+ * create-site added; production, the Workers, buckets and repository stay.
+ */
+async function resetDev(state: SiteState, plan: PlannedItem[]) {
+  if (!state.environments.includes("dev") || !state.created.includes("sample:content") || !state.created.includes("repo")) {
+    throw new Error("Only a dev site create-site made, with its sample content, can be reset.");
+  }
+  const dir = join(repoRoot, DEPLOYMENTS, state.repo, "site");
+  if (!existsSync(join(dir, ".git"))) throw new Error(`${relative(repoRoot, dir)}/ isn't a clone of the site repository`);
+  const dirty = spawnSync("git", ["status", "--porcelain"], { cwd: dir, encoding: "utf8" });
+  if (dirty.status !== 0 || dirty.stdout.trim()) throw new Error(`${relative(repoRoot, dir)}/ has uncommitted changes: commit or discard them first.`);
+  const buckets = devBuckets(state, plan);
+
+  step("Reset the dev site");
+  info("This replaces everything on the dev site with the sample content:");
+  info(`  - the dev branch of ${state.owner}/${state.repo}: main's files plus the sample content, in one new commit`);
+  info("    (posts, pages, drafts, archive and Bin changes made in the dev app are undone; history is kept)");
+  info(`  - the buckets ${buckets.media.name} and ${buckets.drafts.name}: emptied, then the sample photos again`);
+  info("Production, the Workers, the buckets themselves and the repository are not touched.");
+  const typed = await ask(`To reset, type the repository name (${state.owner}/${state.repo}); anything else stops`, { default: "stop", validate: () => null });
+  if (typed !== `${state.owner}/${state.repo}`) {
+    info("Stopped. Nothing was changed.");
+    return;
+  }
+
+  const samples = sampleFiles(state);
+  const uploads = samplePhotos(samples);
+  runVisible("git", ["fetch", "--quiet", "origin"], dir);
+  runVisible("git", ["switch", "--quiet", "dev"], dir);
+  runVisible("git", ["pull", "--quiet", "--ff-only"], dir);
+  // main's files, then the sample content over them.
+  runVisible("git", ["read-tree", "-u", "--reset", "origin/main"], dir);
+  for (const f of samples) {
+    mkdirSync(join(dir, f.path, ".."), { recursive: true });
+    writeFileSync(join(dir, f.path), f.text);
+  }
+  runVisible("git", ["add", "-A"], dir);
+  if (spawnSync("git", ["diff", "--cached", "--quiet"], { cwd: dir }).status === 0) ok("The dev branch already has exactly the sample content");
+  else {
+    runVisible("git", ["commit", "--quiet", "-m", "Reset the dev site to the sample content"], dir);
+    runVisible("git", ["push", "--quiet", "origin", "dev"], dir);
+    ok("Dev branch reset (a new build of the dev site starts)");
+  }
+  runVisible("git", ["switch", "--quiet", "main"], dir);
+
+  for (const b of [buckets.media, buckets.drafts]) {
+    const keys = await listObjects(b.name, b.jurisdiction);
+    for (const key of keys) await deleteObject(b.name, key, b.jurisdiction);
+    ok(`${b.name}: emptied (${keys.length} objects)`);
+  }
+  ok(`${uploadSamplePhotos(state, plan, uploads)} sample photo files uploaded again`);
+  info("Reload the dev app: its lists are read again from the reset branch.");
 }
 
 async function create(state: SiteState, plan: PlannedItem[]) {
@@ -542,6 +623,7 @@ async function main() {
   const args = parse(process.argv.slice(2));
   console.log(bold("Alasin create-site") + dim(args.dryRun ? " (dry run)" : ""));
   const previous = args.site ? readState(args.site) : null;
+  if (args.resetDev && !previous) throw new Error(`No ${DEPLOYMENTS}/${args.site}/create-site.json: only a site create-site made can be reset.`);
   if (args.site && !previous) info(`No ${DEPLOYMENTS}/${args.site}/create-site.json yet: starting a new site.`);
   const state = await askAnswers(previous);
   if (!args.site) {
@@ -552,6 +634,11 @@ async function main() {
   step("Checking what exists");
   const items = siteItems(state, knownNames(state));
   const plan = planItems(items, await check(items, state.jurisdiction), state.created);
+
+  if (args.resetDev) {
+    await resetDev(state, plan);
+    return;
+  }
 
   step("Plan");
   for (const line of planLines(plan)) info(line);
