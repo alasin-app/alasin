@@ -187,7 +187,7 @@ It's finished when the last line is `✓ <alasin>-dev: deployed` (or production'
 
 1. **The builds:** Cloudflare dashboard → **Workers & Pages → `<site>`** → **Deployments**. The first build of `main` is the production deployment; `dev`'s is a version with the `dev` alias. Both should succeed within a few minutes.
 2. **Production site:** open your site's domain. It shows the empty site.
-3. **Dev site:** open the dev site's address printed in A5. It shows the sample posts with photos.
+3. **Dev site:** open the dev site's address printed in A5. It shows the sample posts with photos, and *About* and *Credits* in its menu; *About* lists its two sub-pages.
 4. **Production app:** open your app's domain → **Sign in with GitHub** → authorise. You see the app with no badge and the empty site.
 5. **Dev app:** open `https://<alasin>-dev.<your subdomain>.workers.dev` (also listed in the dashboard). Sign in. It shows the **DEV** badge and the sample content: five posts by two authors, *About* with two sub-pages, a draft post with its photo and a draft page, *An older trip* under *Archived*, *A deleted post* in the Bin, the categories, and in *Media* one photo under *Orphaned*.
 

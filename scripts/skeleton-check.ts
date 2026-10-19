@@ -64,6 +64,8 @@ try {
   console.log(log.trim());
 
   const page = (path: string) => (existsSync(join(dir, "public", path)) ? readFileSync(join(dir, "public", path), "utf8") : "");
+  // The main menu in a built page's header.
+  const menu = (html: string) => /<ul id="?menu"?[^>]*>([\s\S]*?)<\/ul>/.exec(html)?.[1] ?? "";
   const post = page("posts/first-trip/index.html");
   expect(!!page("index.html"), "home page");
   expect(post.includes("entry-cover") && post.includes("src=https://media.example.com/2026/10/01/cover.jpg"), "cover from the image field, at the media URL");
@@ -76,6 +78,7 @@ try {
   expect(post.includes("Jane Doe"), "author");
   expect(!!page("categories/travel/index.html") && !!page("tags/gallery/index.html"), "category and tag pages");
   expect(page("pages/about/index.html").includes("Team") && !!page("pages/about/team/index.html"), "page with a sub-page");
+  expect(menu(page("index.html")).includes("/pages/about/") && !menu(page("index.html")).includes("/pages/about/team/"), "top-level page in the menu, its sub-page not");
   expect(!existsSync(join(dir, "public", "drafts")) && !existsSync(join(dir, "public", "bin")), "drafts and Bin not built");
 
   // The dev site's sample content, filled in as create-site will.
@@ -100,6 +103,8 @@ try {
   expect(page("posts/lakes-of-the-north/index.html").includes("John Roe"), "sample: second author");
   expect(!!page("pages/about/team/index.html") && !!page("pages/about/history/index.html"), "sample: page with two sub-pages");
   expect(page("pages/credits/index.html").includes("apple-blossoms.jpg"), "sample: credits page");
+  const sampleMenu = menu(page("index.html"));
+  expect(sampleMenu.includes("/pages/about/") && sampleMenu.includes("/pages/credits/") && !sampleMenu.includes("/pages/about/team/"), "sample: About and Credits in the menu, sub-pages not");
   expect(!!page("categories/forests/index.html") && !!page("categories/coast/index.html"), "sample: category pages");
   expect(!page("posts/shallow-water/index.html") && !page("posts/an-older-trip/index.html") && !page("posts/a-deleted-post/index.html"), "sample: drafts, archive and Bin not on the site");
 
