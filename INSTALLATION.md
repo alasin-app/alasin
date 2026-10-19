@@ -58,7 +58,7 @@ Wrangler, Cloudflare's command-line tool, comes with Alasin: always run it as `n
 ### 4. Alasin
 
 ```sh
-git clone https://github.com/oh2th/alasin.git
+git clone https://github.com/alasin-app/alasin.git
 cd alasin
 npm install
 ```

@@ -21,7 +21,7 @@ npm run typecheck
 | `dev` | integration (default branch) | squash-merged PRs from work branches | the dev environment, on every push |
 | `main` | released code | PRs from `dev`, the release PR, hotfixes | production, on each published release |
 
-- **Every new feature has an issue** (the *Feature request* form; ideas are [issues labelled `enhancement`](https://github.com/oh2th/alasin/issues?q=is%3Aissue+label%3Aenhancement)). Its branch is named after the issue, `feat/<issue>-<short-name>` (e.g. `feat/156-rename-categories`), and the PR description says `Closes #<issue>`.
+- **Every new feature has an issue** (the *Feature request* form; ideas are [issues labelled `enhancement`](https://github.com/alasin-app/alasin/issues?q=is%3Aissue+label%3Aenhancement)). Its branch is named after the issue, `feat/<issue>-<short-name>` (e.g. `feat/156-rename-categories`), and the PR description says `Closes #<issue>`.
 - Start work branches from `dev` and open the pull request into `dev`. PRs are **squash-merged**, so the PR title becomes the commit message.
 - Promote `dev` to `main` with a PR merged as a **merge commit, not a squash**, so every conventional commit reaches `main` and the changelog.
 - **Hotfixes:** a `fix/…` branch from `main`, PR into `main`, release, then merge `main` back into `dev`.
@@ -92,7 +92,7 @@ Automated tests (`npm test`) cover the Worker, the configuration and the scripts
 - **A test run is an issue** labelled `test-run`. `npm run test-run` builds one from the pull requests merged into `dev` since the last run, with only the checks they list (add more with `--checks 2.21,A.3`); `-- --create` opens it. Tick each check as it passes. For a failure, add a sub-issue to the run whose title starts with the check ID (e.g. "4.19: lock banner missing on iOS"): a workflow marks the check "❌ #123", and "✅ #123 fixed, re-test" once the bug is closed; bugs without a check ID are listed at the end of the run. Close the run when every check is ticked.
 - **Where:** any deployment running the version under test; a run doesn't need a fresh installation. Record the version, the deployment (dev or production) and the devices at the top of the run; never a deployment's own names, addresses or accounts.
 
-Past runs: [closed `test-run` issues](https://github.com/oh2th/alasin/issues?q=label%3Atest-run).
+Past runs: [closed `test-run` issues](https://github.com/alasin-app/alasin/issues?q=label%3Atest-run).
 
 ## Reporting security issues
 

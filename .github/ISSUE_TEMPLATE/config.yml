@@ -1,11 +1,11 @@
 blank_issues_enabled: false
 contact_links:
   - name: Ask a question
-    url: https://github.com/oh2th/alasin/discussions
+    url: https://github.com/alasin-app/alasin/discussions
     about: Help with installing, configuring or using Alasin.
   - name: Report a security vulnerability
-    url: https://github.com/oh2th/alasin/security/advisories/new
+    url: https://github.com/alasin-app/alasin/security/advisories/new
     about: Please report security problems privately, not in a public issue.
   - name: Documentation
-    url: https://github.com/oh2th/alasin/blob/main/INSTALLATION.md
+    url: https://github.com/alasin-app/alasin/blob/main/INSTALLATION.md
     about: Installation step by step; the README has the configuration reference, updating, users and access.
