@@ -41,7 +41,7 @@ const PLACEHOLDERS = new Set<unknown>([
 ]);
 const isUnset = (v: unknown) => v === undefined || v === "" || PLACEHOLDERS.has(v);
 
-const PREREQ = "PREREQUISITES.md";
+const GUIDE = "INSTALLATION.md";
 
 const args = (() => {
   try {
@@ -115,10 +115,10 @@ const validBucket = (v: string) => (/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/.test(v) 
 async function checkPrerequisites() {
   step("Checking prerequisites");
   const major = Number(process.versions.node.split(".")[0]);
-  if (major < 22) throw new Error(`Node.js ${process.versions.node} is too old; install the current LTS (see ${PREREQ} §1).`);
+  if (major < 22) throw new Error(`Node.js ${process.versions.node} is too old; install the current LTS (see ${GUIDE}, Before you start).`);
   ok(`Node.js ${process.versions.node}`);
   const who = cf.whoami();
-  if (!who.loggedIn) throw new Error(`Wrangler is not logged in. Run \`npx wrangler login\` (see ${PREREQ} §3).`);
+  if (!who.loggedIn) throw new Error(`Wrangler is not logged in. Run \`npx wrangler login\` (see ${GUIDE}, Before you start).`);
   ok(`Wrangler logged in${who.email ? ` as ${who.email}` : ""}`);
   if (who.accounts.length > 1 && !process.env.CLOUDFLARE_ACCOUNT_ID && !wranglerRaw().account_id) {
     info(`Your login can access ${who.accounts.length} Cloudflare accounts:`);
@@ -129,7 +129,7 @@ async function checkPrerequisites() {
     setWrangler("account_id", who.accounts[Number(pick) - 1]!.id);
     ok(`account_id saved to ${displayPath(args.wranglerPath)}`);
   }
-  if (!cf.r2Enabled()) throw new Error(`R2 isn't enabled on this Cloudflare account (see ${PREREQ} §2).`);
+  if (!cf.r2Enabled()) throw new Error(`R2 isn't enabled on this Cloudflare account (see ${GUIDE}, Before you start).`);
   ok("R2 is enabled");
 }
 
@@ -272,7 +272,7 @@ async function setupBuckets() {
   }
   if (!cf.bucketExists(mediaName!, jurisdiction)) {
     throw new Error(
-      `Bucket "${mediaName}"${jurisdiction ? ` (jurisdiction ${jurisdiction})` : ""} not found. Check the name and jurisdiction under R2 in the dashboard (${PREREQ} §2).`,
+      `Bucket "${mediaName}"${jurisdiction ? ` (jurisdiction ${jurisdiction})` : ""} not found. Check the name and jurisdiction under R2 in the dashboard (${GUIDE}, B1).`,
     );
   }
   ok(`MEDIA: ${mediaName}${jurisdiction ? ` (${jurisdiction})` : ""}`);
