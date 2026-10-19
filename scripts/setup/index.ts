@@ -523,6 +523,9 @@ async function main() {
 main()
   .then(() => {
     closePrompt();
+    // Anything still open (e.g. a browser's connection to the GitHub App step) mustn't keep the process
+    // running: create-site waits for setup to exit before it deploys.
+    process.exit(0);
   })
   .catch((err: unknown) => {
     closePrompt();
