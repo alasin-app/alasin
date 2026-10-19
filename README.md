@@ -121,6 +121,8 @@ Workers Builds doesn't accept Wrangler's login: it needs a user API token (*My P
 
 Each step is recorded as it's done, so a run that stops can be repeated and continues where it was.
 
+`npm run create-site -- --site <site> --reset-dev` puts a dev site `create-site` made back to its sample content, after the repository name is typed to confirm: the `dev` branch gets `main`'s files plus the sample content in one new commit (what was done in the dev app is undone; history is kept), and the dev buckets are emptied and get the sample photos again. The site clone must have no uncommitted changes. Production, the Workers, the buckets themselves and the repository aren't touched.
+
 Apart from an optional `.dev.vars`, nothing in `deployments/` is secret: Worker secrets stay in Cloudflare. It is untracked, though, so `git clean -x` deletes it. Back up each `alasin.toml`, or keep it in a private repository as below.
 
 ### Keeping a deployment's configuration in its own repository
