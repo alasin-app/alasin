@@ -650,7 +650,7 @@ async function main() {
     return;
   }
   if (args.remove) {
-    const steps = removalSteps(state, items, args.remove);
+    const steps = removalSteps(state, plan, args.remove);
     step(args.remove === "dev" ? "Remove the dev environment" : "Remove the site");
     for (const line of removalLines(steps)) info(line);
     info("Only what this site's create-site made is removed; the rest is listed as kept.");

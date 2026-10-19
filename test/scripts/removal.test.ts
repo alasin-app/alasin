@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
-import { siteItems, type SiteState } from "../../scripts/lib/create-site";
+import { planItems, siteItems, type SiteState } from "../../scripts/lib/create-site";
 import { devKeys, removalLines, removalSteps } from "../../scripts/lib/removal";
 import { removeTables } from "../../scripts/lib/toml-edit";
 
@@ -65,6 +65,18 @@ describe("removing a site", () => {
     expect(removalLines(steps).find((l) => l.startsWith("octocat/example.com "))).toContain("kept: not made by create-site");
     // No configuration of its own: no GitHub Apps to remove.
     expect(steps.some((s) => s.kind === "github-app")).toBe(false);
+  });
+});
+
+describe("a removal that stopped", () => {
+  it("shows what it already removed as removed, not as kept", () => {
+    // The Worker was removed (and forgotten) in the first run; the repository is still to go.
+    const state = { ...base, environments: ["production" as const], created: ["repo", "config"] };
+    const all = siteItems(state);
+    const plan = planItems(all, new Map(all.map((i) => [i.key, i.key === "repo"])), state.created);
+    const lines = removalLines(removalSteps(state, plan, "all"));
+    expect(lines.find((l) => l.startsWith("alasin-example "))).toContain("already removed");
+    expect(lines.find((l) => l.startsWith("octocat/example.com "))).toContain("deleted on GitHub");
   });
 });
 

@@ -5,7 +5,7 @@
 //
 // No file, network or process access here, so tests can use it.
 
-import type { Item, SiteState } from "./create-site";
+import type { Item, SiteState, Status } from "./create-site";
 
 export type RemoveMode = "all" | "dev";
 
@@ -23,16 +23,21 @@ export interface RemovalStep {
 
 const made = (state: SiteState, key: string) => state.created.includes(key) || state.created.includes(`pending:${key}`);
 
-/** The removal, in the order it's done. */
-export function removalSteps(state: SiteState, items: Item[], mode: RemoveMode): RemovalStep[] {
+/**
+ * The removal, in the order it's done. With the plan's statuses, an item that
+ * no longer exists shows as already removed (e.g. after a run that stopped),
+ * not as kept.
+ */
+export function removalSteps(state: SiteState, items: (Item & { status?: Status })[], mode: RemoveMode): RemovalStep[] {
   const steps: RemovalStep[] = [];
   const item = (slot: Item["slot"]) => items.find((i) => i.slot === slot);
   const dev = mode === "dev";
   const envs: ("production" | "dev")[] = dev ? ["dev"] : (["production", "dev"] as const).filter((e) => state.environments.includes(e));
-  const add = (i: Item | undefined, kind: RemovalStep["kind"], action: string, env?: RemovalStep["env"]) => {
+  const add = (i: (Item & { status?: Status }) | undefined, kind: RemovalStep["kind"], action: string, env?: RemovalStep["env"]) => {
     if (!i) return;
     const ours = made(state, i.key);
-    steps.push({ key: i.key, kind, name: i.name, action: ours ? action : "kept: not made by create-site", remove: ours, ...(env ? { env } : {}) });
+    const gone = !ours && i.status === "new";
+    steps.push({ key: i.key, kind, name: i.name, action: ours ? action : gone ? "already removed" : "kept: not made by create-site", remove: ours, ...(env ? { env } : {}) });
   };
 
   for (const env of envs) {
