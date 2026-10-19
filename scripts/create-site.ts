@@ -53,7 +53,7 @@ import { creditsPage, jpegSize, missingVariants, type SampleFile, sampleUploads 
 import { attachDomain, type BuildToken, connectBuilds, createPlaceholderWorker } from "./lib/site-worker";
 import { siteConfigFor } from "./lib/site-config";
 import { removalLines, removalSteps, type RemoveMode } from "./lib/removal";
-import { removeSite } from "./lib/site-removal";
+import { canDeleteRepos, DELETE_REPO_SCOPE, removeSite } from "./lib/site-removal";
 import { fillPlaceholders, PLACEHOLDER_FILES, unfilled } from "./lib/skeleton";
 import { parse as parseToml } from "smol-toml";
 import { SITE_NAME } from "./lib/deployments";
@@ -654,6 +654,12 @@ async function main() {
     step(args.remove === "dev" ? "Remove the dev environment" : "Remove the site");
     for (const line of removalLines(steps)) info(line);
     info("Only what this site's create-site made is removed; the rest is listed as kept.");
+    // Checked first, so nothing is removed before a step that couldn't be done (and gh's login never runs inside this).
+    if (steps.some((s) => s.kind === "repo" && s.remove) && !canDeleteRepos()) {
+      warn(`gh may not delete repositories yet. Run this first (it opens GitHub in the browser), then run create-site again:`);
+      info(`  ${DELETE_REPO_SCOPE}`);
+      return;
+    }
     if (args.dryRun) return;
     console.log(`  ${red("This can't be undone: the buckets' photos" + (args.remove === "dev" ? ", the dev branch" : " and the repository with its history") + " are deleted.")}`);
     const typed = await ask(`To remove, type the repository name (${state.owner}/${state.repo}); anything else stops`, { default: "stop", validate: () => null });

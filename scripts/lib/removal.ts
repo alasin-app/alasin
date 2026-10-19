@@ -46,7 +46,9 @@ export function removalSteps(state: SiteState, items: Item[], mode: RemoveMode):
   }
   if (!dev) add(item("site-worker"), "site-worker", "deleted, with its Workers Builds triggers and the site's domain");
   const buckets: Item["slot"][] = dev ? ["media:dev", "drafts:dev"] : ["media:production", "drafts:production", "media:dev", "drafts:dev"];
-  for (const slot of buckets) add(item(slot), "bucket", slot.startsWith("media") ? "its domain or r2.dev access turned off, emptied, deleted" : "emptied, deleted");
+  const bucketAction = (slot: Item["slot"]) =>
+    slot === "media:production" ? "its domain turned off, emptied, deleted" : slot === "media:dev" ? "its r2.dev access turned off, emptied, deleted" : "emptied, deleted";
+  for (const slot of buckets) add(item(slot), "bucket", bucketAction(slot));
   if (dev) {
     if (made(state, "repo")) steps.push({ key: "dev-branch", kind: "dev-branch", name: `${state.owner}/${state.repo} dev branch`, action: "deleted (main and production stay)", remove: true });
     steps.push({ key: "local:dev", kind: "local", name: "[env.dev] in alasin.toml and wrangler.toml", action: "removed", remove: made(state, "config") });

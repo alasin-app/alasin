@@ -126,14 +126,19 @@ async function deleteBucket(item: PlannedItem, c: RemovalContext) {
   c.ok(`${item.name}: deleted (${keys.length} objects)`);
 }
 
-/** The repository, asking gh for its delete_repo permission if it hasn't got it. */
+/** The command that gives gh permission to delete repositories. */
+export const DELETE_REPO_SCOPE = "gh auth refresh -h github.com -s delete_repo";
+
+/** Whether gh may delete repositories (its token has the delete_repo scope). */
+export function canDeleteRepos(): boolean {
+  const r = gh(["auth", "status", "-h", "github.com"]);
+  return /delete_repo/.test(r.out);
+}
+
+/** The repository. gh's permission is checked before anything is removed (see canDeleteRepos). */
 async function deleteRepo(full: string, c: RemovalContext) {
-  let r = gh(["repo", "delete", full, "--yes"]);
-  if (r.status !== 0 && /delete_repo/.test(r.out)) {
-    c.info("gh needs permission to delete repositories: `gh auth refresh -h github.com -s delete_repo` (opens the browser).");
-    spawnSync("gh", ["auth", "refresh", "-h", "github.com", "-s", "delete_repo"], { stdio: "inherit" });
-    r = gh(["repo", "delete", full, "--yes"]);
-  }
+  const r = gh(["repo", "delete", full, "--yes"]);
+  if (r.status !== 0 && /delete_repo/.test(r.out)) throw new Error(`gh may not delete repositories. Run \`${DELETE_REPO_SCOPE}\`, then run this again: it continues here.`);
   if (r.status !== 0 && !/Could not resolve|Not Found|404/.test(r.out)) throw new Error(`Deleting ${full} failed:\n${r.out.slice(-1000)}`);
   c.ok(`${full}: deleted`);
 }
