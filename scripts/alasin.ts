@@ -7,7 +7,7 @@
 // Validates alasin.toml, builds the web app and runs Wrangler with the
 // generated configuration (see scripts/lib/wrangler-config.ts).
 
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { deploymentLine, parseArgs } from "./lib/args";
 import { displayPath, loadAlasinConfig } from "./lib/config";
@@ -37,8 +37,17 @@ async function main() {
       const config = loadAlasinConfig(args.configPath, args.env);
       // Locally the app runs on localhost; the GitHub App needs
       // http://localhost:<port>/auth/callback as an extra callback URL.
-      config.app.url = `http://localhost:${port}`;
+      // --https serves it over HTTPS with a local certificate (npm run screenshots).
+      const https = args.rest.includes("--https");
+      config.app.url = `${https ? "https" : "http"}://localhost:${port}`;
       const gen = generateWranglerConfig({ wranglerPath: args.wranglerPath, env: args.env, config, outName: `dev-${args.env ?? "default"}` });
+      // --remote-media: the photo buckets are the deployment's real ones, not local copies
+      // (npm run screenshots, so Media shows the site's photos). Everything else stays local.
+      if (args.rest.includes("--remote-media")) {
+        const w = JSON.parse(readFileSync(gen.path, "utf8")) as { r2_buckets?: { remote?: boolean }[] };
+        for (const b of w.r2_buckets ?? []) b.remote = true;
+        writeFileSync(gen.path, JSON.stringify(w, null, 2));
+      }
       const dir = dirname(args.wranglerPath);
       const devVars = [args.env && join(dir, `.dev.vars.${args.env}`), join(dir, ".dev.vars")].find((p) => p && existsSync(p));
       if (!devVars) {
@@ -55,6 +64,11 @@ async function main() {
         String(port),
         "--ip",
         "localhost",
+        // Requests keep the local address: with a custom domain in the routes, wrangler
+        // would present them as that domain, and the canonical-origin redirect would loop.
+        "--local-upstream",
+        `localhost:${port}`,
+        ...(https ? ["--local-protocol", "https"] : []),
         ...(devVars ? ["--env-file", devVars] : []),
       ]);
       watcher.kill();

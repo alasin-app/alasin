@@ -42,3 +42,11 @@ Setup can be run again on an existing deployment to change these answers: `npm r
 | `test/` | Automated tests (see [Testing](Testing.md)) |
 
 The rules for code (licence headers, translations, configuration options, dependencies) are in [CONTRIBUTING.md](https://github.com/alasin-app/alasin/blob/main/CONTRIBUTING.md#code).
+
+## Screenshots for alasin.app
+
+`npm run screenshots` takes the app's screenshots for alasin.app: Home, Posts, the editor, Categories and Media, at iPhone and desktop sizes, in light and dark mode. It runs Alasin locally (`npm run dev --https --remote-media`: the photo buckets are the test site's real ones, read only, so *Media* shows its photos) with the test site's configuration (`--site`, default `app.alasin.dev`) and its sample content, signs in as the person `gh` is logged in as, and shows a made-up person (*Aino Virtanen*) instead of them, without the **DEV** badge. The images go to `.alasin/screenshots/` (`--out` for another folder).
+
+It needs the test site's `.dev.vars` (setup writes it when asked *Write … .dev.vars for local development?*) and the browser: `npx playwright install chromium`.
+
+At each release, take them again and upload them over the old ones in alasin.app's media bucket, under `screenshots/` with the same names (as JPEG, at most 1600 pixels on the long side); its *Screenshots* page and home page show them from there.
