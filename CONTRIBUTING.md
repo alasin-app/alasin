@@ -84,7 +84,7 @@ If you run a deployment, list its identifying terms in `.local/denylist` (gitign
 - Dependencies must have MIT-compatible licences (MIT, BSD, Apache-2.0, ISC) and are pinned exactly.
 - Security-relevant behaviour gets a test (see `test/worker`).
 - Things only a person on a real device can check are manual checks: see *Manual tests* below.
-- A change that users or operators notice updates the documentation in the same pull request: see *Documentation* below.
+- A change that users or operators notice updates the documentation in the same pull request, and lists the pages under *Documentation* in the pull request: see *Documentation* below.
 
 ## Manual tests
 
