@@ -6,7 +6,7 @@ A [Hugo](https://gohugo.io/) site written with [Alasin](https://github.com/alasi
 
 | Path | What it is |
 | --- | --- |
-| `content/posts/`, `content/pages/` | Posts and pages. Alasin writes them; they can be edited by hand too. |
+| `content/posts/`, `content/pages/` | Posts and pages. Alasin writes them; they can be edited by hand too. `content/pages/_index.md` puts every top-level page in the main menu. |
 | `drafts/`, `archive/`, `bin/` | Alasin's drafts, archived and deleted items. Outside `content/`, so Hugo never builds them. |
 | `layouts/` | Alasin's pieces on top of the theme: the gallery shortcode, the image render hook (`/img/…` → the media bucket's URL), and the cover from the `image` field. |
 | `hugo.toml` | Site settings. `[params.alasin]` must match `[media]` in Alasin's `alasin.toml`. |
