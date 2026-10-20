@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.7.1](https://github.com/alasin-app/alasin/compare/v1.7.0...v1.7.1) (2026-10-20)
+
+
+### Documentation
+
+* What's New lists only released versions ([#342](https://github.com/alasin-app/alasin/issues/342)) ([7952866](https://github.com/alasin-app/alasin/commit/795286662ea32953e41b6895a3a85e77bcf916d0))
+* What's New speaks to the people who run and use Alasin ([#341](https://github.com/alasin-app/alasin/issues/341)) ([3ef529a](https://github.com/alasin-app/alasin/commit/3ef529a28f0dd579ab70dfc64634712ef5cc44be))
+* What's New, a plain-words changelog in the wiki ([#340](https://github.com/alasin-app/alasin/issues/340)) ([f6f273f](https://github.com/alasin-app/alasin/commit/f6f273fb0b7b109515338108bb8e26961e205770))
+
 ## [1.7.0](https://github.com/alasin-app/alasin/compare/v1.6.0...v1.7.0) (2026-10-20)
 
 
