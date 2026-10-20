@@ -1,5 +1,42 @@
 # Changelog
 
+## [1.6.0](https://github.com/alasin-app/alasin/compare/v1.5.0...v1.6.0) (2026-10-20)
+
+
+### Features
+
+* **scripts:** create-site --remove and --remove-dev remove a site it made ([#295](https://github.com/alasin-app/alasin/issues/295)) ([0983cab](https://github.com/alasin-app/alasin/commit/0983cabfde93cd790e6adf5d488629fe358c37d8))
+* **scripts:** create-site --reset-dev puts the dev site back to its sample content ([#292](https://github.com/alasin-app/alasin/issues/292)) ([209444a](https://github.com/alasin-app/alasin/commit/209444aa45c08c491c413d3a5feac230da882b15))
+* **scripts:** create-site adds the dev site's sample content ([#286](https://github.com/alasin-app/alasin/issues/286)) ([a981242](https://github.com/alasin-app/alasin/commit/a981242c357ff7f2aa3a6aa0f2a5505401f35c39))
+* **scripts:** create-site creates the buckets and the site repository ([#284](https://github.com/alasin-app/alasin/issues/284)) ([88a5586](https://github.com/alasin-app/alasin/commit/88a5586ac223879f0b86c92975e37cc3e1572612))
+* **scripts:** create-site creates the site Worker and connects Workers Builds ([#285](https://github.com/alasin-app/alasin/issues/285)) ([e8c4b10](https://github.com/alasin-app/alasin/commit/e8c4b10e6f2912935f9c96c4350b8dda5a4b8194))
+* **scripts:** create-site plans a new site and warns about existing ones ([#269](https://github.com/alasin-app/alasin/issues/269)) ([6740f2f](https://github.com/alasin-app/alasin/commit/6740f2f01ce03edf0d775a7734695a039d343591)), closes [#253](https://github.com/alasin-app/alasin/issues/253)
+* **scripts:** create-site recognises a site deployed under other names ([#279](https://github.com/alasin-app/alasin/issues/279)) ([2c82e14](https://github.com/alasin-app/alasin/commit/2c82e141e13c4008ae37128896b488f3fed140c5)), closes [#278](https://github.com/alasin-app/alasin/issues/278)
+* **scripts:** create-site sets up Alasin itself ([#289](https://github.com/alasin-app/alasin/issues/289)) ([af4122e](https://github.com/alasin-app/alasin/commit/af4122e988f8138741d7574f942c3b6cf1a1a6db))
+* **scripts:** deployments/ folder and --site for several sites ([#264](https://github.com/alasin-app/alasin/issues/264)) ([324059b](https://github.com/alasin-app/alasin/commit/324059b1e4def4eee253d923c9294bef87dfc70c)), closes [#263](https://github.com/alasin-app/alasin/issues/263)
+* **scripts:** dev sample content for create-site ([#283](https://github.com/alasin-app/alasin/issues/283)) ([a9eb9c5](https://github.com/alasin-app/alasin/commit/a9eb9c535736e3dd399f27efe258d67978af8b66))
+* **scripts:** sample stock images with credits for dev sites ([#282](https://github.com/alasin-app/alasin/issues/282)) ([fbd3205](https://github.com/alasin-app/alasin/commit/fbd32052108447c3b1e963e49f9eb4bfab68d570)), closes [#259](https://github.com/alasin-app/alasin/issues/259)
+* **scripts:** skeleton Hugo site on PaperMod for create-site ([#281](https://github.com/alasin-app/alasin/issues/281)) ([4de2618](https://github.com/alasin-app/alasin/commit/4de2618654e70b3a3100e910af8e80ed382c57f0)), closes [#254](https://github.com/alasin-app/alasin/issues/254)
+
+
+### Bug Fixes
+
+* **install:** Cloudflare's GitHub app on the repository's owner, and wait for GitHub ([#312](https://github.com/alasin-app/alasin/issues/312)) ([964689d](https://github.com/alasin-app/alasin/commit/964689da98d65a365d55de7fadc8f4a95aee506f))
+* **scripts:** create-site checks domains through Cloudflare, not the local resolver ([#297](https://github.com/alasin-app/alasin/issues/297)) ([9b2888b](https://github.com/alasin-app/alasin/commit/9b2888b91cce776ac1fa16be2c882ef2a954f354))
+* **scripts:** create-site says what's already done on a re-run ([#288](https://github.com/alasin-app/alasin/issues/288)) ([3de6072](https://github.com/alasin-app/alasin/commit/3de6072814d226e78f1da6c6a3bc1ba4c06cb09e))
+* **scripts:** escape fully where code scanning found it incomplete ([#322](https://github.com/alasin-app/alasin/issues/322)) ([8e87e93](https://github.com/alasin-app/alasin/commit/8e87e93d4121432955cd618487158c735e553fa1))
+* **site:** top-level pages in the site's main menu ([#313](https://github.com/alasin-app/alasin/issues/313)) ([138f7e8](https://github.com/alasin-app/alasin/commit/138f7e80e7a96f0cc2aa9d0fc6c62d45cafb0d01))
+
+
+### Documentation
+
+* documentation as wiki pages, split for site owners and for developers ([#317](https://github.com/alasin-app/alasin/issues/317)) ([fea1e8e](https://github.com/alasin-app/alasin/commit/fea1e8eb282f69b7bc8fd6e2bddc9e860cd1c673))
+* INSTALLATION.md, step by step for a new site and for an existing one ([#299](https://github.com/alasin-app/alasin/issues/299)) ([2e0d67d](https://github.com/alasin-app/alasin/commit/2e0d67d36d83f8bcdd1633553b6b19923ad49e4c))
+* **install:** the Cloudflare GitHub app stop under Troubleshooting ([#315](https://github.com/alasin-app/alasin/issues/315)) ([29f1e3d](https://github.com/alasin-app/alasin/commit/29f1e3da43abcdb3f51da57eb374a356e5c06180))
+* one create-site plan check for all environments ([#275](https://github.com/alasin-app/alasin/issues/275)) ([43d75f9](https://github.com/alasin-app/alasin/commit/43d75f9bddafa90ca0593663fd80c30d4e585569))
+* separate create-site plan checks for dev and production ([#272](https://github.com/alasin-app/alasin/issues/272)) ([7ac76e2](https://github.com/alasin-app/alasin/commit/7ac76e2c985141a7b8234dedce3314cd64743198))
+* the pull request template asks which wiki pages changed ([#319](https://github.com/alasin-app/alasin/issues/319)) ([d1c6180](https://github.com/alasin-app/alasin/commit/d1c618042c7db271e55b1f2dc94162401076f43d))
+
 ## [1.5.0](https://github.com/oh2th/alasin/compare/v1.4.1...v1.5.0) (2026-10-18)
 
 
