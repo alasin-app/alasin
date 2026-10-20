@@ -16,17 +16,17 @@ Alasin (Finnish for "anvil") is a web app for writing and publishing pages and p
 
 ## Documentation
 
-The documentation is in [`wiki/`](wiki/Home.md), to be published as the project's wiki.
+The documentation is in the project's **[wiki](https://github.com/alasin-app/alasin/wiki)** (its source is [`wiki/`](wiki/)).
 
 **Running a site with Alasin:**
 
-- [Before You Start](wiki/Before-You-Start.md): a Cloudflare account with R2 enabled, a GitHub account, Node.js 22 or newer with npm and git, and (for a new site) the GitHub CLI.
-- [New Site](wiki/New-Site.md): `npm run create-site` creates the site repository (a Hugo site on the PaperMod theme), its buckets, the site's Worker built by Cloudflare Workers Builds, and Alasin itself.
-- [Existing Site](wiki/Existing-Site.md): for a Hugo site already in a GitHub repository, deployed by Cloudflare, with its images in an R2 bucket: `npm run setup` and `npm run deploy`.
-- [Users and Access](wiki/Users-and-Access.md), [Authors](wiki/Authors.md), [Updating](wiki/Updating.md), [Housekeeping](wiki/Housekeeping.md), [Removing a Site](wiki/Removing-a-Site.md)
-- [Configuration](wiki/Configuration.md) (every option of `alasin.toml`), [Configuration Files](wiki/Configuration-Files.md), [Security](wiki/Security.md), [Troubleshooting](wiki/Troubleshooting.md)
+- [Before You Start](https://github.com/alasin-app/alasin/wiki/Before-You-Start): a Cloudflare account with R2 enabled, a GitHub account, Node.js 22 or newer with npm and git, and (for a new site) the GitHub CLI.
+- [New Site](https://github.com/alasin-app/alasin/wiki/New-Site): `npm run create-site` creates the site repository (a Hugo site on the PaperMod theme), its buckets, the site's Worker built by Cloudflare Workers Builds, and Alasin itself.
+- [Existing Site](https://github.com/alasin-app/alasin/wiki/Existing-Site): for a Hugo site already in a GitHub repository, deployed by Cloudflare, with its images in an R2 bucket: `npm run setup` and `npm run deploy`.
+- [Users and Access](https://github.com/alasin-app/alasin/wiki/Users-and-Access), [Authors](https://github.com/alasin-app/alasin/wiki/Authors), [Updating](https://github.com/alasin-app/alasin/wiki/Updating), [Housekeeping](https://github.com/alasin-app/alasin/wiki/Housekeeping), [Removing a Site](https://github.com/alasin-app/alasin/wiki/Removing-a-Site)
+- [Configuration](https://github.com/alasin-app/alasin/wiki/Configuration) (every option of `alasin.toml`), [Configuration Files](https://github.com/alasin-app/alasin/wiki/Configuration-Files), [Security](https://github.com/alasin-app/alasin/wiki/Security), [Troubleshooting](https://github.com/alasin-app/alasin/wiki/Troubleshooting)
 
-**Developing and testing Alasin:** [Development](wiki/Development.md), [Test Environment](wiki/Test-Environment.md), [Testing](wiki/Testing.md), and [CONTRIBUTING.md](CONTRIBUTING.md).
+**Developing and testing Alasin:** [Development](https://github.com/alasin-app/alasin/wiki/Development), [Test Environment](https://github.com/alasin-app/alasin/wiki/Test-Environment), [Testing](https://github.com/alasin-app/alasin/wiki/Testing), and [CONTRIBUTING.md](CONTRIBUTING.md).
 
 Report vulnerabilities as described in [SECURITY.md](SECURITY.md).
 
