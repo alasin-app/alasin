@@ -14,7 +14,7 @@
 import { execFileSync, spawn } from "node:child_process";
 import { mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { chromium, devices } from "playwright";
+import { chromium, devices, request } from "playwright";
 import { loadAlasinConfig } from "./lib/config";
 import { DEPLOYMENTS, repoRoot } from "./lib/args";
 
@@ -29,8 +29,6 @@ const dir = join(repoRoot, DEPLOYMENTS, site);
 const BASE = "https://localhost:8787";
 /** Shown instead of the signed-in user, so the screenshots show nobody real. */
 const STAND_IN = { name: "Aino Virtanen", login: "aino", initials: "AV" };
-// This script's own requests go only to the local server, whose certificate is self-signed.
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
 /** The pages to capture: name and app path. */
 const SHOTS = [
@@ -53,9 +51,11 @@ const gh = (...a: string[]) => execFileSync("gh", a, { encoding: "utf8" }).trim(
 async function main() {
   mkdirSync(out, { recursive: true });
   const server = spawn("npm", ["run", "-s", "dev", "--", "--site", site, "--https"], { cwd: repoRoot, stdio: ["ignore", "ignore", "inherit"], detached: true });
+  // The script's own requests to the local server, whose certificate is self-signed.
+  const local = await request.newContext({ baseURL: BASE, ignoreHTTPSErrors: true });
   try {
     for (let i = 0; ; i++) {
-      if (await fetch(BASE, { redirect: "manual" }).then(() => true, () => false)) break;
+      if (await local.get("/", { maxRedirects: 0 }).then(() => true, () => false)) break;
       if (i > 120) throw new Error("npm run dev didn't start");
       await new Promise((r) => setTimeout(r, 1000));
     }
@@ -76,8 +76,8 @@ async function main() {
     console.log(`Signed in as ${user.login}`);
     const cookie = setCookie.split(";")[0]!;
     const [name, value] = cookie.split(/=(.*)/s) as [string, string];
-    const me = await fetch(`${BASE}/api/me`, { headers: { cookie } });
-    if (!me.ok) throw new Error(`The local app didn't accept the session: ${me.status} ${(await me.text()).slice(0, 200)}`);
+    const me = await local.get("/api/me", { headers: { cookie } });
+    if (!me.ok()) throw new Error(`The local app didn't accept the session: ${me.status()} ${(await me.text()).slice(0, 200)}`);
 
     for (const [device, options] of [
       // Chromium for both: WebKit refuses the Secure session cookie on http://localhost.
@@ -125,6 +125,7 @@ async function main() {
       await browser.close();
     }
   } finally {
+    await local.dispose();
     if (server.pid) process.kill(-server.pid);
   }
 }
