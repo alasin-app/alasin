@@ -15,9 +15,11 @@ import { deploymentLine, parseArgs, repoRoot } from "../lib/args";
 import { displayPath, loadAlasinConfig } from "../lib/config";
 import { appendSection, setValue, type TomlValue } from "../lib/toml-edit";
 import { normalizeUrl, urlProblem } from "../lib/urls";
+import { poll } from "../lib/poll";
 import { migrateAlasinToml, plainComments } from "../lib/migrate";
 import { today } from "../../src/shared/housekeeping";
 import { checkBindings, generateWranglerConfig, REQUIRED_SECRETS } from "../lib/wrangler-config";
+import { envWranglerSection } from "../lib/wrangler-env";
 import * as cf from "./cloudflare";
 import * as gh from "./github";
 import { ask, bold, closePrompt, confirm, dim, info, ok, red, step, warn } from "./prompt";
@@ -32,6 +34,7 @@ const PLACEHOLDERS = new Set<unknown>([
   "my-hugo-site",
   123456,
   "Iv23liAbCdEfGhIjKlMn",
+  12345678,
   "https://media.example.com/",
   "example-media",
   "example-media-drafts",
@@ -39,7 +42,8 @@ const PLACEHOLDERS = new Set<unknown>([
 ]);
 const isUnset = (v: unknown) => v === undefined || v === "" || PLACEHOLDERS.has(v);
 
-const PREREQ = "PREREQUISITES.md";
+// Pages of the documentation (wiki/), named in messages.
+const BEFORE = "Before You Start in the wiki";
 
 const args = (() => {
   try {
@@ -99,49 +103,6 @@ function setWrangler(key: string, value: TomlValue, arrayTable?: { table: string
   writeFileSync(args.wranglerPath, wranglerText);
 }
 
-function envWranglerSection(name: string, base: Table): string {
-  const envs = Object.keys((base.env as Table | undefined) ?? {}).length;
-  const ns = (n: number) => String(1000 * (envs + 2) + n);
-  const media = ((base.r2_buckets as Table[] | undefined) ?? []).find((b) => b.binding === "MEDIA") ?? {};
-  const mediaJ = media.jurisdiction ? `\njurisdiction = ${JSON.stringify(media.jurisdiction)}` : "";
-  return `# --- [env.${name}] - added by npm run setup -- --env ${name} ---
-[env.${name}]
-name = ${JSON.stringify(`${String(base.name ?? "alasin")}-${name}`)}
-workers_dev = true
-
-[[env.${name}.r2_buckets]]
-binding = "MEDIA"
-bucket_name = ${JSON.stringify(media.bucket_name ?? "example-media")}${mediaJ}
-
-[[env.${name}.r2_buckets]]
-binding = "DRAFTS"
-bucket_name = "example-media-drafts"
-
-[[env.${name}.kv_namespaces]]
-binding = "KV"
-id = "00000000000000000000000000000000"
-
-[[env.${name}.durable_objects.bindings]]
-name = "LOCKS"
-class_name = "EditLocks"
-
-[[env.${name}.ratelimits]]
-name = "RL_AUTH"
-namespace_id = "${ns(1)}"
-simple = { limit = 10, period = 60 }
-
-[[env.${name}.ratelimits]]
-name = "RL_UPLOAD"
-namespace_id = "${ns(2)}"
-simple = { limit = 120, period = 60 }
-
-[[env.${name}.ratelimits]]
-name = "RL_COMMIT"
-namespace_id = "${ns(3)}"
-simple = { limit = 30, period = 60 }
-`;
-}
-
 // ── validators ───────────────────────────────────────────────────────────────
 
 /** Asks for an https URL; a bare hostname gets https://. */
@@ -156,10 +117,10 @@ const validBucket = (v: string) => (/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/.test(v) 
 async function checkPrerequisites() {
   step("Checking prerequisites");
   const major = Number(process.versions.node.split(".")[0]);
-  if (major < 22) throw new Error(`Node.js ${process.versions.node} is too old; install the current LTS (see ${PREREQ} §1).`);
+  if (major < 22) throw new Error(`Node.js ${process.versions.node} is too old; install the current LTS (see ${BEFORE}).`);
   ok(`Node.js ${process.versions.node}`);
   const who = cf.whoami();
-  if (!who.loggedIn) throw new Error(`Wrangler is not logged in. Run \`npx wrangler login\` (see ${PREREQ} §3).`);
+  if (!who.loggedIn) throw new Error(`Wrangler is not logged in. Run \`npx wrangler login\` (see ${BEFORE}).`);
   ok(`Wrangler logged in${who.email ? ` as ${who.email}` : ""}`);
   if (who.accounts.length > 1 && !process.env.CLOUDFLARE_ACCOUNT_ID && !wranglerRaw().account_id) {
     info(`Your login can access ${who.accounts.length} Cloudflare accounts:`);
@@ -170,7 +131,7 @@ async function checkPrerequisites() {
     setWrangler("account_id", who.accounts[Number(pick) - 1]!.id);
     ok(`account_id saved to ${displayPath(args.wranglerPath)}`);
   }
-  if (!cf.r2Enabled()) throw new Error(`R2 isn't enabled on this Cloudflare account (see ${PREREQ} §2).`);
+  if (!cf.r2Enabled()) throw new Error(`R2 isn't enabled on this Cloudflare account (see ${BEFORE}).`);
   ok("R2 is enabled");
 }
 
@@ -313,7 +274,7 @@ async function setupBuckets() {
   }
   if (!cf.bucketExists(mediaName!, jurisdiction)) {
     throw new Error(
-      `Bucket "${mediaName}"${jurisdiction ? ` (jurisdiction ${jurisdiction})` : ""} not found. Check the name and jurisdiction under R2 in the dashboard (${PREREQ} §2).`,
+      `Bucket "${mediaName}"${jurisdiction ? ` (jurisdiction ${jurisdiction})` : ""} not found. Check the name and jurisdiction under R2 in the dashboard (Existing Site, step 1, in the wiki).`,
     );
   }
   ok(`MEDIA: ${mediaName}${jurisdiction ? ` (${jurisdiction})` : ""}`);
@@ -365,6 +326,12 @@ function setupDomain() {
   const host = new URL(String(get(effective(), "app.url"))).hostname;
   if (host.endsWith(".workers.dev")) {
     setWrangler("workers_dev", true);
+    // An environment inherits the top-level routes: without its own, deploying it would take
+    // production's custom domain.
+    if (env && !Array.isArray(wranglerTarget().routes)) {
+      setWrangler("routes", []);
+      ok(`[env.${env}] gets routes = [], so it never takes production's custom domain`);
+    }
     ok(`Using the workers.dev address ${host}`);
     return;
   }
@@ -432,7 +399,7 @@ async function setupGitHubApp(): Promise<Record<string, string>> {
       info(installUrl);
       gh.openBrowser(installUrl);
     } else {
-      info(`Create the app as described in README.md, "Creating the GitHub App manually". Callback URL(s): ${callbacks.join(", ")}`);
+      info(`Create the app as described in the wiki: Existing Site, "Creating the GitHub App by hand". Callback URL(s): ${callbacks.join(", ")}`);
       setAlasin("github", "app_id", Number(await ask("App ID", { validate: (v) => (/^\d+$/.test(v) ? null : "a number") })));
       setAlasin("github", "client_id", await ask("Client ID", { validate: validName }));
       secrets.GITHUB_CLIENT_SECRET = await ask("Client secret");
@@ -445,11 +412,12 @@ async function setupGitHubApp(): Promise<Record<string, string>> {
   }
 
   // Installation ID (used by the daily cleanup's read-only token).
-  if (privateKey && !get(effective(), "github.installation_id")) {
+  if (privateKey && isUnset(get(effective(), "github.installation_id"))) {
     const appId = Number(get(effective(), "github.app_id"));
     for (;;) {
       await ask("Press Enter once the app is installed on the repository", { validate: () => null });
-      const id = await gh.findInstallation(appId, privateKey, owner, repo).catch(() => null);
+      info("Checking (GitHub can take a few seconds)…");
+      const id = await poll(() => gh.findInstallation(appId, privateKey, owner, repo).catch(() => null), Boolean);
       if (id) {
         setAlasin("github", "installation_id", id);
         ok(`Installed on ${owner}/${repo} (installation ${id})`);
@@ -533,8 +501,8 @@ function finalCheck() {
   generateWranglerConfig({ wranglerPath: args.wranglerPath, env, config, outName: env ?? "default" });
   ok(`${displayPath(args.wranglerPath)}${envLabel} is complete`);
   const deployArgs = [
+    args.site && !args.siteImplicit ? `--site ${args.site}` : !args.site && args.configPath !== join(repoRoot, "alasin.toml") ? `--config ${displayPath(args.configPath)}` : "",
     env ? `--env ${env}` : "",
-    args.configPath !== join(repoRoot, "alasin.toml") ? `--config ${displayPath(args.configPath)}` : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -565,6 +533,9 @@ async function main() {
 main()
   .then(() => {
     closePrompt();
+    // Anything still open (e.g. a browser's connection to the GitHub App step) mustn't keep the process
+    // running: create-site waits for setup to exit before it deploys.
+    process.exit(0);
   })
   .catch((err: unknown) => {
     closePrompt();

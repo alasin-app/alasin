@@ -1,0 +1,10 @@
+{{- /* An image address as Alasin writes it → where the site shows it from:
+  "/img/2026/10/01/a.jpg" → params.alasin.mediaURL + "2026/10/01/a.jpg".
+  Anything else (other paths, full URLs) is returned as it is. */ -}}
+{{- $src := . | default "" -}}
+{{- with site.Params.alasin -}}
+  {{- if and .contentPrefix (strings.HasPrefix $src .contentPrefix) -}}
+    {{- $src = printf "%s%s" (strings.TrimSuffix "/" .mediaURL) (printf "/%s" (strings.TrimPrefix .contentPrefix $src)) -}}
+  {{- end -}}
+{{- end -}}
+{{- return $src -}}

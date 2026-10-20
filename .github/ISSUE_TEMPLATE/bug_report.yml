@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for taking the time to report this. **Security problems don't belong here:** report them privately as described in [SECURITY.md](https://github.com/oh2th/alasin/blob/main/SECURITY.md).
+        Thanks for taking the time to report this. **Security problems don't belong here:** report them privately as described in [SECURITY.md](https://github.com/alasin-app/alasin/blob/main/SECURITY.md).
 
         Leave out secrets and anything you don't want public: tokens, client secrets, private repository names or addresses.
   - type: textarea

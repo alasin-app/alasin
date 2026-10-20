@@ -1,6 +1,23 @@
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
-import { alreadyDeployedWarning, cloudflareName, type Existing, hostnameProblem, parseRepository, planItems, planLines, siteItems } from "../../scripts/lib/create-site";
+import {
+  alreadyDeployedWarning,
+  BUILD_TRIGGERS,
+  cloudflareName,
+  type Existing,
+  hostnameProblem,
+  namesFromAlasinWrangler,
+  parseRepository,
+  planItems,
+  planLines,
+  previewUrl,
+  r2DevUrl,
+  siteItems,
+  siteWorkerName,
+  skeletonValuesFor,
+  stripJsonc,
+  zoneCandidates,
+} from "../../scripts/lib/create-site";
 
 const answers = {
   owner: "octocat",
@@ -74,9 +91,123 @@ describe("create-site plan", () => {
     expect(warning).not.toContain("my-site-dev-media");
   });
 
+  it("counts a domain it added as its own before DNS finds it, but plans a vanished bucket again", () => {
+    const items = siteItems(answers);
+    const existing: Existing = new Map(items.map((i) => [i.key, false]));
+    const plan = planItems(items, existing, ["domain:media.example.com", "bucket:my-site-media"]);
+    expect(plan.find((p) => p.key === "domain:media.example.com")!.status).toBe("ours");
+    expect(plan.find((p) => p.key === "bucket:my-site-media")!.status).toBe("new");
+    expect(plan.find((p) => p.key === "domain:www.example.com")!.status).toBe("new");
+  });
+
+  it("counts an item it started making as its own, so a re-run finishes it", () => {
+    const items = siteItems(answers);
+    const existing: Existing = new Map(items.map((i) => [i.key, true]));
+    const plan = planItems(items, existing, ["pending:worker:alasin-dev"]);
+    expect(plan.find((p) => p.key === "worker:alasin-dev")!.status).toBe("ours");
+    expect(plan.find((p) => p.key === "worker:alasin")!.status).toBe("not-ours");
+  });
+
   it("has no warning for a re-run of its own deployment", () => {
     const items = siteItems(answers);
     const all = new Map(items.map((i) => [i.key, true]));
     expect(alreadyDeployedWarning(planItems(items, all, items.map((i) => i.key)))).toBeNull();
+  });
+});
+
+describe("a site deployed earlier", () => {
+  const wrangler = {
+    name: "alasin",
+    r2_buckets: [
+      { binding: "MEDIA", bucket_name: "old-media", jurisdiction: "eu" },
+      { binding: "DRAFTS", bucket_name: "old-media-drafts", jurisdiction: "eu" },
+    ],
+    env: { dev: { name: "alasin-test", r2_buckets: [{ binding: "DRAFTS", bucket_name: "old-drafts-dev" }] } },
+  };
+
+  it("takes the Alasin Workers and buckets from the deployment's wrangler.toml", () => {
+    const known = namesFromAlasinWrangler(wrangler, "deployments/my-site/wrangler.toml");
+    expect(known).toEqual({
+      "alasin:production": { name: "alasin", source: "deployments/my-site/wrangler.toml" },
+      "media:production": { name: "old-media", source: "deployments/my-site/wrangler.toml", jurisdiction: "eu" },
+      "drafts:production": { name: "old-media-drafts", source: "deployments/my-site/wrangler.toml", jurisdiction: "eu" },
+      "alasin:dev": { name: "alasin-test", source: "deployments/my-site/wrangler.toml" },
+      "drafts:dev": { name: "old-drafts-dev", source: "deployments/my-site/wrangler.toml", jurisdiction: "" },
+    });
+    expect(namesFromAlasinWrangler({}, "x")).toEqual({});
+  });
+
+  it("reads the site Worker's name from JSONC, JSON or TOML", () => {
+    const jsonc = `// The site, as static assets.\n{\n  "name": "example-com", // built by Workers Builds\n  /* see https://example.com/docs */\n  "routes": [{ "pattern": "https://www.example.com/*" },],\n}\n`;
+    expect(siteWorkerName("wrangler.jsonc", jsonc)).toBe("example-com");
+    expect(siteWorkerName("wrangler.json", '{"name":"a"}')).toBe("a");
+    expect(siteWorkerName("wrangler.toml", 'name = "b"\n')).toBe("b");
+    expect(siteWorkerName("wrangler.jsonc", "{ not json")).toBeNull();
+    expect(stripJsonc('{"url": "https://x//y", "a": 1,}')).toBe('{"url": "https://x//y", "a": 1}');
+  });
+
+  it("plans existing names instead of a second set, and says where they came from", () => {
+    const known = { ...namesFromAlasinWrangler(wrangler, "deployments/my-site/wrangler.toml"), "site-worker": { name: "example-com", source: "octocat/My.Site/wrangler.jsonc" } };
+    const items = siteItems(answers, known);
+    expect(items.map((i) => i.name)).toEqual([
+      "octocat/My.Site",
+      "old-media",
+      "old-media-drafts",
+      "my-site-dev-media",
+      "old-drafts-dev",
+      "example-com",
+      "alasin",
+      "alasin-test",
+      "www.example.com",
+      "alasin.example.com",
+      "media.example.com",
+    ]);
+    expect(items.find((i) => i.name === "old-media")).toMatchObject({ deployed: "deployments/my-site/wrangler.toml", jurisdiction: "eu" });
+
+    const plan = planItems(items, new Map(items.map((i) => [i.key, i.name !== "my-site-dev-media"])), []);
+    expect(planLines(plan)[1]).toContain("[as in deployments/my-site/wrangler.toml]: EXISTS");
+    expect(alreadyDeployedWarning(plan)).toContain(
+      "This site is already deployed: its own names are taken from deployments/my-site/wrangler.toml and octocat/My.Site/wrangler.jsonc, so no second set is planned.",
+    );
+  });
+});
+
+describe("creating a site", () => {
+  it("deploys only main to production; every other branch, dev included, is a preview", () => {
+    const [prod, preview] = BUILD_TRIGGERS;
+    expect(prod).toMatchObject({ branch_includes: ["main"], deploy_command: "npx wrangler deploy", branch: "main" });
+    expect(preview).toMatchObject({ branch_includes: ["*"], branch_excludes: ["main"], deploy_command: "npx wrangler versions upload", branch: "dev" });
+  });
+
+  it("looks for a host's zone from the most specific name", () => {
+    expect(zoneCandidates("img.blog.example.com")).toEqual(["img.blog.example.com", "blog.example.com", "example.com"]);
+    expect(zoneCandidates("example.com")).toEqual(["example.com"]);
+  });
+
+  it("gives the dev branch's preview address of the site Worker", () => {
+    expect(previewUrl("example-com", "dev", "octocat")).toBe("https://dev-example-com.octocat.workers.dev/");
+    expect(previewUrl("example-com", "Feature/New_Thing", "octocat")).toBe("https://feature-new-thing-example-com.octocat.workers.dev/");
+  });
+
+  it("reads the r2.dev URL from Wrangler's output", () => {
+    expect(r2DevUrl("Public access is enabled at 'https://pub-0123abc.r2.dev'.")).toBe("https://pub-0123abc.r2.dev/");
+    expect(r2DevUrl("Public access via the r2.dev URL is disabled.")).toBeNull();
+  });
+
+  it("fills the skeleton from the answers and the plan", () => {
+    const state = { version: 1 as const, ...answers, jurisdiction: "eu", created: [], title: "My site", devMediaUrl: "https://pub-0123.r2.dev/" };
+    expect(skeletonValuesFor(state, siteItems(state))).toEqual({
+      SITE_URL: "https://www.example.com",
+      SITE_TITLE: "My site",
+      LANGUAGE: "en",
+      MEDIA_URL: "https://media.example.com/",
+      DEV_MEDIA_URL: "https://pub-0123.r2.dev/",
+      SITE_WORKER: "my-site",
+      MODULE_PATH: "github.com/octocat/My.Site",
+    });
+    // Dev only: root-relative links, the dev bucket for both.
+    const dev = { ...state, environments: ["dev" as const], domains: {}, title: undefined };
+    expect(skeletonValuesFor(dev, siteItems(dev))).toMatchObject({ SITE_URL: "", SITE_TITLE: "My.Site", MEDIA_URL: "https://pub-0123.r2.dev/", DEV_MEDIA_URL: "https://pub-0123.r2.dev/" });
+    expect(() => skeletonValuesFor({ ...dev, devMediaUrl: undefined }, siteItems(dev))).toThrow("No media URL yet");
   });
 });

@@ -2,8 +2,8 @@
 //
 // Schema of `alasin.toml`. This is the single source of truth for every option:
 // the Worker validates its configuration against it at startup, `npm run setup`
-// and `npm run build` validate the file before deploying, and the README's
-// configuration reference is generated from the descriptions here.
+// and `npm run build` validate the file before deploying, and the wiki's
+// configuration reference (wiki/Configuration.md) is generated from the descriptions here.
 
 import { z } from "zod";
 

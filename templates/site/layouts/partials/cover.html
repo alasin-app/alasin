@@ -1,0 +1,14 @@
+{{- /* The theme's cover, from Alasin's cover field (`image:`, [site]
+  cover_field in alasin.toml) or the theme's own `cover.image`. Overrides
+  PaperMod's partial of the same name. */ -}}
+{{- with .cxt }}
+{{- $image := .Params.image | default .Params.cover.image }}
+{{- if and $image (not $.isHidden) }}
+{{- $src := partial "alasin/media-url.html" $image }}
+{{- $alt := .Params.cover.alt | default .Params.cover.caption | default "" | plainify }}
+<figure class="entry-cover">
+  <img loading="{{ cond $.IsSingle "eager" "lazy" }}" src="{{ $src }}" alt="{{ $alt }}">
+  {{- if $.IsSingle }}{{ with .Params.cover.caption }}<p>{{ . | markdownify }}</p>{{ end }}{{ end }}
+</figure>
+{{- end }}
+{{- end }}

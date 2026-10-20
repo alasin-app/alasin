@@ -31,7 +31,12 @@ export function parseChecks(template: string): Check[] {
 export function checksInPr(body: string): string[] {
   const m = /^##+ Manual checks[^\n]*\n([\s\S]*?)(?=^##+ |(?![\s\S]))/m.exec(body.replace(/\r\n/g, "\n"));
   if (!m) return [];
-  const text = m[1]!.replace(/<!--[\s\S]*?-->/g, "");
+  // Until none is left: removing one comment can join the pieces of another.
+  let text = m[1]!;
+  for (let prev = ""; prev !== text; ) {
+    prev = text;
+    text = text.replace(/<!--[\s\S]*?-->/g, "");
+  }
   return [...new Set([...text.matchAll(/\b([0-9]+|[A-Z])\.[0-9]+\b/g)].map((x) => x[0]))];
 }
 
@@ -53,7 +58,7 @@ export function runBody(checks: Check[], prs: MergedPr[], extra: string[] = []):
   const chosen = checks.filter((c) => wanted.has(c.id));
   const out = [
     "- **Version:** (shown in the account sheet)",
-    "- **Deployment:** (dev or production)",
+    "- **Deployment:** (a development deployment: test runs are never done on production)",
     "- **Devices:** (e.g. iOS Safari, macOS Chrome)",
     "",
     'Tick a check when it passes. For a failure, add a sub-issue (*Sub-issues* → *Create sub-issue*) whose title starts with the check ID, e.g. "4.19: lock banner missing on iOS": the check gets "❌ #123", and "✅ #123 fixed, re-test" once the bug is closed. Tick the check when the re-test passes.',

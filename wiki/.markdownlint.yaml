@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: MIT
+# The wiki's Markdown style: the repository's (.markdownlint-cli2.yaml, which a
+# folder's config replaces rather than extends), except that pages start at ##,
+# since the wiki shows the page name as the title.
+default: true
+MD013: false
+MD060:
+  style: compact
+MD024:
+  siblings_only: true
+MD041: false
