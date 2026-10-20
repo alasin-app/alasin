@@ -52,7 +52,7 @@ export interface MergedPr {
  * template are listed so they can be fixed.
  */
 /** Where runs are done: the test site, deployed from dev, on these devices. */
-export const RUN_DEPLOYMENT = "https://app.dev.alasin.app (the test site, deployed from `dev` by CI)";
+export const RUN_DEPLOYMENT = "<https://app.dev.alasin.app> (the test site, deployed from `dev` by CI)";
 export const RUN_DEVICES = "iOS Safari, macOS Chrome";
 
 /** A run's title: the dev commit under test, and the release it comes after. */
