@@ -13,6 +13,6 @@ none
 
 ## Documentation
 
-<!-- The wiki/ pages this pull request updates (e.g. New-Site.md, Configuration.md), or "none". Anything a site owner, author, developer or tester does or sees differently after this change belongs in the wiki, in this pull request: commands, prompts and messages, options (npm run docs:config), app behaviour, the test-run process. See CONTRIBUTING.md › Documentation. -->
+<!-- The wiki/ pages this pull request updates (e.g. New-Site.md, Configuration.md), or "none". Anything a site owner, author, developer or tester does or sees differently after this change belongs in the wiki, in this pull request: commands, prompts and messages, options (npm run docs:config), app behaviour, the test-run process. A new or changed feature also gets a line or two, in plain words, under "Unreleased" in wiki/Whats-New.md. See CONTRIBUTING.md › Documentation. -->
 
 none

@@ -106,6 +106,7 @@ Conventions, so the pages work both here and in the wiki:
 - **No `#` title:** the wiki shows the page name. Pages start at `##` (`wiki/.markdownlint.yaml`).
 - **Links between pages** are relative, with `.md` (`[Updating](Updating.md#…)`); publishing removes the `.md`. **Links to repository files** are absolute: `https://github.com/alasin-app/alasin/blob/main/…`.
 - **Generated:** the reference in [Configuration](wiki/Configuration.md) between its markers comes from the config schema (`npm run docs:config`; `npm run lint` checks it).
+- **What's New** (`wiki/Whats-New.md`): a pull request that adds or changes a feature adds a line or two in plain, non-technical words under *Unreleased*; at a release, *Unreleased* becomes the version and date. alasin.app shows the same page.
 - No deployment details, as everywhere (see above).
 
 **Publishing:** `npm run wiki:publish` copies the committed `wiki/` to the wiki (`-- --dry-run` shows what would change). Publish from `main` after a release, so the wiki describes the released version.
