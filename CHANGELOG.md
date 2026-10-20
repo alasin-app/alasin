@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.8.1](https://github.com/alasin-app/alasin/compare/v1.8.0...v1.8.1) (2026-10-20)
+
+
+### Bug Fixes
+
+* **ci:** releases deploy production from the release workflow ([#358](https://github.com/alasin-app/alasin/issues/358)) ([63985d4](https://github.com/alasin-app/alasin/commit/63985d46f35e88bd0a99201075016099b8853a44))
+
 ## [1.8.0](https://github.com/alasin-app/alasin/compare/v1.7.1...v1.8.0) (2026-10-20)
 
 
