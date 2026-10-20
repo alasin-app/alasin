@@ -2,7 +2,7 @@
 // A new site's alasin.toml and wrangler.toml, from the example files and what
 // create-site knows: the repository, the buckets, the site's and media's
 // addresses, and Alasin's Worker names, for production and [env.dev] (or dev
-// alone). npm run setup then does the rest (GitHub App, KV, secrets, domain).
+// alone; a test site is production with the DEV badge). npm run setup then does the rest (GitHub App, KV, secrets, domain).
 //
 // No file access here, so tests can use it.
 
@@ -32,7 +32,7 @@ export function siteConfigFor(
 
   // The base tables are production, or dev when there's only dev.
   const base = prod
-    ? { app: `https://${state.domains.app}`, branch: "main", site: `https://${state.domains.site}`, media: `https://${state.domains.media}/`, label: "" }
+    ? { app: `https://${state.domains.app}`, branch: "main", site: `https://${state.domains.site}`, media: `https://${state.domains.media}/`, label: state.test ? "DEV" : "" }
     : { app: origin(opts.devAppUrl!), branch: "dev", site: origin(state.devSiteUrl!), media: state.devMediaUrl!, label: "DEV" };
 
   let alasin = opts.alasinExample;

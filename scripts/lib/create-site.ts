@@ -22,6 +22,12 @@ export interface SiteState {
   repo: string;
   alasinName: string;
   environments: Environment[];
+  /**
+   * A test site: production only (its own domains, built from main), but with
+   * the dev environment's test features: the sample content on main, the DEV
+   * badge, and --reset-dev resetting main.
+   */
+  test?: boolean;
   /** R2 jurisdiction of new buckets ("" for none). */
   jurisdiction: string;
   /** Production custom domains. */
@@ -37,6 +43,16 @@ export interface SiteState {
   secondAuthor?: { login: string; name: string };
   /** Keys of the items create-site made (see Item.key). */
   created: string[];
+}
+
+/** Whether the site gets the sample content: a dev environment, or a test site. */
+export const hasSampleContent = (state: Pick<SiteState, "environments" | "test">) => state.environments.includes("dev") || !!state.test;
+
+/** Where the sample content goes: the branch, and the buckets' slots for its photos. */
+export function sampleTarget(state: Pick<SiteState, "test">): { branch: string; media: Slot; drafts: Slot; site: string } {
+  return state.test
+    ? { branch: "main", media: "media:production", drafts: "drafts:production", site: "test site" }
+    : { branch: "dev", media: "media:dev", drafts: "drafts:dev", site: "dev site" };
 }
 
 /** What an item is for, independent of its name. */
@@ -112,7 +128,7 @@ export function cloudflareName(value: string): string {
  * Every item create-site makes for these answers, in the order it makes them.
  * A name an existing deployment already uses (`known`) replaces the derived one.
  */
-export function siteItems(state: Pick<SiteState, "owner" | "repo" | "alasinName" | "environments" | "domains">, known: KnownNames = {}): Item[] {
+export function siteItems(state: Pick<SiteState, "owner" | "repo" | "alasinName" | "environments" | "domains" | "test">, known: KnownNames = {}): Item[] {
   const site = cloudflareName(state.repo);
   const alasin = cloudflareName(state.alasinName);
   const items: Item[] = [];
@@ -126,22 +142,24 @@ export function siteItems(state: Pick<SiteState, "owner" | "repo" | "alasinName"
 
   const prod = state.environments.includes("production");
   const dev = state.environments.includes("dev");
+  // A test site is production-shaped; it's named as what it is.
+  const p = state.test ? "test site" : "production";
   add("repo", "repo", `${state.owner}/${state.repo}`, "site repository (private; main and dev branches)");
   if (prod) {
-    add("media:production", "bucket", `${site}-media`, "production media (public)");
-    add("drafts:production", "bucket", `${site}-drafts`, "production drafts (private)");
+    add("media:production", "bucket", `${site}-media`, `${p} media (public)`);
+    add("drafts:production", "bucket", `${site}-drafts`, `${p} drafts (private)`);
   }
   if (dev) {
     add("media:dev", "bucket", `${site}-dev-media`, "dev media (public r2.dev URL)");
     add("drafts:dev", "bucket", `${site}-dev-drafts`, "dev drafts (private)");
   }
-  add("site-worker", "worker", site, prod ? "site Worker (main → production; dev branch → dev preview)" : "site Worker (dev branch preview)");
-  if (prod) add("alasin:production", "worker", alasin, "Alasin, production");
+  add("site-worker", "worker", site, prod ? `site Worker (main → ${p}; dev branch → dev preview)` : "site Worker (dev branch preview)");
+  if (prod) add("alasin:production", "worker", alasin, `Alasin, ${p}`);
   if (dev) add("alasin:dev", "worker", `${alasin}-dev`, "Alasin, dev");
   if (prod) {
-    add("domain:site", "domain", state.domains.site, "production site");
-    add("domain:app", "domain", state.domains.app, "production Alasin");
-    add("domain:media", "domain", state.domains.media, "production media");
+    add("domain:site", "domain", state.domains.site, `${p} site`);
+    add("domain:app", "domain", state.domains.app, `${p} Alasin`);
+    add("domain:media", "domain", state.domains.media, `${p} media`);
   }
   return items;
 }
