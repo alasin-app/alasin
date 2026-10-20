@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: MIT
 // The Categories section: the category tree with how many posts and pages use
-// each, adding categories (also under a parent), and deleting them. Deleting a
+// each, adding categories (also under a parent), renaming and moving them
+// (a new address renames it in every post and page, in one commit), and
+// deleting them. Deleting a
 // used one takes it out of every post and page that has it, in one commit,
 // after a warning; a category with subcategories can't be deleted.
 
 import { Plus } from "lucide-preact";
 import { useEffect, useState } from "preact/hooks";
-import { categoryTree, withoutCategory } from "../../shared/categories";
+import { categoryTree, withCategoryRenamed, withoutCategory } from "../../shared/categories";
 import { slugify } from "../../shared/frontmatter";
 import { api, ApiError, type Me } from "../lib/api";
 import type { ContentItem } from "../lib/content-index";
@@ -26,7 +28,8 @@ export function CategoriesManager(props: { me: Me }) {
   const [busy, setBusy] = useState(false);
   const [chosen, setChosen] = useState<Node | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Node | null>(null);
-  const [adding, setAdding] = useState<{ parent: string } | null>(null);
+  // The add sheet, or the edit sheet when it has the category being edited.
+  const [adding, setAdding] = useState<{ parent: string; editing?: Node } | null>(null);
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [slugEdited, setSlugEdited] = useState(false);
@@ -43,6 +46,15 @@ export function CategoriesManager(props: { me: Me }) {
   // Every post, page and draft that has a category, also in the archive and the Bin.
   const usedBy = (slug: string): ContentItem[] => content.items.filter((i) => i.categories.includes(slug));
   const childrenOf = (slug: string) => site.categories.filter((c) => c.parent === slug);
+  /** Whether category `slug` is somewhere below `ancestor`. */
+  const isBelow = (slug: string, ancestor: string) => {
+    const seen = new Set<string>();
+    for (let p = site.categories.find((c) => c.slug === slug)?.parent; p && !seen.has(p); p = site.categories.find((c) => c.slug === p)?.parent) {
+      if (p === ancestor) return true;
+      seen.add(p);
+    }
+    return false;
+  };
 
   const openAdd = (parent = "") => {
     setTitle("");
@@ -51,12 +63,46 @@ export function CategoriesManager(props: { me: Me }) {
     setAdding({ parent });
   };
 
+  const openEdit = (node: Node) => {
+    setTitle(node.title);
+    setSlug(node.slug);
+    setSlugEdited(true);
+    setAdding({ parent: node.parent ?? "", editing: node });
+  };
+
+  /** The files that have category `from`, read fresh, changed by `edit` (null: not changed). */
+  const changedFiles = async (from: string, edit: (text: string) => string | null) => {
+    const items = usedBy(from);
+    const changes: { path: string; sha: string; content: string }[] = [];
+    for (let i = 0; i < items.length; i += 100) {
+      const batch = items.slice(i, i + 100);
+      const res = await api<{ data?: { repository?: Record<string, { oid?: string; text?: string | null } | null> } }>("/api/content/files", {
+        method: "POST",
+        body: { paths: batch.map((x) => x.path) },
+      });
+      batch.forEach((item, k) => {
+        const blob = res.data?.repository?.[`p${k}`];
+        const text = typeof blob?.text === "string" ? edit(blob.text) : null;
+        if (blob?.oid && text !== null) changes.push({ path: item.path, sha: blob.oid, content: text });
+      });
+    }
+    return changes;
+  };
+
   const add = async () => {
     if (!adding || !title.trim()) return;
     setBusy(true);
     setMessage(null);
     try {
-      await api("/api/categories", { method: "POST", body: { title: title.trim(), slug: slug || undefined, parent: adding.parent || undefined } });
+      const node = adding.editing;
+      if (node) {
+        const newSlug = slug || node.slug;
+        const changes = newSlug !== node.slug ? await changedFiles(node.slug, (text) => withCategoryRenamed(text, node.slug, newSlug)) : [];
+        await api("/api/categories/update", { method: "POST", body: { slug: node.slug, title: title.trim(), newSlug, parent: adding.parent, changes } });
+        update();
+      } else {
+        await api("/api/categories", { method: "POST", body: { title: title.trim(), slug: slug || undefined, parent: adding.parent || undefined } });
+      }
       setAdding(null);
       readSite();
     } catch (err) {
@@ -71,20 +117,7 @@ export function CategoriesManager(props: { me: Me }) {
     setMessage(null);
     try {
       // The posts and pages that have it, without it.
-      const items = usedBy(node.slug);
-      const changes: { path: string; sha: string; content: string }[] = [];
-      for (let i = 0; i < items.length; i += 100) {
-        const batch = items.slice(i, i + 100);
-        const res = await api<{ data?: { repository?: Record<string, { oid?: string; text?: string | null } | null> } }>("/api/content/files", {
-          method: "POST",
-          body: { paths: batch.map((x) => x.path) },
-        });
-        batch.forEach((item, k) => {
-          const blob = res.data?.repository?.[`p${k}`];
-          const text = typeof blob?.text === "string" ? withoutCategory(blob.text, node.slug) : null;
-          if (blob?.oid && text !== null) changes.push({ path: item.path, sha: blob.oid, content: text });
-        });
-      }
+      const changes = await changedFiles(node.slug, (text) => withoutCategory(text, node.slug));
       await api("/api/categories/delete", { method: "POST", body: { slug: node.slug, changes } });
       readSite();
       update();
@@ -154,6 +187,7 @@ export function CategoriesManager(props: { me: Me }) {
           chosen
             ? [
                 { label: t("categories.addSub"), onSelect: () => openAdd(chosen.slug) },
+                { label: t("categories.edit"), onSelect: () => openEdit(chosen) },
                 ...(childrenOf(chosen.slug).length ? [] : [{ label: t("editor.delete"), destructive: true, onSelect: () => setConfirmDelete(chosen) }]),
               ]
             : []
@@ -173,7 +207,7 @@ export function CategoriesManager(props: { me: Me }) {
         cancelLabel={t("common.cancel")}
       />
 
-      <Sheet open={adding !== null} onClose={() => setAdding(null)} title={t("categories.add")} doneLabel={t("common.cancel")}>
+      <Sheet open={adding !== null} onClose={() => setAdding(null)} title={adding?.editing ? t("categories.edit") : t("categories.add")} doneLabel={t("common.cancel")}>
         <form
           class="video-form"
           onSubmit={(e) => {
@@ -190,7 +224,7 @@ export function CategoriesManager(props: { me: Me }) {
             onInput={(e) => {
               const v = (e.target as HTMLInputElement).value;
               setTitle(v);
-              if (!slugEdited) setSlug(v.trim() ? slugify(v) : "");
+              if (!slugEdited && !adding?.editing) setSlug(v.trim() ? slugify(v) : "");
             }}
           />
           <label class="secondary" for="category-slug">
@@ -211,12 +245,18 @@ export function CategoriesManager(props: { me: Me }) {
           </label>
           <select id="category-parent" value={adding?.parent ?? ""} onChange={(e) => adding && setAdding({ parent: (e.target as HTMLSelectElement).value })}>
             <option value="">{t("categories.topLevel")}</option>
-            {tree.map((c) => (
+            {/* Not under itself or anything below it. */}
+            {tree.filter((c) => !adding?.editing || (c.slug !== adding.editing.slug && !isBelow(c.slug, adding.editing.slug))).map((c) => (
               <option value={c.slug}>{`${" ".repeat(c.depth)}${c.title}`}</option>
             ))}
           </select>
+          {adding?.editing && slug && slug !== adding.editing.slug && (
+            <p class="secondary">
+              {usedBy(adding.editing.slug).length ? t("categories.addressChange", { n: String(usedBy(adding.editing.slug).length) }) : t("categories.addressChangeUnused")}
+            </p>
+          )}
           <button type="submit" class="btn btn-filled" disabled={busy || !title.trim()}>
-            {t("categories.add")}
+            {adding?.editing ? t("categories.save") : t("categories.add")}
           </button>
         </form>
       </Sheet>

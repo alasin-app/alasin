@@ -124,7 +124,9 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 - [ ] **5.2 Add a category**: *Add category* (or a category → *Add a subcategory*): name, address (follows the name), parent → a new term page in one commit, with `url` from `[categories] url_pattern` if set; it appears in the tree and in the editor's category picker
 - [ ] **5.3 Delete an unused category**: A category with no posts → *Delete* → confirm: its term page is removed
 - [ ] **5.4 Delete a used category**: A used category → *Delete*: the warning names how many posts and pages use it; *Remove from N and delete* takes it out of all of them and removes the term page in one commit; other categories of those posts stay
-- [ ] **5.5 Subcategories**: A category with subcategories offers no *Delete*, and says to delete those first
+- [ ] **5.5 Subcategories**: A category with subcategories offers no *Delete*, and says to move or delete those first
+- [ ] **5.16 Rename a category**: A used category → *Rename or move* → new name and address → *Save*: one commit moves its term page to the new folder with the old address in `aliases`, renames it in every post, page and draft that had it, and points its subcategories at the new address; the old address on the site redirects to the new one. Someone editing one of those posts blocks it with their name
+- [ ] **5.17 Move a category**: *Rename or move* → another parent (itself and its subcategories aren't offered) → *Save*: the tree shows it there; with `[categories] url_pattern` using `{path}`, its and its subcategories' addresses change and the old ones redirect
 - [ ] **5.6 Media by month**: *Media* lists months as "Month YYYY" under a heading for each year, newest first, the newest open; each image once (no size variants), with a small thumbnail; tapping one opens the full image
 - [ ] **5.7 Loads as needed**: Scrolling down lists older years' months, each with its photo count (also *N of M* with *Used* or *Orphaned*) while still closed; thumbnails load only when a month is opened
 - [ ] **5.8 No adding in Media**: *Media* has no way to add photos, only a note that photos are added from a post or page
