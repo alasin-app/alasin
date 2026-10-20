@@ -1,6 +1,6 @@
 {
   "name": "alasin",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "private": true,
   "description": "A mobile-first editor for Hugo sites stored in GitHub, hosted on Cloudflare, with images in R2.",
   "license": "MIT",

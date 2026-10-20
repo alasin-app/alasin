@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.7.0](https://github.com/alasin-app/alasin/compare/v1.6.0...v1.7.0) (2026-10-20)
+
+
+### Features
+
+* **categories:** rename and move categories ([#330](https://github.com/alasin-app/alasin/issues/330)) ([a923367](https://github.com/alasin-app/alasin/commit/a92336761f3bcf8f0987c9e554ef48c3f7e1deba)), closes [#156](https://github.com/alasin-app/alasin/issues/156)
+* **scripts:** create-site makes a test site on its own domains, deployed by CI ([#327](https://github.com/alasin-app/alasin/issues/327)) ([ff1699e](https://github.com/alasin-app/alasin/commit/ff1699efac839271302beb5dd0172930c608e948)), closes [#326](https://github.com/alasin-app/alasin/issues/326)
+
+
+### Bug Fixes
+
+* **categories:** posts listing a category by name count as using it; the edit sheet keeps its mode ([#335](https://github.com/alasin-app/alasin/issues/335)) ([4e0586e](https://github.com/alasin-app/alasin/commit/4e0586e3e9d0e19df0013191485e71e13be25b2b)), closes [#333](https://github.com/alasin-app/alasin/issues/333) [#334](https://github.com/alasin-app/alasin/issues/334)
+
 ## [1.6.0](https://github.com/alasin-app/alasin/compare/v1.5.0...v1.6.0) (2026-10-20)
 
 
