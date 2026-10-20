@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.1](https://github.com/alasin-app/alasin/compare/v1.7.0...v1.7.1) (2026-10-20)
+
+
+### Bug Fixes
+
+* **site:** adm-zip 0.6.1 in the site skeleton (Dependabot alerts) ([#349](https://github.com/alasin-app/alasin/issues/349)) ([0c58e41](https://github.com/alasin-app/alasin/commit/0c58e413f377bfd382ddaee101155b378edadbb5))
+
 ## [1.7.0](https://github.com/alasin-app/alasin/compare/v1.6.0...v1.7.0) (2026-10-20)
 
 
