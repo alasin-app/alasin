@@ -101,7 +101,7 @@ Cloudflare builds the site from its repository with **Workers Builds**, which us
    - your own account: your profile picture → **Settings → Applications → Installed GitHub Apps**;
    - an organisation: the organisation's **Settings → GitHub Apps** (under *Third-party Access*).
 2. Look for **Cloudflare Workers and Pages**.
-   - **It's there:** click **Configure**. Under **Repository access**, *All repositories* needs nothing more. With *Only select repositories*, the new repository has to be added once A5 has created it (see A5, step 3), or switch to *All repositories* now.
+   - **It's there:** click **Configure**. Under **Repository access**, *All repositories* needs nothing more. With *Only select repositories*, the new repository has to be added once A5 has created it (`create-site` stops at the Site Worker step until then; see [Troubleshooting](#troubleshooting)), or switch to *All repositories* now.
    - **It's not there:** in the Cloudflare dashboard, open **Workers & Pages → Create** → **Import a repository** (or, with an existing Worker: the Worker → **Settings → Builds → Connect**), choose **GitHub**, and when GitHub asks where to install the app, pick **the repository's owner** (the organisation, if it's one). You can cancel the rest afterwards: the app stays installed. Connecting a Worker this way also creates the account's first *build token* (see A4).
 
 ### A3. Create the Workers Builds API token
@@ -170,7 +170,6 @@ Answer **y** to *Create the new items (N) now?*. It then works through these ste
 1. **Buckets:** created; the dev media bucket gets its public address, the production media bucket its domain.
 2. **Site repository:** created from the skeleton site, with `main` and `dev`, and cloned to `deployments/<site>/site/`.
 3. **Site Worker:** created, given the site's domain, and connected to the repository. If the account has several build tokens, it asks which to use (A4). The first builds of `main` and `dev` start. It prints the production and dev site addresses.
-   - If it stops with *Cloudflare's GitHub app must see …*: the app isn't installed on the repository's owner, or it has *Only select repositories* without the new repository. Fix it on GitHub (A2), then run `npm run create-site -- --site <site>` again. It continues here.
 4. **Dev site's sample content** (with dev): sample posts, pages, drafts and photos.
 5. **Alasin, production (1 of 2)**, then **Alasin, dev (2 of 2)**: for each, Alasin's setup runs in the same terminal:
    - *Is this right?* shows the Worker, address, branch and badge: answer **Y**.
@@ -335,7 +334,7 @@ npm run deploy -- --config ../my-site-alasin/alasin.toml    # or ALASIN_CONFIG=�
 | `Invalid token` when `create-site` connects Workers Builds | The token is an **account** token. Make it under **My Profile → API Tokens** (A3). |
 | `Authentication error` from the Builds API | `CLOUDFLARE_BUILDS_TOKEN` isn't set in this terminal, or lacks the two permissions (A3). |
 | A build fails right after *Initializing*: *The build token selected for this build has been deleted or rolled* | The account's chosen build token no longer works. Site Worker → **Settings → Builds → API token**: choose a working one or **Create new token**, then **Retry build** (A4). |
-| *Cloudflare's GitHub app must see …* | Install the app on the repository's owner (the organisation, if it's one), or add the repository to its access on GitHub (A2), then run `create-site` again. |
+| *Cloudflare's GitHub app must see …* | The app isn't installed on the repository's owner (the organisation, if it's one), or it has *Only select repositories* without the new repository. Fix it on GitHub (A2), then run `npm run create-site -- --site <site>` again: it continues at the Site Worker step. |
 | A new domain: *This site can't be reached*, `DNS_PROBE_FINISHED_NXDOMAIN` | Your computer or network still remembers an earlier "not found" for the name. Clear it: in Chrome `chrome://net-internals/#dns` → **Clear host cache**; on macOS `sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder`. Otherwise it clears by itself within about 30 minutes. |
 | *Some of this site already exists, and wasn't made by this deployment* | Something with the planned names is already in your account, possibly a live site. Stop (Enter) and choose other names, unless you mean to reuse it: then it's only reused, never changed. |
 | `gh may not delete repositories yet` (removal) | Run `gh auth refresh -h github.com -s delete_repo`, then the same command again. |
