@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.8.0](https://github.com/alasin-app/alasin/compare/v1.7.1...v1.8.0) (2026-10-20)
+
+
+### Features
+
+* **scripts:** npm run screenshots takes the app's screenshots for alasin.app ([#354](https://github.com/alasin-app/alasin/issues/354)) ([555074b](https://github.com/alasin-app/alasin/commit/555074b8e8b1546f4871ac4d5855ff94748dc05f))
+* **scripts:** screenshots show the test site's photos in Media ([#355](https://github.com/alasin-app/alasin/issues/355)) ([76fdeff](https://github.com/alasin-app/alasin/commit/76fdeff1a59a2b7137bebe6d5720162efd6ef840))
+
 ## [1.7.1](https://github.com/alasin-app/alasin/compare/v1.7.0...v1.7.1) (2026-10-20)
 
 
