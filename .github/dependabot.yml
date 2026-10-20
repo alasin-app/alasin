@@ -13,6 +13,11 @@ updates:
       dev-dependencies:
         dependency-type: development
         update-types: [minor, patch]
+    ignore:
+      # typescript-eslint doesn't support TypeScript 7 yet (its peer range ends
+      # below 6.1, and 7 drops the compiler API it parses with). Remove once it does.
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     target-branch: dev
