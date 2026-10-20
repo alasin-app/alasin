@@ -4,8 +4,8 @@ date: 2025-05-10T10:00:00Z
 slug: "an-older-trip"
 lastmod: 2025-05-10T10:00:00Z
 categories:
-  - "Travel"
-  - "Mountains"
+  - "travel"
+  - "mountains"
 tags:
   - "lakes"
 image: "/img/2025/05/10/mountain-lake.jpg"

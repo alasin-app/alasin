@@ -61,3 +61,16 @@ describe("withCategoryRenamed", () => {
     expect(withCategoryRenamed(`+++\ncategories = "travel"\n+++\n`, "travel", "trips")).toBe(`+++\ncategories = [ "trips" ]\n+++\n`);
   });
 });
+
+describe("isCategory", () => {
+  it("matches a category by its slug, or by a name Hugo turns into it", async () => {
+    const { isCategory, withCategoryRenamed, withoutCategory } = await import("../../src/shared/categories");
+    expect(isCategory("travel", "travel")).toBe(true);
+    expect(isCategory("Travel", "travel")).toBe(true);
+    expect(isCategory("Travels", "travel")).toBe(false);
+    const text = `---\ncategories:\n  - "Coast"\n  - "Travel"\n---\n`;
+    expect(withCategoryRenamed(text, "travel", "matkailu")).toContain('"Coast", "matkailu"');
+    expect(withoutCategory(text, "travel")).toContain('"Coast"');
+    expect(withoutCategory(text, "travel")).not.toContain("Travel");
+  });
+});

@@ -4,8 +4,8 @@ date: 2026-07-02T16:00:00Z
 slug: "lakes-of-the-north"
 lastmod: 2026-07-02T16:00:00Z
 categories:
-  - "Travel"
-  - "Mountains"
+  - "travel"
+  - "mountains"
 tags:
   - "lakes"
   - "hiking"

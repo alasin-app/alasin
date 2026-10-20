@@ -4,7 +4,7 @@ date: 2026-04-02T11:00:00Z
 slug: "a-deleted-post"
 lastmod: 2026-04-02T11:00:00Z
 categories:
-  - "Nature"
+  - "nature"
 author: "__SECOND_AUTHOR_NAME__"
 author_id: "__SECOND_AUTHOR_ID__"
 ---

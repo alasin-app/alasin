@@ -4,7 +4,7 @@ date: 2026-06-14T08:30:00Z
 slug: "spring-blossoms"
 lastmod: 2026-06-14T08:30:00Z
 categories:
-  - "Nature"
+  - "nature"
 tags:
   - "flowers"
   - "spring"

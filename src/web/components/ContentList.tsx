@@ -6,7 +6,7 @@
 
 import { ChevronDown, ChevronRight, RotateCw, Search as SearchIcon, X } from "lucide-preact";
 import { useMemo, useState } from "preact/hooks";
-import { categoryTree } from "../../shared/categories";
+import { categoryTree, isCategory } from "../../shared/categories";
 import { api, ApiError, avatarUrl, type Me } from "../lib/api";
 import { authorKey, authorName, authorUser } from "../lib/authors";
 import { type ContentItem, type ItemKind, valueCounts } from "../lib/content-index";
@@ -69,7 +69,7 @@ export function ContentRow(props: {
 }) {
   const { item } = props;
   const route = routeFor(item);
-  const title = (slug: string) => props.site.categories.find((c) => c.slug === slug)?.title ?? slug;
+  const title = (value: string) => props.site.categories.find((c) => isCategory(value, c.slug))?.title ?? value;
   const date = Number.isNaN(item.time) ? "" : new Date(item.time).toLocaleDateString(getLanguage(), { day: "numeric", month: "short", year: "numeric" });
   const kind = props.showKind ? (item.kind === "post" ? t("drafts.post") : t("drafts.page")) : "";
   const inner = (
@@ -166,7 +166,7 @@ export function ContentList(props: { me: Me; kind: ItemKind }) {
   const shown = useMemo(() => {
     let list = ofKind.filter((i) => (filter === "all" ? i.state !== "archived" : i.state === filter));
     // Posts that have any of the chosen categories themselves (not the categories below them).
-    if (categories.length) list = list.filter((i) => i.categories.some((c) => categories.includes(c)));
+    if (categories.length) list = list.filter((i) => i.categories.some((c) => categories.some((s) => isCategory(c, s))));
     if (authors.length && site) list = list.filter((i) => authors.includes(authorKey(i, site)));
     if (tags.length) list = list.filter((i) => i.tags.some((x) => tags.includes(x)));
     if (query.trim()) {
