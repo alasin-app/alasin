@@ -45,7 +45,7 @@ The rules for code (licence headers, translations, configuration options, depend
 
 ## Screenshots for alasin.app
 
-`npm run screenshots` takes the app's screenshots for alasin.app: Home, Posts, the editor, Categories and Media, at iPhone and desktop sizes, in light and dark mode. It runs Alasin locally (`npm run dev --https`) with the test site's configuration (`--site`, default `app.alasin.dev`) and its sample content, signs in as the person `gh` is logged in as, and shows a made-up person (*Aino Virtanen*) instead of them, without the **DEV** badge. The images go to `.alasin/screenshots/` (`--out` for another folder).
+`npm run screenshots` takes the app's screenshots for alasin.app: Home, Posts, the editor, Categories and Media, at iPhone and desktop sizes, in light and dark mode. It runs Alasin locally (`npm run dev --https --remote-media`: the photo buckets are the test site's real ones, read only, so *Media* shows its photos) with the test site's configuration (`--site`, default `app.alasin.dev`) and its sample content, signs in as the person `gh` is logged in as, and shows a made-up person (*Aino Virtanen*) instead of them, without the **DEV** badge. The images go to `.alasin/screenshots/` (`--out` for another folder).
 
 It needs the test site's `.dev.vars` (setup writes it when asked *Write … .dev.vars for local development?*) and the browser: `npx playwright install chromium`.
 

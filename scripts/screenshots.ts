@@ -3,7 +3,7 @@
 // npm run screenshots [-- --site <name>] [--out <dir>]
 //
 // Screenshots of the app for alasin.app (#353): runs Alasin locally (npm run
-// dev --https) with a test site's configuration (default app.alasin.dev, with the
+// dev --https --remote-media) with a test site's configuration (default app.alasin.dev, with the
 // sample content), signs in as the user `gh` is logged in as (a session made
 // with their gh token, written to the local KV), and takes the same set every
 // time: iPhone and desktop sizes (Chromium), light and dark, with the DEV
@@ -50,7 +50,7 @@ const gh = (...a: string[]) => execFileSync("gh", a, { encoding: "utf8" }).trim(
 
 async function main() {
   mkdirSync(out, { recursive: true });
-  const server = spawn("npm", ["run", "-s", "dev", "--", "--site", site, "--https"], { cwd: repoRoot, stdio: ["ignore", "ignore", "inherit"], detached: true });
+  const server = spawn("npm", ["run", "-s", "dev", "--", "--site", site, "--https", "--remote-media"], { cwd: repoRoot, stdio: ["ignore", "ignore", "inherit"], detached: true });
   // The script's own requests to the local server, whose certificate is self-signed.
   const local = await request.newContext({ baseURL: BASE, ignoreHTTPSErrors: true });
   try {
