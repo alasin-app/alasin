@@ -108,6 +108,8 @@ Conventions, so the pages work both here and in the wiki:
 - **Generated:** the reference in [Configuration](wiki/Configuration.md) between its markers comes from the config schema (`npm run docs:config`; `npm run lint` checks it).
 - No deployment details, as everywhere (see above).
 
+**Publishing:** `npm run wiki:publish` copies the committed `wiki/` to the wiki (`-- --dry-run` shows what would change). Publish from `main` after a release, so the wiki describes the released version.
+
 ## Reporting security issues
 
 Not in public issues — see [SECURITY.md](SECURITY.md).
