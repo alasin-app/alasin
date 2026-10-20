@@ -4,7 +4,8 @@
 #   - the dev environment on every push to the dev branch;
 #   - production on each published release (tag vX.Y.Z on main).
 #
-# Enabled only when the repository variable ALASIN_DEPLOY is "true". Each
+# Enabled by the repository variable ALASIN_DEPLOY: "dev" deploys only the dev
+# environment, "production" only releases, "true" both. Each
 # deployment uses a protected GitHub environment ("dev", "production") with:
 #   CLOUDFLARE_API_TOKEN   token with the permissions listed in wiki/Troubleshooting.md (Without a browser)
 #   CLOUDFLARE_ACCOUNT_ID
@@ -29,7 +30,7 @@ permissions:
 jobs:
   deploy:
     name: deploy
-    if: vars.ALASIN_DEPLOY == 'true'
+    if: vars.ALASIN_DEPLOY == 'true' || vars.ALASIN_DEPLOY == (github.event_name == 'release' && 'production' || 'dev')
     runs-on: ubuntu-latest
     environment: ${{ github.event_name == 'release' && 'production' || 'dev' }}
     concurrency:
