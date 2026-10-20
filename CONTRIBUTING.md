@@ -11,7 +11,7 @@ npm run lint
 npm run typecheck
 ```
 
-`npm run dev` runs the app locally; see the README's *Local development* section.
+Running the app locally, a test environment and the code's layout: see [Development](wiki/Development.md) and [Test Environment](wiki/Test-Environment.md).
 
 ## Branches
 
@@ -56,6 +56,8 @@ For Alasin, a change is breaking if an existing deployment would stop working or
 
 ## Releases
 
+**Testing:** manual test runs are done on a development deployment running `dev`, before a release, never on production. After a release updates production, only smoke checks follow. See [Testing](wiki/Testing.md).
+
 Nobody edits version numbers by hand. After each merge to `main`, [release-please](https://github.com/googleapis/release-please) opens or updates a release PR with the version bump and `CHANGELOG.md`. Merging it tags `vX.Y.Z` and publishes the GitHub Release, which deploys production (if continuous deployment is enabled).
 
 ### Before 1.0.0
@@ -70,29 +72,41 @@ Release PRs are created with the workflow token, so CI doesn't run on them autom
 
 Alasin is generic. Nothing that identifies a real deployment — site names, domains, bucket names, usernames, account IDs, post content, screenshots of a real site — may appear in code, tests, docs, commit messages, branch names or PR text. Use `example.com`-style placeholders and synthetic test fixtures.
 
-If you run a deployment, list its identifying terms in `.local/denylist` (gitignored, one per line). The pre-commit and commit-msg hooks and `npm run lint` then refuse anything that contains them. Keep your own `alasin.toml`, `wrangler.toml` and `.dev.vars` in `deployments/<site>/` (gitignored; see *Several sites in one clone* in INSTALLATION.md) or a separate private repository. Like `.local/`, nothing under `deployments/` can be committed: the hooks and `npm run lint` refuse it.
+If you run a deployment, list its identifying terms in `.local/denylist` (gitignored, one per line). The pre-commit and commit-msg hooks and `npm run lint` then refuse anything that contains them. Keep your own `alasin.toml`, `wrangler.toml` and `.dev.vars` in `deployments/<site>/` (gitignored; see [Configuration Files](wiki/Configuration-Files.md)) or a separate private repository. Like `.local/`, nothing under `deployments/` can be committed: the hooks and `npm run lint` refuse it.
 
 ## Code
 
-- TypeScript, small modules: `src/worker` (API), `src/web` (app), `src/shared` (config schema and helpers), `scripts` (setup and deploy).
-- `templates/site/` is the skeleton Hugo site that `create-site` writes, on the PaperMod theme. `templates/sample/` is the dev site's sample content (`repo/`, laid out as in the site repository, with `__NAME__` placeholders for the site title and the two authors) and its photos (`images/`, credited in `CREDITS.md`). `npm run skeleton:check` builds the skeleton with test content and with the sample content (needs Go); CI runs it too.
+- TypeScript, small modules; the layout is in [Development](wiki/Development.md#code).
+- A change to `templates/site/` or `templates/sample/` is checked by `npm run skeleton:check` (needs Go); CI runs it too.
 - Every source file starts with `// SPDX-License-Identifier: MIT`.
 - All user-visible text goes through `t()` in `src/web/lib/i18n.ts`, in English and Finnish.
-- New `alasin.toml` options go in `src/shared/config/schema.ts` with a description and in `alasin.example.toml`; then run `npm run docs:config`.
+- New `alasin.toml` options go in `src/shared/config/schema.ts` with a description and in `alasin.example.toml`; then run `npm run docs:config`, which updates [Configuration](wiki/Configuration.md).
 - Dependencies must have MIT-compatible licences (MIT, BSD, Apache-2.0, ISC) and are pinned exactly.
 - Security-relevant behaviour gets a test (see `test/worker`).
 - Things only a person on a real device can check are manual checks: see *Manual tests* below.
+- A change that users or operators notice updates the documentation in the same pull request: see *Documentation* below.
 
 ## Manual tests
 
-Automated tests (`npm test`) cover the Worker, the configuration and the scripts. What needs real devices, GitHub or Cloudflare is checked by hand, in test runs:
+What needs real devices, GitHub or Cloudflare is checked by hand, in test runs: see [Testing](wiki/Testing.md#manual-test-runs). In short:
 
-- **The checks** are in [`.github/ISSUE_TEMPLATE/test-run.md`](.github/ISSUE_TEMPLATE/test-run.md), grouped by area. A pull request that adds or changes behaviour adds or updates its checks there.
-- **Every pull request lists the checks it affects** under *Manual checks* (the pull request template has the section), or says "none". List only what someone has to redo by hand for this change: what automated tests cover needs no manual check, and the install, deploy and update checks (1.1–1.3) only come up when installing, deploying or updating changes.
-- **A test run is an issue** labelled `test-run`. `npm run test-run` builds one from the pull requests merged into `dev` since the last run, with only the checks they list (add more with `--checks 2.21,A.3`); `-- --create` opens it. Tick each check as it passes. For a failure, add a sub-issue to the run whose title starts with the check ID (e.g. "4.19: lock banner missing on iOS"): a workflow marks the check "❌ #123", and "✅ #123 fixed, re-test" once the bug is closed; bugs without a check ID are listed at the end of the run. Close the run when every check is ticked.
-- **Where:** any deployment running the version under test; a run doesn't need a fresh installation. Record the version, the deployment (dev or production) and the devices at the top of the run; never a deployment's own names, addresses or accounts.
+- A pull request that adds or changes behaviour adds or updates its checks in [`.github/ISSUE_TEMPLATE/test-run.md`](.github/ISSUE_TEMPLATE/test-run.md).
+- **Every pull request lists the checks it affects** under *Manual checks*, or says "none": only what someone has to redo by hand for this change.
 
-Past runs: [closed `test-run` issues](https://github.com/alasin-app/alasin/issues?q=label%3Atest-run).
+## Documentation
+
+The documentation is in [`wiki/`](wiki/Home.md), written to be published as the repository's GitHub wiki. It has two audiences, kept apart:
+
+- **Running a site:** for the person who sets up and looks after a site. Only what they need: production, no test environment, no development.
+- **Developing and testing:** contributors and testers: [Development](wiki/Development.md), [Test Environment](wiki/Test-Environment.md), [Testing](wiki/Testing.md). This file stays in the repository, since GitHub shows it with pull requests.
+
+Conventions, so the pages work both here and in the wiki:
+
+- **One file per page.** The file name is the page name with hyphens for spaces (`Users-and-Access.md` → *Users and Access*). `Home.md` is the start page; `_Sidebar.md` lists every page, so a new page is added there too.
+- **No `#` title:** the wiki shows the page name. Pages start at `##` (`wiki/.markdownlint.yaml`).
+- **Links between pages** are relative, with `.md` (`[Updating](Updating.md#…)`); publishing removes the `.md`. **Links to repository files** are absolute: `https://github.com/alasin-app/alasin/blob/main/…`.
+- **Generated:** the reference in [Configuration](wiki/Configuration.md) between its markers comes from the config schema (`npm run docs:config`; `npm run lint` checks it).
+- No deployment details, as everywhere (see above).
 
 ## Reporting security issues
 

@@ -53,7 +53,7 @@ export function runBody(checks: Check[], prs: MergedPr[], extra: string[] = []):
   const chosen = checks.filter((c) => wanted.has(c.id));
   const out = [
     "- **Version:** (shown in the account sheet)",
-    "- **Deployment:** (dev or production)",
+    "- **Deployment:** (a development deployment: test runs are never done on production)",
     "- **Devices:** (e.g. iOS Safari, macOS Chrome)",
     "",
     'Tick a check when it passes. For a failure, add a sub-issue (*Sub-issues* → *Create sub-issue*) whose title starts with the check ID, e.g. "4.19: lock banner missing on iOS": the check gets "❌ #123", and "✅ #123 fixed, re-test" once the bug is closed. Tick the check when the re-test passes.',
