@@ -1,9 +1,5 @@
 The new and improved features in each Alasin release, newest first. To get them on your site, see [Updating](Updating.md); for every change in detail, including upgrade steps, see the [release notes](https://github.com/alasin-app/alasin/releases).
 
-## Unreleased
-
-Nothing yet.
-
 ## 1.7.0 (20 October 2026)
 
 - **Rename and move categories.** Give a category a new name or address, or put it under another category. Every post and page that uses it follows along, and old links to the category keep working.
