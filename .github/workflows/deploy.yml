@@ -3,7 +3,9 @@
 # Continuous deployment (optional):
 #   - the dev environment on every push to the dev branch, or by hand (Actions →
 #     Deploy → Run workflow, on dev), e.g. after changing its configuration;
-#   - production on each published release (tag vX.Y.Z on main).
+#   - production on each release: the release workflow calls this one with the
+#     release's tag (a release made by release-please doesn't start workflows
+#     itself), or by hand: Run workflow with a tag.
 #
 # Enabled by the repository variable ALASIN_DEPLOY: "dev" deploys only the dev
 # environment, "production" only releases, "true" both. Each
@@ -25,6 +27,17 @@ on:
   release:
     types: [published]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "A release tag (vX.Y.Z) to deploy to production; empty deploys dev"
+        required: false
+        default: ""
+  workflow_call:
+    inputs:
+      tag:
+        description: "The release tag to deploy to production"
+        type: string
+        required: true
 
 permissions:
   contents: read
@@ -32,16 +45,16 @@ permissions:
 jobs:
   deploy:
     name: deploy
-    if: vars.ALASIN_DEPLOY == 'true' || vars.ALASIN_DEPLOY == (github.event_name == 'release' && 'production' || 'dev')
+    if: vars.ALASIN_DEPLOY == 'true' || vars.ALASIN_DEPLOY == ((github.event_name == 'release' || inputs.tag) && 'production' || 'dev')
     runs-on: ubuntu-latest
-    environment: ${{ github.event_name == 'release' && 'production' || 'dev' }}
+    environment: ${{ (github.event_name == 'release' || inputs.tag) && 'production' || 'dev' }}
     concurrency:
-      group: deploy-${{ github.event_name == 'release' && 'production' || 'dev' }}
+      group: deploy-${{ (github.event_name == 'release' || inputs.tag) && 'production' || 'dev' }}
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.sha }}
+          ref: ${{ inputs.tag || github.event.release.tag_name || github.sha }}
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
@@ -60,7 +73,7 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           WRANGLER_SEND_METRICS: "false"
-          ALASIN_ENV: ${{ vars.ALASIN_ENV || (github.event_name == 'release' && 'none' || 'dev') }}
+          ALASIN_ENV: ${{ vars.ALASIN_ENV || ((github.event_name == 'release' || inputs.tag) && 'none' || 'dev') }}
         run: |
           if [ "$ALASIN_ENV" = "none" ]; then
             npm run deploy -- --config "$RUNNER_TEMP/deployment/alasin.toml"
