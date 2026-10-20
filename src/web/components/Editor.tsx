@@ -13,7 +13,7 @@ import { useVisibleTop } from "../lib/visual-viewport";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { fromLocalInput, slugify, toLocalInput } from "../../shared/frontmatter";
 import { youtubeId, youtubeShortcode } from "../../shared/youtube";
-import { categoryTree } from "../../shared/categories";
+import { categoryTree, isCategory } from "../../shared/categories";
 import { api, ApiError, avatarUrl, type Me, NetworkError } from "../lib/api";
 import { authorKey, authorName } from "../lib/authors";
 import { type DraftDoc, type DraftForm, newDraft, parseDraft, prepareSave, serializeDraft } from "../lib/draft-model";
@@ -1345,7 +1345,7 @@ export function Editor(props: { me: Me; source: EditSource }) {
         ) : (
           <ul class="grouped-list">
             {categories.map((c) => {
-              const checked = f.categories.includes(c.slug);
+              const checked = f.categories.some((x) => isCategory(x, c.slug));
               return (
                 <li>
                   {/* Nested categories are indented under their parent. */}
@@ -1357,7 +1357,7 @@ export function Editor(props: { me: Me; source: EditSource }) {
                       type="checkbox"
                       checked={checked}
                       onChange={() =>
-                        setForm({ categories: checked ? f.categories.filter((x) => x !== c.slug) : [...f.categories, c.slug] })
+                        setForm({ categories: checked ? f.categories.filter((x) => !isCategory(x, c.slug)) : [...f.categories, c.slug] })
                       }
                     />
                   </label>

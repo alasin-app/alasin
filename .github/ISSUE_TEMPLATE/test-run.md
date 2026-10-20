@@ -7,9 +7,9 @@ labels: test-run
 
 <!-- Opened by hand, this is a full run: delete the areas and checks the changes didn't touch. `npm run test-run` opens a run with only the checks affected by the pull requests merged since the last run. -->
 
-- **Version:** (shown in the account sheet)
-- **Deployment:** (a development deployment: test runs are never done on production)
-- **Devices:** (e.g. iOS Safari, macOS Chrome)
+- **Version:** `dev` at (commit; shown in the account sheet)
+- **Deployment:** <https://app.dev.alasin.app> (the test site, deployed from `dev` by CI)
+- **Devices:** iOS Safari, macOS Chrome
 
 Tick a check when it passes. For a failure, add a sub-issue (*Sub-issues* → *Create sub-issue*) whose title starts with the check ID, e.g. "4.19: lock banner missing on iOS": the check gets "❌ #123", and "✅ #123 fixed, re-test" once the bug is closed. Tick the check when the re-test passes.
 
@@ -38,6 +38,8 @@ Tick a check when it passes. For a failure, add a sub-issue (*Sub-issues* → *C
 - [ ] **1.21 create-site sets up Alasin**: For the site from 1.20, `npm run create-site -- --site <site>`: `deployments/<site>/alasin.toml` and `wrangler.toml` are written (production on the app's domain, branch `main`, the production buckets; `[env.dev]` with its own Worker on workers.dev, branch `dev`, the dev buckets and the dev site's and `r2.dev` addresses, badge DEV); setup runs for production and for dev in the same terminal, each creating its GitHub App in the browser, and both are deployed. Signing in to the dev app shows the sample content (five posts by two authors, the drafts, *Archived*, the Bin, the categories, an orphaned photo in *Media*); the production app shows the empty site. Running it again sets nothing up twice
 - [ ] **1.22 Reset dev**: In the dev app of a site from 1.21, add a post with a photo, edit a sample post, delete one and empty the Bin. Then `npm run create-site -- --site <site> --reset-dev` lists what it will replace and asks for the repository name (anything else stops with nothing changed); after typing it, the `dev` branch has one new commit, the dev buckets are emptied and get the sample photos again, and after the dev build and a reload the dev app and site show exactly the sample content again (the new post and its photo gone, the edit undone, the deleted post back). Production is unchanged. With uncommitted changes in `deployments/<site>/site/` it refuses
 - [ ] **1.23 Remove a site**: `npm run create-site -- --site <site> --remove --dry-run` for a test site lists everything it made and nothing else; for a site in `deployments/` without `create-site.json` (e.g. production's, copied there) it refuses. `--remove-dev` on a test site with both environments, after typing the repository name: the dev Alasin Worker and its KV namespace, the dev GitHub App (deleted on the page it shows, then checked), the dev buckets and the `dev` branch are gone, `[env.dev]` is out of the configuration, and production's site and app still work. `--remove` on the same site: both Alasin Workers, the GitHub Apps, the site Worker with its domain and Workers Builds triggers, all buckets, the repository and `deployments/<site>/` are gone, and the domains no longer answer. Stopping a run (e.g. at a GitHub App) and running it again continues
+- [ ] **1.24 Test site**: `npm run create-site` with *Environments* **test**, a repository named after the test site's domain and its three domains: the plan names the items as the test site's; the repository's `main` gets the sample content and the media bucket the photos; the site shows the sample posts on its own domain; its Alasin, on its domain, shows the DEV badge and the sample content and commits to `main`. `--reset-dev` after changes in the app puts `main`'s content folders back to the sample content (the site's configuration stays) and the photos back; `--remove` removes it all
+- [ ] **1.25 Test site deployed from CI**: With the `dev` GitHub environment set up as in the wiki (Test Environment → From continuous deployment), a push to `dev` runs *Deploy*, which deploys the test site's Alasin without `--env`; the account sheet shows the new commit's version
 
 ## Drafts, editor and photos
 
@@ -122,7 +124,9 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 - [ ] **5.2 Add a category**: *Add category* (or a category → *Add a subcategory*): name, address (follows the name), parent → a new term page in one commit, with `url` from `[categories] url_pattern` if set; it appears in the tree and in the editor's category picker
 - [ ] **5.3 Delete an unused category**: A category with no posts → *Delete* → confirm: its term page is removed
 - [ ] **5.4 Delete a used category**: A used category → *Delete*: the warning names how many posts and pages use it; *Remove from N and delete* takes it out of all of them and removes the term page in one commit; other categories of those posts stay
-- [ ] **5.5 Subcategories**: A category with subcategories offers no *Delete*, and says to delete those first
+- [ ] **5.5 Subcategories**: A category with subcategories offers no *Delete*, and says to move or delete those first
+- [ ] **5.16 Rename a category**: A used category → *Rename or move* → new name and address → *Save*: one commit moves its term page to the new folder with the old address in `aliases`, renames it in every post, page and draft that had it, and points its subcategories at the new address; the old address on the site redirects to the new one. Someone editing one of those posts blocks it with their name
+- [ ] **5.17 Move a category**: *Rename or move* → another parent (itself and its subcategories aren't offered) → *Save*: the tree shows it there; with `[categories] url_pattern` using `{path}`, its and its subcategories' addresses change and the old ones redirect
 - [ ] **5.6 Media by month**: *Media* lists months as "Month YYYY" under a heading for each year, newest first, the newest open; each image once (no size variants), with a small thumbnail; tapping one opens the full image
 - [ ] **5.7 Loads as needed**: Scrolling down lists older years' months, each with its photo count (also *N of M* with *Used* or *Orphaned*) while still closed; thumbnails load only when a month is opened
 - [ ] **5.8 No adding in Media**: *Media* has no way to add photos, only a note that photos are added from a post or page

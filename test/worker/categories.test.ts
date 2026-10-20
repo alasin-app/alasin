@@ -86,4 +86,38 @@ describe("categories", () => {
     expect(gh.repo.files().has("content/categories/holidays/_index.md")).toBe(true);
     await env.LOCKS.get(env.LOCKS.idFromName("locks")).release(`file:${p}`, "tab-other0");
   });
+
+  it("renames a category's address: its term page moves, posts and children follow, the old address stays an alias, in one commit", async () => {
+    const p = "content/posts/2026/a.md";
+    const text = '---\ntitle: "A"\ncategories: ["travel"]\n---\n\nText.\n';
+    await gh.repo.write(p, text);
+    const before = gh.repo.commits.size;
+    const res = await post("/update", { slug: "travel", title: "Trips", newSlug: "trips", changes: [{ path: p, sha: await shaOf(p), content: text.replace('["travel"]', '["trips"]') }] });
+    expect(await res.json()).toEqual({ slug: "trips", changed: 1 });
+    expect(gh.repo.commits.size).toBe(before + 1);
+    expect(gh.repo.lastCommit().message).toBe("Rename category travel to trips, updating 1 item");
+    const files = gh.repo.files();
+    expect(files.has("content/categories/travel/_index.md")).toBe(false);
+    expect(files.get("content/categories/trips/_index.md")).toBe('---\ntitle: "Trips"\nslug: "trips"\nurl: "/category/trips/"\naliases: ["/categories/travel/"]\n---\n');
+    expect(files.get("content/categories/holidays/_index.md")).toContain('parent: "trips"');
+    expect(files.get("content/categories/holidays/_index.md")).toContain('url: "/category/trips/holidays/"');
+    expect(files.get(p)).toContain('categories: ["trips"]');
+  });
+
+  it("moves a category to the top level, its address and its old one as an alias", async () => {
+    await gh.repo.write("content/categories/holidays/_index.md", '---\ntitle: "Holidays"\nslug: "holidays"\nparent: "travel"\nurl: "/category/travel/holidays/"\n---\n');
+    expect(await (await post("/update", { slug: "holidays", parent: "", changes: [] })).json()).toEqual({ slug: "holidays", changed: 0 });
+    expect(gh.repo.files().get("content/categories/holidays/_index.md")).toBe('---\ntitle: "Holidays"\nslug: "holidays"\nurl: "/category/holidays/"\naliases: ["/category/travel/holidays/"]\n---\n');
+    expect(gh.repo.lastCommit().message).toBe("Move category holidays to the top level");
+  });
+
+  it("refuses a loop, an address in use, post changes without a new address, and other files in the folder", async () => {
+    expect((await post("/update", { slug: "travel", parent: "holidays", changes: [] })).status).toBe(400);
+    expect((await post("/update", { slug: "travel", newSlug: "holidays", changes: [] })).status).toBe(409);
+    const p = "content/posts/c.md";
+    await gh.repo.write(p, '---\ncategories: ["travel"]\n---\n');
+    expect((await post("/update", { slug: "travel", title: "T", changes: [{ path: p, sha: await shaOf(p), content: '---\ncategories: ["x"]\n---\n' }] })).status).toBe(400);
+    await gh.repo.write("content/categories/travel/cover.jpg", "x");
+    expect(await (await post("/update", { slug: "travel", newSlug: "trips", changes: [] })).json()).toMatchObject({ error: "has_files" });
+  });
 });

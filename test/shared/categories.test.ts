@@ -41,3 +41,36 @@ describe("withoutCategory", () => {
     expect(withoutCategory(toml, "a")).toBe(`+++\ntitle = "T"\ncategories = [ "b" ]\n+++\nBody\n`);
   });
 });
+
+describe("withCategoryRenamed", () => {
+  it("renames a category in its place, changing only that line", async () => {
+    const { withCategoryRenamed } = await import("../../src/shared/categories");
+    const text = `---\ntitle: 'Trip'\ncategories: ["travel", "summer-2015"]\ntags: [a]\n---\n\nText.\n`;
+    expect(withCategoryRenamed(text, "travel", "trips")).toBe(text.replace('["travel", "summer-2015"]', '["trips", "summer-2015"]'));
+    expect(withCategoryRenamed(text, "dogs", "cats")).toBeNull();
+  });
+
+  it("keeps a category once when the file already has the new one", async () => {
+    const { withCategoryRenamed } = await import("../../src/shared/categories");
+    const text = `---\ncategories: ["travel", "trips"]\n---\n`;
+    expect(withCategoryRenamed(text, "travel", "trips")).toBe(`---\ncategories: ["trips"]\n---\n`);
+  });
+
+  it("renames a single category written as a string", async () => {
+    const { withCategoryRenamed } = await import("../../src/shared/categories");
+    expect(withCategoryRenamed(`+++\ncategories = "travel"\n+++\n`, "travel", "trips")).toBe(`+++\ncategories = [ "trips" ]\n+++\n`);
+  });
+});
+
+describe("isCategory", () => {
+  it("matches a category by its slug, or by a name Hugo turns into it", async () => {
+    const { isCategory, withCategoryRenamed, withoutCategory } = await import("../../src/shared/categories");
+    expect(isCategory("travel", "travel")).toBe(true);
+    expect(isCategory("Travel", "travel")).toBe(true);
+    expect(isCategory("Travels", "travel")).toBe(false);
+    const text = `---\ncategories:\n  - "Coast"\n  - "Travel"\n---\n`;
+    expect(withCategoryRenamed(text, "travel", "matkailu")).toContain('"Coast", "matkailu"');
+    expect(withoutCategory(text, "travel")).toContain('"Coast"');
+    expect(withoutCategory(text, "travel")).not.toContain("Travel");
+  });
+});

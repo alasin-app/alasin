@@ -1,8 +1,9 @@
-A test environment is a second Alasin, with a **DEV** badge, writing to the site repository's `dev` branch, with its own Worker, address, buckets, KV namespace, secrets and GitHub App. It's for developing Alasin and for the [manual test runs](Testing.md#manual-test-runs), which are done only here, never on production. Nothing done in it reaches the production site.
+A test environment is an Alasin with a **DEV** badge, with its own Worker, address, buckets, KV namespace, secrets and GitHub App, writing to a site that's only for testing. It's for developing Alasin and for the [manual test runs](Testing.md#manual-test-runs), which are done only here, never on production. Nothing done in it reaches the production site.
 
-There are two ways to get one:
+There are three ways to get one:
 
-- **[A new test site](#a-new-test-site)**: `create-site` makes a site with sample content, on its own or next to a production site. It can be reset to the sample content after each test, and removed.
+- **[A new test site](#a-new-test-site)**: `create-site` makes a dev environment with sample content, on its own or next to a production site, on the site repository's `dev` branch, at `*.workers.dev` addresses. It can be reset to the sample content after each test, and removed.
+- **[A test site on its own domains](#a-test-site-on-its-own-domains)**: the same sample content and DEV badge, but as a site of its own on your domains, e.g. for a test environment that continuous deployment updates.
 - **[Next to an existing site](#next-to-an-existing-site)**: a dev deployment for a site set up with [Existing Site](Existing-Site.md), on that site's `dev` branch.
 
 ## A new test site
@@ -69,6 +70,19 @@ npm run create-site -- --site <site> --remove-dev              # dev only; produ
 
 It removes the dev Alasin (with its secrets and KV namespace) and its GitHub App, the dev buckets, the repository's `dev` branch and `[env.dev]` in the configuration files, as [Removing a Site](Removing-a-Site.md) describes for the whole site. `main` and production stay. A site made with dev only is removed with `--remove`.
 
+## A test site on its own domains
+
+A dev environment's site is the `dev` branch's preview, and Cloudflare serves previews only on `*.workers.dev` addresses. For a test environment on your own domains, make a **test site**: a site repository of its own, built from its `main` branch, with the sample content and the DEV badge.
+
+Follow [New Site](New-Site.md), with these differences:
+
+- **Step 1, decide:** name the repository after the test site's domain, e.g. `octocat/com.example.dev` for `dev.example.com`, and choose its three domains (site, app and photos).
+- **Step 5, `create-site`:** *Environments*: **test**. It asks for a second author of the sample posts, and for the *Test* site's, Alasin's and media domains.
+
+It works through the same steps as for production, and adds the sample content to `main` and its photos to the site's media bucket. Its Alasin shows the **DEV** badge and commits to `main`. Check it as in [step 6 above](#a-new-test-site), on its own domains.
+
+`--reset-dev` resets a test site too: `main`'s `content`, `drafts`, `archive` and `bin` folders go back to the skeleton's plus the sample content, in one new commit (the rest of the site, such as its configuration and theme, stays), and its buckets get the sample photos again. `--remove` removes it like any site `create-site` made.
+
 ## Next to an existing site
 
 A dev deployment for a site set up with [Existing Site](Existing-Site.md), committing to the site's `dev` branch:
@@ -82,4 +96,15 @@ Setup adds `[env.dev]` to both files. Choose its own address (a workers.dev addr
 
 ## Updating it
 
-A test environment runs the code under test: deploy it from a checkout of the `dev` branch (`npm run deploy -- --site <site> --env dev`, after `npm run setup` with the same options if the configuration changed). Production is updated only from releases ([Updating](Updating.md)).
+A test environment runs the code under test: deploy it from a checkout of the `dev` branch (`npm run deploy -- --site <site> --env dev`, or without `--env dev` for a test site; after `npm run setup` with the same options if the configuration changed). Production is updated only from releases ([Updating](Updating.md)).
+
+### From continuous deployment
+
+The repository's *Deploy* workflow (`.github/workflows/deploy.yml`) can deploy the test environment on every push to `dev`:
+
+1. On GitHub, the Alasin repository → **Settings → Environments → New environment** `dev`. Under *Deployment branches and tags*, allow only `dev`.
+2. Its **secrets:** `CLOUDFLARE_API_TOKEN` (a token with the permissions in [Troubleshooting](Troubleshooting.md#without-a-browser-ci)), `CLOUDFLARE_ACCOUNT_ID`, and the whole `alasin.toml` and `wrangler.toml` of the test environment as `ALASIN_TOML` and `WRANGLER_TOML`.
+3. Its **variable** `ALASIN_ENV`: `none` for a test site (its configuration as it is); leave it out for a dev environment, which deploys `[env.dev]`.
+4. The repository's **variable** `ALASIN_DEPLOY` turns the workflow on (**Settings → Secrets and variables → Actions → Variables**): `dev` deploys only the test environment, `production` only releases (to a `production` environment set up the same way), `true` both.
+
+A push to `dev` then deploys; follow it under **Actions → Deploy**. After changing the test environment's configuration, update the two secrets and deploy by hand: **Actions → Deploy → Run workflow**, on `dev`.

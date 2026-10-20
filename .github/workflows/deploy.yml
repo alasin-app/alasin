@@ -1,15 +1,21 @@
 # SPDX-License-Identifier: MIT
 #
 # Continuous deployment (optional):
-#   - the dev environment on every push to the dev branch;
+#   - the dev environment on every push to the dev branch, or by hand (Actions →
+#     Deploy → Run workflow, on dev), e.g. after changing its configuration;
 #   - production on each published release (tag vX.Y.Z on main).
 #
-# Enabled only when the repository variable ALASIN_DEPLOY is "true". Each
+# Enabled by the repository variable ALASIN_DEPLOY: "dev" deploys only the dev
+# environment, "production" only releases, "true" both. Each
 # deployment uses a protected GitHub environment ("dev", "production") with:
 #   CLOUDFLARE_API_TOKEN   token with the permissions listed in wiki/Troubleshooting.md (Without a browser)
 #   CLOUDFLARE_ACCOUNT_ID
 #   ALASIN_TOML            the deployment's alasin.toml (whole file)
 #   WRANGLER_TOML          the deployment's wrangler.toml (whole file)
+# and optionally the environment variable
+#   ALASIN_ENV             which [env.<name>] of the configuration to deploy, or
+#                          "none" for the configuration as it is (e.g. a test
+#                          site's). Default: "dev" for dev, none for production.
 # Deployment configuration never lives in this repository.
 name: Deploy
 
@@ -18,6 +24,7 @@ on:
     branches: [dev]
   release:
     types: [published]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -25,7 +32,7 @@ permissions:
 jobs:
   deploy:
     name: deploy
-    if: vars.ALASIN_DEPLOY == 'true'
+    if: vars.ALASIN_DEPLOY == 'true' || vars.ALASIN_DEPLOY == (github.event_name == 'release' && 'production' || 'dev')
     runs-on: ubuntu-latest
     environment: ${{ github.event_name == 'release' && 'production' || 'dev' }}
     concurrency:
@@ -53,9 +60,10 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           WRANGLER_SEND_METRICS: "false"
+          ALASIN_ENV: ${{ vars.ALASIN_ENV || (github.event_name == 'release' && 'none' || 'dev') }}
         run: |
-          if [ "${{ github.event_name }}" = "release" ]; then
+          if [ "$ALASIN_ENV" = "none" ]; then
             npm run deploy -- --config "$RUNNER_TEMP/deployment/alasin.toml"
           else
-            npm run deploy -- --env dev --config "$RUNNER_TEMP/deployment/alasin.toml"
+            npm run deploy -- --env "$ALASIN_ENV" --config "$RUNNER_TEMP/deployment/alasin.toml"
           fi

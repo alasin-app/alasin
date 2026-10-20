@@ -3,7 +3,7 @@ title: "Shallow water"
 date: 2026-09-30T09:00:00Z
 slug: "shallow-water"
 categories:
-  - "Nature"
+  - "nature"
 tags:
   - "sea"
 image: "/api/draft-media/01M3QSRT00A684TDARGYVPZF45/shallow-water.jpg"

@@ -19,12 +19,14 @@
 // and continues where it stopped. Then the site Worker: created, given the
 // site's domain, and connected to the repository with Workers Builds (needs a
 // user API token in CLOUDFLARE_BUILDS_TOKEN); for dev, the sample content;
+// a test site (environment "test": production-shaped, on its own domains)
+// gets the sample content on main and the DEV badge, and --reset-dev resets main;
 // and last Alasin itself: its alasin.toml and wrangler.toml in
 // deployments/<site>/, then npm run setup and npm run deploy for each
 // environment (setup creates the GitHub App in the browser).
 
 import { spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { DEPLOYMENTS, repoRoot } from "./lib/args";
 import { capture } from "./lib/proc";
@@ -32,6 +34,7 @@ import {
   alreadyDeployedWarning,
   type Environment,
   type Existing,
+  hasSampleContent,
   hostnameProblem,
   type Item,
   type KnownNames,
@@ -42,6 +45,7 @@ import {
   planLines,
   previewUrl,
   r2DevUrl,
+  sampleTarget,
   type SiteState,
   siteItems,
   siteWorkerName,
@@ -124,13 +128,15 @@ async function askAnswers(previous: SiteState | null): Promise<SiteState> {
   if (previous?.alasinName) ok(`Alasin name: ${alasinName}`);
 
   let environments = previous?.environments;
+  let test = previous?.test;
   if (!environments?.length) {
-    const answer = await ask("Environments: production, dev or both", {
+    const answer = await ask("Environments: production, dev, both, or test (a test site with sample content on its own domains)", {
       default: "both",
-      validate: (v) => (["production", "dev", "both"].includes(v) ? null : "production, dev or both"),
+      validate: (v) => (["production", "dev", "both", "test"].includes(v) ? null : "production, dev, both or test"),
     });
-    environments = answer === "both" ? ["production", "dev"] : [answer as Environment];
-  } else ok(`Environments: ${environments.join(", ")}`);
+    test = answer === "test";
+    environments = answer === "both" ? ["production", "dev"] : test ? ["production"] : [answer as Environment];
+  } else ok(`Environments: ${test ? "test site" : environments.join(", ")}`);
 
   let jurisdiction = previous?.jurisdiction;
   if (jurisdiction === undefined) {
@@ -142,8 +148,8 @@ async function askAnswers(previous: SiteState | null): Promise<SiteState> {
   }
 
   let secondAuthor = previous?.secondAuthor;
-  if (environments.includes("dev") && !secondAuthor) {
-    const login = await ask("Second author of the dev site's sample posts: a GitHub login (shows an avatar if they're a collaborator), or empty for a made-up one", {
+  if (hasSampleContent({ environments, test }) && !secondAuthor) {
+    const login = await ask("Second author of the sample posts: a GitHub login (shows an avatar if they're a collaborator), or empty for a made-up one", {
       default: "",
       validate: (v) => (!v || /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$/.test(v) ? null : "a GitHub login, or empty"),
     });
@@ -155,10 +161,11 @@ async function askAnswers(previous: SiteState | null): Promise<SiteState> {
 
   const domains = { ...previous?.domains };
   if (environments.includes("production")) {
+    const p = test ? "Test" : "Production";
     for (const [key, question] of [
-      ["site", "Production site's domain (e.g. www.example.com)"],
-      ["app", "Production Alasin's domain (e.g. alasin.example.com)"],
-      ["media", "Production media domain (e.g. media.example.com)"],
+      ["site", `${p} site's domain (e.g. www.example.com)`],
+      ["app", `${p} Alasin's domain (e.g. alasin.example.com)`],
+      ["media", `${p} media domain (e.g. media.example.com)`],
     ] as const) {
       if (domains[key]) ok(`${question.replace(/ \(e\.g\..*\)$/, "")}: ${domains[key]}`);
       else domains[key] = (await ask(question, { validate: hostnameProblem })).toLowerCase();
@@ -172,6 +179,7 @@ async function askAnswers(previous: SiteState | null): Promise<SiteState> {
     language,
     alasinName,
     environments,
+    ...(test ? { test } : {}),
     jurisdiction,
     domains,
     created: previous?.created ?? [],
@@ -417,18 +425,19 @@ function samplePhotos(samples: SampleFile[]) {
   return uploads;
 }
 
-/** The dev buckets: media and drafts, with their jurisdictions. */
-function devBuckets(state: SiteState, plan: PlannedItem[]) {
+/** The buckets of the sample photos (the dev ones, or a test site's own): media and drafts, with their jurisdictions. */
+function sampleBuckets(state: SiteState, plan: PlannedItem[]) {
   const b = (slot: PlannedItem["slot"]) => {
     const p = plan.find((x) => x.slot === slot)!;
     return { name: p.name, jurisdiction: (p.jurisdiction ?? state.jurisdiction) || undefined };
   };
-  return { media: b("media:dev"), drafts: b("drafts:dev") };
+  const target = sampleTarget(state);
+  return { media: b(target.media), drafts: b(target.drafts) };
 }
 
-/** Uploads the sample photos and their sizes to the dev buckets. */
+/** Uploads the sample photos and their sizes to the sample buckets. */
 function uploadSamplePhotos(state: SiteState, plan: PlannedItem[], uploads: ReturnType<typeof samplePhotos>): number {
-  const bucket = devBuckets(state, plan);
+  const bucket = sampleBuckets(state, plan);
   let n = 0;
   for (const u of uploads) {
     const target = bucket[u.bucket];
@@ -446,58 +455,68 @@ function uploadSamplePhotos(state: SiteState, plan: PlannedItem[], uploads: Retu
   return n;
 }
 
-/** Commits the sample content to the dev branch and uploads its photos (with their sizes) to the dev buckets. */
+/** Commits the sample content to the dev branch (a test site's main) and uploads its photos (with their sizes) to its buckets. */
 function addSampleContent(state: SiteState, plan: PlannedItem[], made: (key: string) => void) {
-  step("Dev site's sample content");
+  const target = sampleTarget(state);
+  step(`${target.site[0]!.toUpperCase()}${target.site.slice(1)}'s sample content`);
   const samples = sampleFiles(state);
   const uploads = samplePhotos(samples);
 
   if (!state.created.includes("sample:content")) {
     const dir = join(repoRoot, DEPLOYMENTS, state.repo, "site");
     if (!existsSync(join(dir, ".git"))) throw new Error(`${relative(repoRoot, dir)}/ isn't a clone of the site repository`);
-    runVisible("git", ["switch", "--quiet", "dev"], dir);
+    runVisible("git", ["switch", "--quiet", target.branch], dir);
     runVisible("git", ["pull", "--quiet", "--ff-only"], dir);
     for (const f of samples) {
       mkdirSync(join(dir, f.path, ".."), { recursive: true });
       writeFileSync(join(dir, f.path), f.text);
     }
     runVisible("git", ["add", "-A"], dir);
-    runVisible("git", ["commit", "--quiet", "-m", "Add the dev site's sample content"], dir);
-    runVisible("git", ["push", "--quiet", "origin", "dev"], dir);
+    runVisible("git", ["commit", "--quiet", "-m", `Add the ${target.site}'s sample content`], dir);
+    runVisible("git", ["push", "--quiet", "origin", target.branch], dir);
     runVisible("git", ["switch", "--quiet", "main"], dir);
     made("sample:content");
-    ok(`${samples.length} files committed to the dev branch: home page, pages, posts, drafts, archive, Bin, categories, credits`);
-  } else ok("Committed to the dev branch earlier");
+    ok(`${samples.length} files committed to the ${target.branch} branch: home page, pages, posts, drafts, archive, Bin, categories, credits`);
+  } else ok(`Committed to the ${target.branch} branch earlier`);
 
   if (!state.created.includes("sample:photos")) {
     const n = uploadSamplePhotos(state, plan, uploads);
     made("sample:photos");
-    ok(`${n} photo files uploaded to the dev buckets`);
-  } else ok("Photos uploaded to the dev buckets earlier");
+    ok(`${n} photo files uploaded to the ${target.site}'s buckets`);
+  } else ok(`Photos uploaded to the ${target.site}'s buckets earlier`);
 }
+
+/** The folders a test site's reset puts back to the skeleton's before adding the sample content. */
+const CONTENT_FOLDERS = ["content", "drafts", "archive", "bin"];
 
 /**
  * Puts the dev site back to the sample content: the dev branch gets main's
  * files plus the sample content (one new commit), and the dev buckets are
- * emptied and get the sample photos again. Only for a site whose sample content
- * create-site added; production, the Workers, buckets and repository stay.
+ * emptied and get the sample photos again. A test site's main keeps its own
+ * files except the content folders, which go back to the skeleton's before
+ * the sample content. Only for a site whose sample content create-site added;
+ * production, the Workers, the buckets themselves and the repository stay.
  */
 async function resetDev(state: SiteState, plan: PlannedItem[]) {
-  if (!state.environments.includes("dev") || !state.created.includes("sample:content") || !state.created.includes("repo")) {
-    throw new Error("Only a dev site create-site made, with its sample content, can be reset.");
+  if (!hasSampleContent(state) || !state.created.includes("sample:content") || !state.created.includes("repo")) {
+    throw new Error("Only a dev site or test site create-site made, with its sample content, can be reset.");
   }
   const dir = join(repoRoot, DEPLOYMENTS, state.repo, "site");
   if (!existsSync(join(dir, ".git"))) throw new Error(`${relative(repoRoot, dir)}/ isn't a clone of the site repository`);
   const dirty = spawnSync("git", ["status", "--porcelain"], { cwd: dir, encoding: "utf8" });
   if (dirty.status !== 0 || dirty.stdout.trim()) throw new Error(`${relative(repoRoot, dir)}/ has uncommitted changes: commit or discard them first.`);
-  const buckets = devBuckets(state, plan);
+  const buckets = sampleBuckets(state, plan);
+  const target = sampleTarget(state);
 
-  step("Reset the dev site");
-  info("This replaces everything on the dev site with the sample content:");
-  info(`  - the dev branch of ${state.owner}/${state.repo}: main's files plus the sample content, in one new commit`);
-  info("    (posts, pages, drafts, archive and Bin changes made in the dev app are undone; history is kept)");
+  step(`Reset the ${target.site}`);
+  info(`This replaces everything on the ${target.site} with the sample content:`);
+  if (state.test) {
+    info(`  - the main branch of ${state.owner}/${state.repo}: its ${CONTENT_FOLDERS.join(", ")} folders back to the skeleton's,`);
+    info("    plus the sample content, in one new commit (the rest of the site, e.g. its configuration, stays)");
+  } else info(`  - the dev branch of ${state.owner}/${state.repo}: main's files plus the sample content, in one new commit`);
+  info(`    (posts, pages, drafts, archive and Bin changes made in the ${state.test ? "test" : "dev"} app are undone; history is kept)`);
   info(`  - the buckets ${buckets.media.name} and ${buckets.drafts.name}: emptied, then the sample photos again`);
-  info("Production, the Workers, the buckets themselves and the repository are not touched.");
+  info(state.test ? "The Workers, the buckets themselves and the repository are not touched." : "Production, the Workers, the buckets themselves and the repository are not touched.");
   const typed = await ask(`To reset, type the repository name (${state.owner}/${state.repo}); anything else stops`, { default: "stop", validate: () => null });
   if (typed !== `${state.owner}/${state.repo}`) {
     info("Stopped. Nothing was changed.");
@@ -507,20 +526,32 @@ async function resetDev(state: SiteState, plan: PlannedItem[]) {
   const samples = sampleFiles(state);
   const uploads = samplePhotos(samples);
   runVisible("git", ["fetch", "--quiet", "origin"], dir);
-  runVisible("git", ["switch", "--quiet", "dev"], dir);
+  runVisible("git", ["switch", "--quiet", target.branch], dir);
   runVisible("git", ["pull", "--quiet", "--ff-only"], dir);
-  // main's files, then the sample content over them.
-  runVisible("git", ["read-tree", "-u", "--reset", "origin/main"], dir);
+  if (state.test) {
+    // The content folders as the skeleton has them, then the sample content over them.
+    const values = skeletonValuesFor(state, plan);
+    for (const folder of CONTENT_FOLDERS) {
+      rmSync(join(dir, folder), { recursive: true, force: true });
+      cpSync(join(repoRoot, "templates", "site", folder), join(dir, folder), { recursive: true });
+    }
+    for (const file of PLACEHOLDER_FILES.filter((f) => CONTENT_FOLDERS.some((c) => f.startsWith(`${c}/`)))) {
+      writeFileSync(join(dir, file), fillPlaceholders(readFileSync(join(dir, file), "utf8"), values));
+    }
+  } else {
+    // main's files, then the sample content over them.
+    runVisible("git", ["read-tree", "-u", "--reset", "origin/main"], dir);
+  }
   for (const f of samples) {
     mkdirSync(join(dir, f.path, ".."), { recursive: true });
     writeFileSync(join(dir, f.path), f.text);
   }
   runVisible("git", ["add", "-A"], dir);
-  if (spawnSync("git", ["diff", "--cached", "--quiet"], { cwd: dir }).status === 0) ok("The dev branch already has exactly the sample content");
+  if (spawnSync("git", ["diff", "--cached", "--quiet"], { cwd: dir }).status === 0) ok(`The ${target.branch} branch already has exactly the sample content`);
   else {
-    runVisible("git", ["commit", "--quiet", "-m", "Reset the dev site to the sample content"], dir);
-    runVisible("git", ["push", "--quiet", "origin", "dev"], dir);
-    ok("Dev branch reset (a new build of the dev site starts)");
+    runVisible("git", ["commit", "--quiet", "-m", `Reset the ${target.site} to the sample content`], dir);
+    runVisible("git", ["push", "--quiet", "origin", target.branch], dir);
+    ok(`${target.branch} branch reset (a new build of the ${target.site} starts)`);
   }
   runVisible("git", ["switch", "--quiet", "main"], dir);
 
@@ -530,7 +561,7 @@ async function resetDev(state: SiteState, plan: PlannedItem[]) {
     ok(`${b.name}: emptied (${keys.length} objects)`);
   }
   ok(`${uploadSamplePhotos(state, plan, uploads)} sample photo files uploaded again`);
-  info("Reload the dev app: its lists are read again from the reset branch.");
+  info(`Reload the ${state.test ? "test" : "dev"} app: its lists are read again from the reset branch.`);
 }
 
 async function create(state: SiteState, plan: PlannedItem[]) {
@@ -609,7 +640,8 @@ async function create(state: SiteState, plan: PlannedItem[]) {
   if (state.domains.site && state.environments.includes("production")) info(`  Production site: https://${state.domains.site}/`);
   if (state.devSiteUrl) info(`  Dev site (the dev branch's preview): ${state.devSiteUrl}`);
 
-  if (state.environments.includes("dev") && mine(repo) && state.devMediaUrl && slot("media:dev") && mine(slot("media:dev"))) {
+  const sampleMedia = slot(sampleTarget(state).media);
+  if (hasSampleContent(state) && mine(repo) && sampleMedia && mine(sampleMedia) && (state.test || state.devMediaUrl)) {
     addSampleContent(state, plan, made);
   }
 
@@ -691,16 +723,16 @@ async function main() {
   ok(`Answers saved in ${DEPLOYMENTS}/${state.repo}/create-site.json (run again with --site ${state.repo}).`);
 
   const todo = plan.filter((p) => p.status === "new" && !state.created.includes(p.key)).length;
-  const devPending = state.environments.includes("dev") && !(state.devMediaUrl && state.created.includes("sample:content") && state.created.includes("sample:photos"));
+  const samplePending = hasSampleContent(state) && !((state.test || state.devMediaUrl) && state.created.includes("sample:content") && state.created.includes("sample:photos"));
   // An Alasin deployment that was started but not finished.
   const alasinPending = plan.some(
     (p) => (p.slot === "alasin:production" || p.slot === "alasin:dev") && state.created.includes(`pending:${p.key}`) && !state.created.includes(p.key),
   );
-  if (!todo && !devPending && !alasinPending) {
+  if (!todo && !samplePending && !alasinPending) {
     info("Nothing new to create.");
     return;
   }
-  const what = [todo ? `the new items (${todo})` : "", devPending ? "the dev site's sample content" : "", alasinPending ? "the unfinished Alasin deployment" : ""]
+  const what = [todo ? `the new items (${todo})` : "", samplePending ? `the ${sampleTarget(state).site}'s sample content` : "", alasinPending ? "the unfinished Alasin deployment" : ""]
     .filter(Boolean)
     .join(" and ");
   if (!args.yes && !(await confirm(`Create ${what} now?`, false))) {

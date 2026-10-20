@@ -273,7 +273,7 @@ const categories = z
         message: "must start with / and contain {slug} or {path}",
       })
       .describe(
-        "If set, new categories get a `url` field following this pattern, e.g. `/category/{path}/`. Placeholders: `{slug}`, `{path}` (the slugs from the top-level category down to this one, joined with /). Leave unset if the site's permalinks are enough.",
+        "If set, new, renamed and moved categories get a `url` field following this pattern (a changed address keeps the old one in `aliases`), e.g. `/category/{path}/`. Placeholders: `{slug}`, `{path}` (the slugs from the top-level category down to this one, joined with /). Leave unset if the site's permalinks are enough.",
       ),
   })
   .strict()
