@@ -1,4 +1,4 @@
-What's new in Alasin, release by release, in plain words. The full technical list is in [CHANGELOG.md](https://github.com/alasin-app/alasin/blob/main/CHANGELOG.md).
+The new and improved features in each Alasin release, newest first. To get them on your site, see [Updating](Updating.md); for every change in detail, including upgrade steps, see the [release notes](https://github.com/alasin-app/alasin/releases).
 
 ## Unreleased
 
