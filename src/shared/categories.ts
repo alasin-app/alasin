@@ -57,16 +57,29 @@ export function categoryTree(categories: Category[]): CategoryNode[] {
 }
 
 /**
- * The file without `slug` among its categories, changing only that front
- * matter line (the field goes if no category is left); null if it doesn't
- * have the category.
+ * The file with its list of categories changed by `edit`, changing only that
+ * front matter line (the field goes if no category is left); null if it
+ * doesn't have `slug`.
  */
-export function withoutCategory(text: string, slug: string): string | null {
+function editCategories(text: string, slug: string, edit: (list: string[]) => string[]): string | null {
   const split = splitFrontMatter(text);
   if (!split) return null;
   const value = parseFields(split.format, split.raw).get("categories");
   const list = Array.isArray(value) ? value.map(String) : typeof value === "string" && value ? [value] : [];
   if (!list.includes(slug)) return null;
-  const rest = list.filter((c) => c !== slug);
+  const rest = edit(list);
   return joinFile(split.format, setFields(split.format, split.raw, [["categories", rest.length ? rest : undefined]]), split.body);
+}
+
+/** The file without `slug` among its categories; null if it doesn't have it. */
+export function withoutCategory(text: string, slug: string): string | null {
+  return editCategories(text, slug, (list) => list.filter((c) => c !== slug));
+}
+
+/**
+ * The file with category `from` renamed to `to`, in the same place in the
+ * list (only once, if it already has `to`); null if it doesn't have `from`.
+ */
+export function withCategoryRenamed(text: string, from: string, to: string): string | null {
+  return editCategories(text, from, (list) => [...new Set(list.map((c) => (c === from ? to : c)))]);
 }

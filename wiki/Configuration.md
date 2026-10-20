@@ -122,7 +122,7 @@ Categories. With `term-pages`, they can be added and deleted in the app.
 | `storage` | one of "term-pages", "data-file", "front-matter" | `"term-pages"` | `"term-pages"` | Where the category list lives: `term-pages` (`<dir>/<slug>/_index.md`), `data-file` (a TOML/YAML file listing them) or `front-matter` (only the values used in posts). |
 | `path` | string | `"content/categories"` | `"content/categories"` | Directory of term pages, or path of the data file. |
 | `parent_field` | string | `"parent"` | `"parent"` | Field naming a category's parent category (by slug), in its term page's front matter or its data file entry. Categories without it are top-level. |
-| `url_pattern` | string | — | — | If set, new categories get a `url` field following this pattern, e.g. `/category/{path}/`. Placeholders: `{slug}`, `{path}` (the slugs from the top-level category down to this one, joined with /). Leave unset if the site's permalinks are enough. |
+| `url_pattern` | string | — | — | If set, new, renamed and moved categories get a `url` field following this pattern (a changed address keeps the old one in `aliases`), e.g. `/category/{path}/`. Placeholders: `{slug}`, `{path}` (the slugs from the top-level category down to this one, joined with /). Leave unset if the site's permalinks are enough. |
 
 ### `[preview]`
 
