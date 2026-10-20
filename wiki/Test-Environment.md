@@ -105,6 +105,6 @@ The repository's *Deploy* workflow (`.github/workflows/deploy.yml`) can deploy t
 1. On GitHub, the Alasin repository → **Settings → Environments → New environment** `dev`. Under *Deployment branches and tags*, allow only `dev`.
 2. Its **secrets:** `CLOUDFLARE_API_TOKEN` (a token with the permissions in [Troubleshooting](Troubleshooting.md#without-a-browser-ci)), `CLOUDFLARE_ACCOUNT_ID`, and the whole `alasin.toml` and `wrangler.toml` of the test environment as `ALASIN_TOML` and `WRANGLER_TOML`.
 3. Its **variable** `ALASIN_ENV`: `none` for a test site (its configuration as it is); leave it out for a dev environment, which deploys `[env.dev]`.
-4. The repository's **variable** `ALASIN_DEPLOY`: `true` turns the workflow on (**Settings → Secrets and variables → Actions → Variables**).
+4. The repository's **variable** `ALASIN_DEPLOY` turns the workflow on (**Settings → Secrets and variables → Actions → Variables**): `dev` deploys only the test environment, `production` only releases (to a `production` environment set up the same way), `true` both.
 
 A push to `dev` then deploys; follow it under **Actions → Deploy**. After changing the test environment's configuration, update the two secrets.
