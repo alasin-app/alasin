@@ -37,7 +37,9 @@ async function main() {
       const config = loadAlasinConfig(args.configPath, args.env);
       // Locally the app runs on localhost; the GitHub App needs
       // http://localhost:<port>/auth/callback as an extra callback URL.
-      config.app.url = `http://localhost:${port}`;
+      // --https serves it over HTTPS with a local certificate (npm run screenshots).
+      const https = args.rest.includes("--https");
+      config.app.url = `${https ? "https" : "http"}://localhost:${port}`;
       const gen = generateWranglerConfig({ wranglerPath: args.wranglerPath, env: args.env, config, outName: `dev-${args.env ?? "default"}` });
       const dir = dirname(args.wranglerPath);
       const devVars = [args.env && join(dir, `.dev.vars.${args.env}`), join(dir, ".dev.vars")].find((p) => p && existsSync(p));
@@ -55,6 +57,11 @@ async function main() {
         String(port),
         "--ip",
         "localhost",
+        // Requests keep the local address: with a custom domain in the routes, wrangler
+        // would present them as that domain, and the canonical-origin redirect would loop.
+        "--local-upstream",
+        `localhost:${port}`,
+        ...(https ? ["--local-protocol", "https"] : []),
         ...(devVars ? ["--env-file", devVars] : []),
       ]);
       watcher.kill();
