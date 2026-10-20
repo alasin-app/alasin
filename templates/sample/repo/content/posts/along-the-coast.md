@@ -4,8 +4,8 @@ date: 2026-09-05T12:00:00Z
 slug: "along-the-coast"
 lastmod: 2026-09-05T12:00:00Z
 categories:
-  - "Coast"
-  - "Travel"
+  - "coast"
+  - "travel"
 tags:
   - "sea"
 image: "/img/2026/09/05/cape-coast.jpg"

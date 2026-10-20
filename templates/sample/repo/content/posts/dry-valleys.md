@@ -4,7 +4,7 @@ date: 2026-09-28T14:20:00Z
 slug: "dry-valleys"
 lastmod: 2026-09-28T14:20:00Z
 categories:
-  - "Travel"
+  - "travel"
 tags:
   - "desert"
 image: "/img/2026/09/28/dry-valley.jpg"

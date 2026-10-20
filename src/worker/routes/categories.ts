@@ -22,6 +22,7 @@ import { type Context, Hono } from "hono";
 import { z } from "zod";
 import type { AlasinConfig } from "../../shared/config/schema";
 import { joinFile, parseFields, setFields, slugify, splitFrontMatter, stringifyFields } from "../../shared/frontmatter";
+import { isCategory } from "../../shared/categories";
 import { isUlid } from "../../shared/ulid";
 import type { AppEnv } from "../app";
 import { lockedBy } from "../lib/lock-check";
@@ -175,7 +176,7 @@ categories.post("/delete", async (c) => {
   }
 
   // The posts and pages changed no longer have the category, and nobody else has them open.
-  const refused = await refuseChanges(c, changes, (cats) => !cats.includes(slug));
+  const refused = await refuseChanges(c, changes, (cats) => !cats.some((x) => isCategory(x, slug)));
   if (refused) return refused;
 
   const repo = await repoFor(c);
@@ -226,7 +227,7 @@ categories.post("/update", async (c) => {
 
   // Posts and pages change only with the address: from the old slug to the new one.
   if (!renamed && changes.length) return c.json({ error: "invalid", message: "Invalid request." }, 400);
-  const refused = await refuseChanges(c, changes, (cats) => cats.includes(newSlug) && !cats.includes(slug));
+  const refused = await refuseChanges(c, changes, (cats) => cats.includes(newSlug) && !cats.some((x) => isCategory(x, slug)));
   if (refused) return refused;
 
   const repo = await repoFor(c);

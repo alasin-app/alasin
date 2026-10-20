@@ -4,7 +4,7 @@
 // front matter or data file entry, e.g. `parent: "travel"`. Posts list only
 // the categories chosen for them; a child doesn't imply its parent.
 
-import { joinFile, parseFields, setFields, splitFrontMatter } from "./frontmatter";
+import { joinFile, parseFields, setFields, slugify, splitFrontMatter } from "./frontmatter";
 
 export interface Category {
   slug: string;
@@ -21,6 +21,13 @@ export interface CategoryNode extends Category {
 }
 
 const byTitle = (a: Category, b: Category) => a.title.localeCompare(b.title);
+
+/**
+ * Whether a post's category value means the category `slug`. Alasin writes
+ * slugs; a value written by hand may be the name ("Travel"), which Hugo turns
+ * into the same address.
+ */
+export const isCategory = (value: string, slug: string) => value === slug || slugify(value) === slug;
 
 /**
  * Categories in tree order: each parent followed by its children, siblings by
@@ -66,14 +73,14 @@ function editCategories(text: string, slug: string, edit: (list: string[]) => st
   if (!split) return null;
   const value = parseFields(split.format, split.raw).get("categories");
   const list = Array.isArray(value) ? value.map(String) : typeof value === "string" && value ? [value] : [];
-  if (!list.includes(slug)) return null;
+  if (!list.some((c) => isCategory(c, slug))) return null;
   const rest = edit(list);
   return joinFile(split.format, setFields(split.format, split.raw, [["categories", rest.length ? rest : undefined]]), split.body);
 }
 
 /** The file without `slug` among its categories; null if it doesn't have it. */
 export function withoutCategory(text: string, slug: string): string | null {
-  return editCategories(text, slug, (list) => list.filter((c) => c !== slug));
+  return editCategories(text, slug, (list) => list.filter((c) => !isCategory(c, slug)));
 }
 
 /**
@@ -81,5 +88,5 @@ export function withoutCategory(text: string, slug: string): string | null {
  * list (only once, if it already has `to`); null if it doesn't have `from`.
  */
 export function withCategoryRenamed(text: string, from: string, to: string): string | null {
-  return editCategories(text, from, (list) => [...new Set(list.map((c) => (c === from ? to : c)))]);
+  return editCategories(text, from, (list) => [...new Set(list.map((c) => (isCategory(c, from) ? to : c)))]);
 }

@@ -4,7 +4,7 @@ date: 2026-08-20T07:45:00Z
 slug: "into-the-forest"
 lastmod: 2026-08-21T10:00:00Z
 categories:
-  - "Forests"
+  - "forests"
 tags:
   - "forest"
   - "autumn"

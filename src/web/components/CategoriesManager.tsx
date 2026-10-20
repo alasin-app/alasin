@@ -8,7 +8,7 @@
 
 import { Plus } from "lucide-preact";
 import { useEffect, useState } from "preact/hooks";
-import { categoryTree, withCategoryRenamed, withoutCategory } from "../../shared/categories";
+import { categoryTree, isCategory, withCategoryRenamed, withoutCategory } from "../../shared/categories";
 import { slugify } from "../../shared/frontmatter";
 import { api, ApiError, type Me } from "../lib/api";
 import type { ContentItem } from "../lib/content-index";
@@ -44,7 +44,7 @@ export function CategoriesManager(props: { me: Me }) {
 
   const tree = categoryTree(site.categories);
   // Every post, page and draft that has a category, also in the archive and the Bin.
-  const usedBy = (slug: string): ContentItem[] => content.items.filter((i) => i.categories.includes(slug));
+  const usedBy = (slug: string): ContentItem[] => content.items.filter((i) => i.categories.some((c) => isCategory(c, slug)));
   const childrenOf = (slug: string) => site.categories.filter((c) => c.parent === slug);
   /** Whether category `slug` is somewhere below `ancestor`. */
   const isBelow = (slug: string, ancestor: string) => {
@@ -243,7 +243,7 @@ export function CategoriesManager(props: { me: Me }) {
           <label class="secondary" for="category-parent">
             {t("categories.parent")}
           </label>
-          <select id="category-parent" value={adding?.parent ?? ""} onChange={(e) => adding && setAdding({ parent: (e.target as HTMLSelectElement).value })}>
+          <select id="category-parent" value={adding?.parent ?? ""} onChange={(e) => adding && setAdding({ ...adding, parent: (e.target as HTMLSelectElement).value })}>
             <option value="">{t("categories.topLevel")}</option>
             {/* Not under itself or anything below it. */}
             {tree.filter((c) => !adding?.editing || (c.slug !== adding.editing.slug && !isBelow(c.slug, adding.editing.slug))).map((c) => (

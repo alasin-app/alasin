@@ -44,8 +44,8 @@ describe("dev sample content", () => {
     }
   });
 
-  it("uses only categories that have term pages", () => {
-    const terms = new Set(files.filter((f) => /^content\/categories\/[^/]+\/_index\.md$/.test(f.path)).map((f) => fields(f).get("title")));
+  it("uses only categories that have term pages, by their address as Alasin writes them", () => {
+    const terms = new Set(files.map((f) => /^content\/categories\/([^/]+)\/_index\.md$/.exec(f.path)?.[1]).filter(Boolean));
     for (const f of files) {
       const cats = fields(f).get("categories");
       for (const c of Array.isArray(cats) ? cats : []) expect(terms, `${f.path}: ${String(c)}`).toContain(c);
