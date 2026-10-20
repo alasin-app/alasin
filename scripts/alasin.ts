@@ -42,7 +42,7 @@ async function main() {
       const dir = dirname(args.wranglerPath);
       const devVars = [args.env && join(dir, `.dev.vars.${args.env}`), join(dir, ".dev.vars")].find((p) => p && existsSync(p));
       if (!devVars) {
-        console.warn(`No .dev.vars next to ${displayPath(args.wranglerPath)}; login won't work locally. Run \`npm run setup\` or see README.`);
+        console.warn(`No .dev.vars next to ${displayPath(args.wranglerPath)}; login won't work locally. Run \`npm run setup\` (see Development in the wiki).`);
       }
       if ((await run("vite", ["build", "--logLevel", "warn"])) !== 0) return 1;
       const watcher = start("vite", ["build", "--watch", "--logLevel", "warn"]);

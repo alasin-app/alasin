@@ -6,7 +6,7 @@
 #
 # Enabled only when the repository variable ALASIN_DEPLOY is "true". Each
 # deployment uses a protected GitHub environment ("dev", "production") with:
-#   CLOUDFLARE_API_TOKEN   token with the permissions listed in INSTALLATION.md (Troubleshooting, Without a browser)
+#   CLOUDFLARE_API_TOKEN   token with the permissions listed in wiki/Troubleshooting.md (Without a browser)
 #   CLOUDFLARE_ACCOUNT_ID
 #   ALASIN_TOML            the deployment's alasin.toml (whole file)
 #   WRANGLER_TOML          the deployment's wrangler.toml (whole file)

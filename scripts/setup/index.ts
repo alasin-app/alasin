@@ -42,7 +42,8 @@ const PLACEHOLDERS = new Set<unknown>([
 ]);
 const isUnset = (v: unknown) => v === undefined || v === "" || PLACEHOLDERS.has(v);
 
-const GUIDE = "INSTALLATION.md";
+// Pages of the documentation (wiki/), named in messages.
+const BEFORE = "Before You Start in the wiki";
 
 const args = (() => {
   try {
@@ -116,10 +117,10 @@ const validBucket = (v: string) => (/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/.test(v) 
 async function checkPrerequisites() {
   step("Checking prerequisites");
   const major = Number(process.versions.node.split(".")[0]);
-  if (major < 22) throw new Error(`Node.js ${process.versions.node} is too old; install the current LTS (see ${GUIDE}, Before you start).`);
+  if (major < 22) throw new Error(`Node.js ${process.versions.node} is too old; install the current LTS (see ${BEFORE}).`);
   ok(`Node.js ${process.versions.node}`);
   const who = cf.whoami();
-  if (!who.loggedIn) throw new Error(`Wrangler is not logged in. Run \`npx wrangler login\` (see ${GUIDE}, Before you start).`);
+  if (!who.loggedIn) throw new Error(`Wrangler is not logged in. Run \`npx wrangler login\` (see ${BEFORE}).`);
   ok(`Wrangler logged in${who.email ? ` as ${who.email}` : ""}`);
   if (who.accounts.length > 1 && !process.env.CLOUDFLARE_ACCOUNT_ID && !wranglerRaw().account_id) {
     info(`Your login can access ${who.accounts.length} Cloudflare accounts:`);
@@ -130,7 +131,7 @@ async function checkPrerequisites() {
     setWrangler("account_id", who.accounts[Number(pick) - 1]!.id);
     ok(`account_id saved to ${displayPath(args.wranglerPath)}`);
   }
-  if (!cf.r2Enabled()) throw new Error(`R2 isn't enabled on this Cloudflare account (see ${GUIDE}, Before you start).`);
+  if (!cf.r2Enabled()) throw new Error(`R2 isn't enabled on this Cloudflare account (see ${BEFORE}).`);
   ok("R2 is enabled");
 }
 
@@ -273,7 +274,7 @@ async function setupBuckets() {
   }
   if (!cf.bucketExists(mediaName!, jurisdiction)) {
     throw new Error(
-      `Bucket "${mediaName}"${jurisdiction ? ` (jurisdiction ${jurisdiction})` : ""} not found. Check the name and jurisdiction under R2 in the dashboard (${GUIDE}, B1).`,
+      `Bucket "${mediaName}"${jurisdiction ? ` (jurisdiction ${jurisdiction})` : ""} not found. Check the name and jurisdiction under R2 in the dashboard (Existing Site, step 1, in the wiki).`,
     );
   }
   ok(`MEDIA: ${mediaName}${jurisdiction ? ` (${jurisdiction})` : ""}`);
@@ -398,7 +399,7 @@ async function setupGitHubApp(): Promise<Record<string, string>> {
       info(installUrl);
       gh.openBrowser(installUrl);
     } else {
-      info(`Create the app as described in README.md, "Creating the GitHub App manually". Callback URL(s): ${callbacks.join(", ")}`);
+      info(`Create the app as described in the wiki: Existing Site, "Creating the GitHub App by hand". Callback URL(s): ${callbacks.join(", ")}`);
       setAlasin("github", "app_id", Number(await ask("App ID", { validate: (v) => (/^\d+$/.test(v) ? null : "a number") })));
       setAlasin("github", "client_id", await ask("Client ID", { validate: validName }));
       secrets.GITHUB_CLIENT_SECRET = await ask("Client secret");

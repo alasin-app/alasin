@@ -15,7 +15,7 @@ Tick a check when it passes. For a failure, add a sub-issue (*Sub-issues* → *C
 
 ## Login, security and app shell
 
-- [ ] **1.1 Install from a clean clone**: Only when installing changes (setup, create-site or INSTALLATION.md). In a new clone, follow INSTALLATION.md exactly: section A to a new site with production and dev (both apps signed in, dev showing the sample content), or section B to a new deployment for an existing site; nothing needed beyond the document
+- [ ] **1.1 Install from a clean clone**: Only when installing changes (setup, create-site, or the wiki's installation pages). In a new clone, follow the wiki exactly (Testing → Testing the installation): New Site with the Test Environment differences, to a new site with production and dev (both apps signed in, dev showing the sample content), or Existing Site to a new deployment for an existing site; nothing needed beyond the documentation
 - [ ] **1.2 Deploy**: Only when deploying changes. `npm run deploy` names the right Worker, environment, address and site branch, and finishes without warnings
 - [ ] **1.3 Update**: Only when updating changes (e.g. a new setup migration). In the deploy clone: `git pull && npm install && npm run setup && npm run deploy`; setup reports what it updated, and the account sheet shows the new version
 - [ ] **1.4 Login page**: Shows app name, icon and the environment badge; the browser offers to install the app

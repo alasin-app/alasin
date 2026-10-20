@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 //
-// Generates the README's configuration reference from the config schema, so
+// Generates the configuration reference (wiki/Configuration.md) from the config schema, so
 // documentation and code can't drift apart. Examples come from alasin.example.toml.
 //
-//   tsx scripts/config-docs.ts           update README.md
-//   tsx scripts/config-docs.ts --check   fail if README.md is out of date (npm run lint)
+//   tsx scripts/config-docs.ts           update wiki/Configuration.md
+//   tsx scripts/config-docs.ts --check   fail if it's out of date (npm run lint)
 
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -62,19 +62,20 @@ export function renderReference(): string {
   return out.join("\n").trim();
 }
 
-const readmePath = join(repoRoot, "README.md");
-const readme = readFileSync(readmePath, "utf8");
-const a = readme.indexOf(START);
-const b = readme.indexOf(END);
-if (a === -1 || b === -1) throw new Error(`README.md needs the markers ${START} and ${END}`);
-const updated = `${readme.slice(0, a + START.length)}\n\n${renderReference()}\n\n${readme.slice(b)}`;
+const PAGE = "wiki/Configuration.md";
+const pagePath = join(repoRoot, PAGE);
+const page = readFileSync(pagePath, "utf8");
+const a = page.indexOf(START);
+const b = page.indexOf(END);
+if (a === -1 || b === -1) throw new Error(`${PAGE} needs the markers ${START} and ${END}`);
+const updated = `${page.slice(0, a + START.length)}\n\n${renderReference()}\n\n${page.slice(b)}`;
 
 if (process.argv.includes("--check")) {
-  if (updated !== readme) {
-    console.error("README.md configuration reference is out of date. Run `npm run docs:config`.");
+  if (updated !== page) {
+    console.error(`${PAGE} is out of date. Run \`npm run docs:config\`.`);
     process.exit(1);
   }
-} else if (updated !== readme) {
-  writeFileSync(readmePath, updated);
-  console.log("README.md configuration reference updated.");
+} else if (updated !== page) {
+  writeFileSync(pagePath, updated);
+  console.log(`${PAGE} updated.`);
 }
