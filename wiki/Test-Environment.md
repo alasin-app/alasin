@@ -107,4 +107,4 @@ The repository's *Deploy* workflow (`.github/workflows/deploy.yml`) can deploy t
 3. Its **variable** `ALASIN_ENV`: `none` for a test site (its configuration as it is); leave it out for a dev environment, which deploys `[env.dev]`.
 4. The repository's **variable** `ALASIN_DEPLOY` turns the workflow on (**Settings → Secrets and variables → Actions → Variables**): `dev` deploys only the test environment, `production` only releases (to a `production` environment set up the same way), `true` both.
 
-A push to `dev` then deploys; follow it under **Actions → Deploy**. After changing the test environment's configuration, update the two secrets.
+A push to `dev` then deploys; follow it under **Actions → Deploy**. After changing the test environment's configuration, update the two secrets and deploy by hand: **Actions → Deploy → Run workflow**, on `dev`.

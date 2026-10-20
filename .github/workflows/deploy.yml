@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: MIT
 #
 # Continuous deployment (optional):
-#   - the dev environment on every push to the dev branch;
+#   - the dev environment on every push to the dev branch, or by hand (Actions →
+#     Deploy → Run workflow, on dev), e.g. after changing its configuration;
 #   - production on each published release (tag vX.Y.Z on main).
 #
 # Enabled by the repository variable ALASIN_DEPLOY: "dev" deploys only the dev
@@ -23,6 +24,7 @@ on:
     branches: [dev]
   release:
     types: [published]
+  workflow_dispatch:
 
 permissions:
   contents: read
