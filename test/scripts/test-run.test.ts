@@ -35,6 +35,8 @@ describe("manual test runs", () => {
     expect(checksInPr(body)).toEqual(["2.21", "A.1"]);
     expect(checksInPr("## Manual checks\r\n\r\nnone\r\n")).toEqual([]);
     expect(checksInPr("No section here, 2.1")).toEqual([]);
+    // Removing the inner comment leaves another one, which goes too.
+    expect(checksInPr("## Manual checks\n\n<!<!-- x -->-- 9.9 -->\n- 2.21\n")).toEqual(["2.21"]);
   });
 
   it("builds a run with the affected checks in the template's order and areas", () => {
