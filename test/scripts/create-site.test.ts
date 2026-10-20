@@ -5,6 +5,7 @@ import {
   BUILD_TRIGGERS,
   cloudflareName,
   type Existing,
+  hasSampleContent,
   hostnameProblem,
   namesFromAlasinWrangler,
   parseRepository,
@@ -12,6 +13,7 @@ import {
   planLines,
   previewUrl,
   r2DevUrl,
+  sampleTarget,
   siteItems,
   siteWorkerName,
   skeletonValuesFor,
@@ -71,6 +73,30 @@ describe("create-site plan", () => {
       "worker:my-site",
       "worker:alasin-dev",
     ]);
+  });
+
+  it("names a test site's items as the test site's, with the production slots", () => {
+    const items = siteItems({ ...answers, environments: ["production"], test: true });
+    expect(items.map((i) => i.key)).toEqual([
+      "repo",
+      "bucket:my-site-media",
+      "bucket:my-site-drafts",
+      "worker:my-site",
+      "worker:alasin",
+      "domain:www.example.com",
+      "domain:alasin.example.com",
+      "domain:media.example.com",
+    ]);
+    expect(items.find((i) => i.slot === "alasin:production")!.role).toBe("Alasin, test site");
+    expect(items.find((i) => i.slot === "media:production")!.role).toBe("test site media (public)");
+  });
+
+  it("puts the sample content on dev, or on a test site's main with its own buckets", () => {
+    expect(hasSampleContent({ environments: ["production"] })).toBe(false);
+    expect(hasSampleContent({ environments: ["production", "dev"] })).toBe(true);
+    expect(hasSampleContent({ environments: ["production"], test: true })).toBe(true);
+    expect(sampleTarget({})).toEqual({ branch: "dev", media: "media:dev", drafts: "drafts:dev", site: "dev site" });
+    expect(sampleTarget({ test: true })).toEqual({ branch: "main", media: "media:production", drafts: "drafts:production", site: "test site" });
   });
 
   it("tells new items from this deployment's own and from ones it didn't make", () => {

@@ -73,6 +73,24 @@ describe("a new site's Alasin configuration", () => {
     expect(buckets(w)).toEqual({ MEDIA: ["example-com-dev-media", "eu"], DRAFTS: ["example-com-dev-drafts", "eu"] });
   });
 
+  it("is production with the DEV badge for a test site", () => {
+    const test = { ...state, environments: ["production" as const], test: true, devSiteUrl: undefined, devMediaUrl: undefined };
+    const { alasin, wrangler } = siteConfigFor(test, siteItems(test), { alasinExample, wranglerExample });
+    const raw = parse(alasin) as Table;
+    const c = parseConfig(selectEnvironment(raw, undefined));
+    expect([c.app.url, c.github.branch, c.site.url, c.media.public_url, c.ui.environment_label]).toEqual([
+      "https://alasin.example.com",
+      "main",
+      "https://www.example.com",
+      "https://media.example.com/",
+      "DEV",
+    ]);
+    expect(raw.env).toBeUndefined();
+    const w = parse(wrangler) as Table;
+    expect(w.name).toBe("alasin-example");
+    expect(buckets(w)).toEqual({ MEDIA: ["example-com-media", "eu"], DRAFTS: ["example-com-drafts", "eu"] });
+  });
+
   it("needs the dev addresses first", () => {
     expect(() => siteConfigFor({ ...state, devSiteUrl: undefined }, siteItems(state), { alasinExample, wranglerExample, devAppUrl })).toThrow("must be known first");
   });

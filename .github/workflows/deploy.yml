@@ -10,6 +10,10 @@
 #   CLOUDFLARE_ACCOUNT_ID
 #   ALASIN_TOML            the deployment's alasin.toml (whole file)
 #   WRANGLER_TOML          the deployment's wrangler.toml (whole file)
+# and optionally the environment variable
+#   ALASIN_ENV             which [env.<name>] of the configuration to deploy, or
+#                          "none" for the configuration as it is (e.g. a test
+#                          site's). Default: "dev" for dev, none for production.
 # Deployment configuration never lives in this repository.
 name: Deploy
 
@@ -53,9 +57,10 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           WRANGLER_SEND_METRICS: "false"
+          ALASIN_ENV: ${{ vars.ALASIN_ENV || (github.event_name == 'release' && 'none' || 'dev') }}
         run: |
-          if [ "${{ github.event_name }}" = "release" ]; then
+          if [ "$ALASIN_ENV" = "none" ]; then
             npm run deploy -- --config "$RUNNER_TEMP/deployment/alasin.toml"
           else
-            npm run deploy -- --env dev --config "$RUNNER_TEMP/deployment/alasin.toml"
+            npm run deploy -- --env "$ALASIN_ENV" --config "$RUNNER_TEMP/deployment/alasin.toml"
           fi
