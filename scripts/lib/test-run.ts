@@ -51,15 +51,22 @@ export interface MergedPr {
  * they affect, in the template's order and areas. IDs that aren't in the
  * template are listed so they can be fixed.
  */
-export function runBody(checks: Check[], prs: MergedPr[], extra: string[] = []): { body: string; ids: string[]; unknown: string[] } {
+/** Where runs are done: the test site, deployed from dev, on these devices. */
+export const RUN_DEPLOYMENT = "https://app.dev.alasin.app (the test site, deployed from `dev` by CI)";
+export const RUN_DEVICES = "iOS Safari, macOS Chrome";
+
+/** A run's title: the dev commit under test, and the release it comes after. */
+export const runTitle = (commit: string, lastRelease: string) => `Test run: dev at ${commit} (after ${lastRelease})`;
+
+export function runBody(checks: Check[], prs: MergedPr[], extra: string[] = [], version = "(shown in the account sheet)"): { body: string; ids: string[]; unknown: string[] } {
   const wanted = new Set([...prs.flatMap((p) => checksInPr(p.body)), ...extra]);
   const known = new Set(checks.map((c) => c.id));
   const unknown = [...wanted].filter((id) => !known.has(id));
   const chosen = checks.filter((c) => wanted.has(c.id));
   const out = [
-    "- **Version:** (shown in the account sheet)",
-    "- **Deployment:** (a development deployment: test runs are never done on production)",
-    "- **Devices:** (e.g. iOS Safari, macOS Chrome)",
+    `- **Version:** ${version}`,
+    `- **Deployment:** ${RUN_DEPLOYMENT}`,
+    `- **Devices:** ${RUN_DEVICES}`,
     "",
     'Tick a check when it passes. For a failure, add a sub-issue (*Sub-issues* → *Create sub-issue*) whose title starts with the check ID, e.g. "4.19: lock banner missing on iOS": the check gets "❌ #123", and "✅ #123 fixed, re-test" once the bug is closed. Tick the check when the re-test passes.',
     "",

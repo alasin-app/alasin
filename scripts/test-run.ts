@@ -11,7 +11,7 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { type MergedPr, parseChecks, runBody } from "./lib/test-run";
+import { type MergedPr, parseChecks, runBody, runTitle } from "./lib/test-run";
 
 const root = join(import.meta.dirname, "..");
 const args = process.argv.slice(2).filter((a) => a !== "--");
@@ -38,9 +38,11 @@ const prs = (JSON.parse(gh("pr", "list", "--base", "dev", "--state", "merged", "
   .sort((a, b) => a.number - b.number);
 const checks = parseChecks(readFileSync(join(root, ".github/ISSUE_TEMPLATE/test-run.md"), "utf8"));
 const extra = (option("--checks") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
-const { body, ids, unknown } = runBody(checks, prs, extra);
-const version = (JSON.parse(readFileSync(join(root, "package.json"), "utf8")) as { version: string }).version;
-const title = `Test run: ${version}`;
+// The dev commit under test, and the release it comes after.
+const commit = execFileSync("git", ["rev-parse", "--short", "origin/dev"], { cwd: root, encoding: "utf8" }).trim();
+const release = `v${(JSON.parse(readFileSync(join(root, "package.json"), "utf8")) as { version: string }).version}`;
+const { body, ids, unknown } = runBody(checks, prs, extra, `\`dev\` at ${commit} (the next release after ${release})`);
+const title = runTitle(commit, release);
 
 if (unknown.length) console.error(`Not in the template (check the IDs): ${unknown.join(", ")}`);
 console.error(`${prs.length} pull requests merged since ${from}; ${ids.length} checks.`);
