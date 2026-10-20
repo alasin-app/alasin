@@ -56,6 +56,8 @@ For Alasin, a change is breaking if an existing deployment would stop working or
 
 ## Releases
 
+**Testing:** manual test runs are done on a development deployment running `dev`, before a release, never on production. After a release updates production, only smoke checks follow. See [Testing](wiki/Testing.md).
+
 Nobody edits version numbers by hand. After each merge to `main`, [release-please](https://github.com/googleapis/release-please) opens or updates a release PR with the version bump and `CHANGELOG.md`. Merging it tags `vX.Y.Z` and publishes the GitHub Release, which deploys production (if continuous deployment is enabled).
 
 ### Before 1.0.0

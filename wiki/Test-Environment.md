@@ -1,4 +1,4 @@
-A test environment is a second Alasin, with a **DEV** badge, writing to the site repository's `dev` branch, with its own Worker, address, buckets, KV namespace, secrets and GitHub App. It's for developing Alasin, running the [manual test runs](Testing.md#manual-test-runs), and trying a new release before production gets it. Nothing done in it reaches the production site.
+A test environment is a second Alasin, with a **DEV** badge, writing to the site repository's `dev` branch, with its own Worker, address, buckets, KV namespace, secrets and GitHub App. It's for developing Alasin and for the [manual test runs](Testing.md#manual-test-runs), which are done only here, never on production. Nothing done in it reaches the production site.
 
 There are two ways to get one:
 
@@ -82,4 +82,4 @@ Setup adds `[env.dev]` to both files. Choose its own address (a workers.dev addr
 
 ## Updating it
 
-Update the test environment first, and production once the release works there: [Updating](Updating.md), with `--env dev`.
+A test environment runs the code under test: deploy it from a checkout of the `dev` branch (`npm run deploy -- --site <site> --env dev`, after `npm run setup` with the same options if the configuration changed). Production is updated only from releases ([Updating](Updating.md)).

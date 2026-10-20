@@ -18,9 +18,21 @@ What needs real devices, GitHub or Cloudflare is checked by hand, in test runs:
 - **The checks** are in [`.github/ISSUE_TEMPLATE/test-run.md`](https://github.com/alasin-app/alasin/blob/main/.github/ISSUE_TEMPLATE/test-run.md), grouped by area. A pull request that adds or changes behaviour adds or updates its checks there.
 - **Every pull request lists the checks it affects** under *Manual checks* (the pull request template has the section), or says "none". List only what someone has to redo by hand for this change: what automated tests cover needs no manual check, and the install, deploy and update checks (1.1–1.3) only come up when installing, deploying or updating changes.
 - **A test run is an issue** labelled `test-run`. `npm run test-run` builds one from the pull requests merged into `dev` since the last run, with only the checks they list (add more with `--checks 2.21,A.3`); `-- --create` opens it. Tick each check as it passes. For a failure, add a sub-issue to the run whose title starts with the check ID (e.g. "4.19: lock banner missing on iOS"): a workflow marks the check "❌ #123", and "✅ #123 fixed, re-test" once the bug is closed; bugs without a check ID are listed at the end of the run. Close the run when every check is ticked.
-- **Where:** any deployment running the version under test, usually a [test environment](Test-Environment.md), reset to its sample content first; a run doesn't need a fresh installation. Record the version, the deployment (dev or production) and the devices at the top of the run; never a deployment's own names, addresses or accounts.
+- **Where:** only on a development deployment, a [test environment](Test-Environment.md) running the `dev` branch's code, reset to its sample content first; a run doesn't need a fresh installation. **Never on production.** Record the version, the deployment and the devices at the top of the run; never a deployment's own names, addresses or accounts.
+- **When:** before a release. A release is cut from code whose run is complete.
 
 Past runs: [closed `test-run` issues](https://github.com/alasin-app/alasin/issues?q=label%3Atest-run).
+
+## Smoke tests after a release
+
+When a release is published from `main` and a production deployment is updated to it ([Updating](Updating.md)), there is no test run: only a few smoke checks, on that deployment:
+
+1. `npm run deploy` finishes without warnings, and the account sheet shows the new version.
+2. Signing in works, and the lists show the site's posts, pages and drafts.
+3. A post opens in the editor and closes again without changes.
+4. The site still loads.
+
+If one fails, report it as a bug and fix it on `dev` like any other; a release that breaks production gets a hotfix (see [CONTRIBUTING.md](https://github.com/alasin-app/alasin/blob/main/CONTRIBUTING.md#branches)).
 
 ## Testing the installation
 
