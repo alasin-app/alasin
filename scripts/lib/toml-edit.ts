@@ -170,7 +170,7 @@ export function removeTables(text: string, prefix: string): string {
     out.push(line);
   }
   // Marker comments create-site and setup write before an environment's section.
-  const marker = new RegExp(`^# --- \\[${prefix.replace(/\./g, "\\.")}\\]`);
+  const marker = new RegExp(`^# --- \\[${prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\]`);
   return out
     .filter((l) => !marker.test(l))
     .join("\n")

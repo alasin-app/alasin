@@ -31,7 +31,12 @@ export function parseChecks(template: string): Check[] {
 export function checksInPr(body: string): string[] {
   const m = /^##+ Manual checks[^\n]*\n([\s\S]*?)(?=^##+ |(?![\s\S]))/m.exec(body.replace(/\r\n/g, "\n"));
   if (!m) return [];
-  const text = m[1]!.replace(/<!--[\s\S]*?-->/g, "");
+  // Until none is left: removing one comment can join the pieces of another.
+  let text = m[1]!;
+  for (let prev = ""; prev !== text; ) {
+    prev = text;
+    text = text.replace(/<!--[\s\S]*?-->/g, "");
+  }
   return [...new Set([...text.matchAll(/\b([0-9]+|[A-Z])\.[0-9]+\b/g)].map((x) => x[0]))];
 }
 

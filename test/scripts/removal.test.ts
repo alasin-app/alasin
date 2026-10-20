@@ -102,4 +102,9 @@ describe("removeTables", () => {
     ].join("\n");
     expect(removeTables(text, "env.dev")).toBe(['name = "alasin"', "", "[[r2_buckets]]", 'binding = "MEDIA"', "", "[env.devx]", "kept = true", ""].join("\n"));
   });
+
+  it("matches the marker of exactly the prefix given, even with regular expression characters in it", () => {
+    const text = ["# --- [env.aab] ---", "[env.aab]", "y = 2", "", "# --- [env.a+b] ---", "[env.a+b]", "x = 1", ""].join("\n");
+    expect(removeTables(text, "env.a+b")).toBe(["# --- [env.aab] ---", "[env.aab]", "y = 2", ""].join("\n"));
+  });
 });
