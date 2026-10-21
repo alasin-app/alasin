@@ -4,7 +4,7 @@ import { isPage, wikiText } from "../../scripts/lib/wiki";
 
 describe("isPage", () => {
   it("takes Markdown pages, the sidebar and the footer", () => {
-    expect(["Home.md", "Users-and-Access.md", "_Sidebar.md", "_Footer.md"].every(isPage)).toBe(true);
+    expect(["Home.md", "Users-and-Access.md", "_Sidebar.md", "_Footer.md", "What's-New.md"].every(isPage)).toBe(true);
   });
 
   it("leaves out everything else", () => {
@@ -15,6 +15,7 @@ describe("isPage", () => {
 describe("wikiText", () => {
   it("drops .md from links to other pages, keeping anchors", () => {
     expect(wikiText("See [Updating](Updating.md) and [step 3](New-Site.md#3-create-the-token).")).toBe("See [Updating](Updating) and [step 3](New-Site#3-create-the-token).");
+    expect(wikiText("[What's New](What's-New.md#190)")).toBe("[What's New](What's-New#190)");
   });
 
   it("keeps addresses, paths and same-page anchors", () => {

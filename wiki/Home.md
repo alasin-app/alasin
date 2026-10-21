@@ -1,6 +1,6 @@
 Alasin (Finnish for "anvil") is a web app for writing and publishing pages and posts on a **Hugo site stored in GitHub, hosted on Cloudflare, with images in R2**. It's built for a small group of people who write together and want something as easy as a hosted CMS, especially on iPhone and iPad, without leaving their own Hugo, GitHub and Cloudflare setup.
 
-**[What's New](Whats-New.md)**: the latest features, and what each release brought.
+**[What's New](What's-New.md)**: the latest features, and what each release brought.
 
 ## Running a site with Alasin
 
