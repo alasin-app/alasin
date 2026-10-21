@@ -23,7 +23,7 @@ Tick a check when it passes. For a failure, add a sub-issue (*Sub-issues* → *C
 - [ ] **1.6 Log in (other account)**: A GitHub account without write access to the site repository ends on "This GitHub account isn't allowed…"
 - [ ] **1.7 Account sheet**: Avatar → name, `@login`, environment badge, *View site*, version, language switch (English/Suomi)
 - [ ] **1.8 Log out**: *Log out* → confirmation action sheet → back on the login page; reloading stays logged out
-- [ ] **1.9 Desktop / iPad layout**: Window ≥ 768 px: sidebar with all sections; badge and avatar only in the sidebar
+- [ ] **1.9 Desktop / iPad layout**: Window ≥ 768 px: sidebar with all sections; badge and avatar only in the sidebar; at its bottom, *alasin.app* (opens Alasin's website in a new tab), then the version and build
 - [ ] **1.10 iOS layout**: On iOS, window < 768 px (phones): tab bar (Home, Drafts, Media, More), large title, account sheet as a bottom sheet
 - [ ] **1.11 Dark mode**: Device in dark mode: native-looking dark colours on both layouts
 - [ ] **1.12 iOS Safari**: 1.4–1.10 in Safari on iOS, including *Add to Home Screen* (icon and standalone mode)
