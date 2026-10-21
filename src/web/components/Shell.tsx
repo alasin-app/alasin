@@ -24,6 +24,9 @@ import { useContent } from "../lib/use-content";
 import { mediaUsage } from "../lib/content-index";
 import { useMediaBin } from "../lib/media-bin";
 
+/** Alasin's own website: what's new, the features and how to get started. */
+const WEBSITE = "https://alasin.app/";
+
 type Icon = ComponentType<{ size?: number; "aria-hidden"?: "true" }>;
 
 const SECTIONS: { route: Section; label: MessageKey; icon: Icon }[] = [
@@ -163,8 +166,14 @@ export function Shell(props: { me: Me; onLogout: () => void }) {
             {collapsed ? <PanelLeftOpen size={22} aria-hidden="true" /> : <PanelLeftClose size={22} aria-hidden="true" />}
           </button>
           {!collapsed && (
-            <span class="sidebar-build" title={t("account.version")}>
-              {props.me.version} · {buildId()}
+            <span class="sidebar-build">
+              <a href={WEBSITE} target="_blank" rel="noopener" title={t("account.website")}>
+                alasin.app
+              </a>
+              {" · "}
+              <span title={t("account.version")}>
+                {props.me.version} · {buildId()}
+              </span>
             </span>
           )}
         </div>
