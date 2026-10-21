@@ -24,6 +24,9 @@ describe("whatsNewLines", () => {
     expect(whatsNewLines(body("None of your drafts are lost."))).toEqual(["- None of your drafts are lost."]);
     expect(whatsNewLines("Closes #1\n\n## Documentation\n\nnone")).toEqual([]);
   });
+  it("leaves out comments, also one made of another's pieces", () => {
+    expect(whatsNewLines("## What's New\n\n<!<!-- x -->-- y -->\n- A thing.\n")).toEqual(["- A thing."]);
+  });
   it("reads a last section, without the attribution line", () => {
     expect(whatsNewLines("## What's New\n\n- A thing.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n")).toEqual(["- A thing."]);
   });

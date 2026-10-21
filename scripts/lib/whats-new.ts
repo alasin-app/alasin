@@ -18,7 +18,13 @@ export function pullRequests(subjects: string[]): number[] {
 export function whatsNewLines(body: string): string[] {
   const m = /^## What's New[ \t]*\r?\n([\s\S]*?)(?=^## |(?![\s\S]))/m.exec(body ?? "");
   if (!m) return [];
-  const text = m[1]!.replace(/<!--[\s\S]*?-->/g, "").replace(/🤖 Generated with[^\n]*/g, "").trim();
+  // Until none is left: removing one comment can join the pieces of another.
+  let text = m[1]!;
+  for (let prev = ""; prev !== text; ) {
+    prev = text;
+    text = text.replace(/<!--[\s\S]*?-->/g, "");
+  }
+  text = text.replace(/🤖 Generated with[^\n]*/g, "").trim();
   // "none", "None.", "none: internal only", but not "None of your drafts …".
   if (!text || /^none\b(?![ \t]+\w)/i.test(text)) return [];
   // A paragraph is one item; list items (and their continuation lines) stay as they are.
