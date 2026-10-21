@@ -56,4 +56,4 @@ Each screenshot is stored the way Alasin stores a photo for the site in `--for` 
 
 It needs the test site's `.dev.vars` (setup writes it when asked *Write … .dev.vars for local development?*) and the browser: `npx playwright install chromium`.
 
-At each release, take them again with `--upload`: they are also put in that site's media bucket, never over an existing photo (if any is already there, nothing is uploaded; use another `--date`). Then link the new ones in alasin.app's *Screenshots*, *Features* and home pages and in [What's New](Whats-New.md), and delete the previous ones in its *Media*. Every screenshot is on the *Screenshots* page, so *Media* counts it as used.
+At each release, take them again with `--upload`: they are also put in that site's media bucket, never over an existing photo (if any is already there, nothing is uploaded; use another `--date`). Then link the new ones in alasin.app's *Screenshots*, *Features* and home pages and in [What's New](What's-New.md), and delete the previous ones in its *Media*. Every screenshot is on the *Screenshots* page, so *Media* counts it as used.

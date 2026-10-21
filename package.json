@@ -27,6 +27,7 @@
     "test-run": "tsx scripts/test-run.ts",
     "test-run-marks": "tsx scripts/test-run-marks.ts",
     "wiki:publish": "tsx scripts/wiki-publish.ts",
+    "whats-new": "tsx scripts/whats-new.ts",
     "screenshots": "tsx scripts/screenshots.ts"
   },
   "dependencies": {
