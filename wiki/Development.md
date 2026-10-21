@@ -45,8 +45,15 @@ The rules for code (licence headers, translations, configuration options, depend
 
 ## Screenshots for alasin.app
 
-`npm run screenshots` takes the app's screenshots for alasin.app: Home, Posts, the editor, Categories and Media, at iPhone and desktop sizes, in light and dark mode. It runs Alasin locally (`npm run dev --https --remote-media`: the photo buckets are the test site's real ones, read only, so *Media* shows its photos) with the test site's configuration (`--site`, default `app.alasin.dev`) and its sample content, signs in as the person `gh` is logged in as, and shows a made-up person (*Aino Virtanen*) instead of them, without the **DEV** badge. The images go to `.alasin/screenshots/` (`--out` for another folder).
+`npm run screenshots` takes the app's screenshots for alasin.app, at iPhone and desktop sizes, in light and dark mode:
+
+- Home, Posts, the editor, Categories and Media.
+- The features from *What's New* in use: the *Rename or move* sheet in Categories (`category-rename`), an orphaned photo selected in Media (`media-delete`), photos in the Bin (`bin`), a post someone else is editing (`editing`) and Users (`users`).
+
+It runs Alasin locally (`npm run dev --https --remote-media`: the photo buckets are the test site's real ones, read only, so *Media* shows its photos) with the test site's configuration (`--site`, default `app.alasin.dev`) and its sample content, and signs in as the person `gh` is logged in as. Everyone in the screenshots is made up: *Aino Virtanen* instead of the signed-in person, and the other people in Users and the one editing the post. There is no **DEV** badge. Nothing is changed: the Bin's photos, the edit lock and the Users list are answered by the script itself.
+
+Each screenshot is stored the way Alasin stores a photo for the site in `--for` (default `app.alasin`), so its *Media* lists them: a JPEG at most 1600 pixels on the long side, named after the shot, device and mode (`users-desktop-light.jpg`), in that site's `[media] path_pattern` dated `--date` (default today), with its `[images]` sizes next to it. The files go to `.alasin/screenshots/` by their place in the bucket (`--out` for another folder).
 
 It needs the test site's `.dev.vars` (setup writes it when asked *Write … .dev.vars for local development?*) and the browser: `npx playwright install chromium`.
 
-At each release, take them again and upload them over the old ones in alasin.app's media bucket, under `screenshots/` with the same names (as JPEG, at most 1600 pixels on the long side); its *Screenshots* page and home page show them from there.
+At each release, take them again with `--upload`: they are also put in that site's media bucket, never over an existing photo (if any is already there, nothing is uploaded; use another `--date`). Then link the new ones in alasin.app's *Screenshots*, *Features* and home pages and in [What's New](Whats-New.md), and delete the previous ones in its *Media*. Every screenshot is on the *Screenshots* page, so *Media* counts it as used.
