@@ -3,11 +3,20 @@
 # (version bump in package.json + CHANGELOG.md). Merging that PR creates the
 # tag vX.Y.Z and the GitHub Release, and then the release is deployed to
 # production (deploy.yml, when ALASIN_DEPLOY allows it).
+#
+# What's New: while a release PR is open, its version's section of
+# wiki/What's-New.md is written on it from the merged pull requests' "What's
+# New" sections (npm run whats-new), again on every update. After a release,
+# the wiki is published from the tag, and the project's website is rebuilt
+# through the WEBSITE_DEPLOY_HOOK secret (a Cloudflare Workers Builds deploy
+# hook) of the "production" environment, if it's set.
 name: Release
 
 on:
   push:
     branches: [main]
+  # By hand: write the release PR's What's New again after editing pull requests' sections.
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -40,3 +49,83 @@ jobs:
     with:
       tag: ${{ needs.release-please.outputs.tag_name }}
     secrets: inherit
+
+  whats-new:
+    name: what's new
+    needs: release-please
+    if: needs.release-please.outputs.release_created != 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Find the release PR
+        id: pr
+        run: |
+          branch=$(gh pr list -R "$GITHUB_REPOSITORY" --base main --state open --label "autorelease: pending" --json headRefName --jq '.[0].headRefName // ""')
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+      - if: steps.pr.outputs.branch != ''
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ steps.pr.outputs.branch }}
+          # The tags: the pull requests since the last release.
+          fetch-depth: 0
+      - if: steps.pr.outputs.branch != ''
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - if: steps.pr.outputs.branch != ''
+        run: npm ci
+      - if: steps.pr.outputs.branch != ''
+        run: npm run whats-new
+      - if: steps.pr.outputs.branch != ''
+        name: Commit to the release PR
+        env:
+          BRANCH: ${{ steps.pr.outputs.branch }}
+        run: |
+          git diff --quiet -- "wiki/What's-New.md" && exit 0
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "docs: What's New for $(node -p 'require("./package.json").version')" -- "wiki/What's-New.md"
+          git push origin "HEAD:$BRANCH"
+
+  wiki:
+    name: wiki
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      # Pushing to the repository's wiki.
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.release-please.outputs.tag_name }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          npm run wiki:publish
+
+  website:
+    name: website
+    needs: [release-please, wiki]
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    environment: production
+    permissions: {}
+    steps:
+      - name: Rebuild the website
+        env:
+          HOOK: ${{ secrets.WEBSITE_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$HOOK" ]; then echo "No WEBSITE_DEPLOY_HOOK: the website isn't rebuilt."; exit 0; fi
+          curl -fsS -X POST "$HOOK" > /dev/null
+          echo "Website build started."

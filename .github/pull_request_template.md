@@ -13,6 +13,12 @@ none
 
 ## Documentation
 
-<!-- The wiki/ pages this pull request updates (e.g. New-Site.md, Configuration.md), or "none". Anything a site owner, author, developer or tester does or sees differently after this change belongs in the wiki, in this pull request: commands, prompts and messages, options (npm run docs:config), app behaviour, the test-run process. A new or changed feature also suggests a line or two for wiki/What's-New.md here, in plain words for the people who run and use Alasin; they go on that page when the feature is released. See CONTRIBUTING.md › Documentation. -->
+<!-- The wiki/ pages this pull request updates (e.g. New-Site.md, Configuration.md), or "none". Anything a site owner, author, developer or tester does or sees differently after this change belongs in the wiki, in this pull request: commands, prompts and messages, options (npm run docs:config), app behaviour, the test-run process. See CONTRIBUTING.md › Documentation. -->
+
+none
+
+## What's New
+
+<!-- What the people who run and use Alasin notice, in plain, non-technical words, as list items ("- **Rename and move categories.** Give a category …"), or "none" (fixes nobody sees, tests, CI, developer tools). At a release they become the version's section of wiki/What's-New.md, written on the release PR, so this is where the wording is fixed. See CONTRIBUTING.md › Documentation. -->
 
 none
