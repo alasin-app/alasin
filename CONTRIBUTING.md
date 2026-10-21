@@ -106,10 +106,10 @@ Conventions, so the pages work both here and in the wiki:
 - **No `#` title:** the wiki shows the page name. Pages start at `##` (`wiki/.markdownlint.yaml`).
 - **Links between pages** are relative, with `.md` (`[Updating](Updating.md#…)`); publishing removes the `.md`. **Links to repository files** are absolute: `https://github.com/alasin-app/alasin/blob/main/…`.
 - **Generated:** the reference in [Configuration](wiki/Configuration.md) between its markers comes from the config schema (`npm run docs:config`; `npm run lint` checks it).
-- **What's New** (`wiki/What's-New.md`): only released versions. A pull request that adds or changes a feature suggests a line or two in plain, non-technical words under *Documentation* in its description; at a release, those become the new version's section. alasin.app shows the same page.
+- **What's New** (`wiki/What's-New.md`): only released versions, in plain, non-technical words for the people who run and use Alasin. Nobody writes it by hand: each pull request's *What's New* section (or `none`) gives its lines, and whenever release-please opens or updates the release PR, the release workflow writes them as the version's section on that PR (`npm run whats-new`, from the pull requests merged since the last release tag). To change the wording, edit the pull requests' sections; the next update of the release PR writes it again, or run the workflow by hand. alasin.app shows the same page.
 - No deployment details, as everywhere (see above).
 
-**Publishing:** `npm run wiki:publish` copies the committed `wiki/` to the wiki (`-- --dry-run` shows what would change). Publish from `main` after a release, so the wiki describes the released version.
+**Publishing:** after each release, the release workflow publishes `wiki/` from the release tag to the wiki and, with the `WEBSITE_DEPLOY_HOOK` secret, rebuilds the project's website, so both show the release. By hand: `npm run wiki:publish` copies the committed `wiki/` to the wiki (`-- --dry-run` shows what would change); publish from `main`, so the wiki describes the released version.
 
 ## Reporting security issues
 
