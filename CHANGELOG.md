@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.10.0](https://github.com/alasin-app/alasin/compare/v1.9.0...v1.10.0) (2026-10-21)
+
+
+### Features
+
+* **ci:** What's New written on the release PR, published after the release ([#372](https://github.com/alasin-app/alasin/issues/372)) ([d19a711](https://github.com/alasin-app/alasin/commit/d19a71173783a4c21318a3ab568e21145466bcd7))
+
+
+### Bug Fixes
+
+* **wiki:** the What's New page is titled What's New ([#371](https://github.com/alasin-app/alasin/issues/371)) ([76a20df](https://github.com/alasin-app/alasin/commit/76a20df1d4c95031b23fd7053a6638bc8261084a)), closes [#369](https://github.com/alasin-app/alasin/issues/369)
+
 ## [1.9.0](https://github.com/alasin-app/alasin/compare/v1.8.1...v1.9.0) (2026-10-21)
 
 
