@@ -5,32 +5,48 @@ The new and improved features in each Alasin release, newest first. To get them 
 - **Rename and move categories.** Give a category a new name or address, or put it under another category. Every post and page that uses it follows along, and old links to the category keep working.
 - **A test site for trying Alasin.** A ready-made site full of sample posts, pages and photos, on its own web address, that's updated automatically with every change to Alasin, so new versions can be tried before they're released.
 
+![Rename or move: a category's name, address and the category it's under](https://img.alasin.app/2026/10/21/category-rename-desktop-light.jpg "Rename or move: a category's name, address and the category it's under")
+
 ## 1.6.0 (20 October 2026)
 
 - **Start a new site with one command.** `create-site` makes everything a new site needs: the site itself, its storage for photos, its publishing and Alasin, ready to sign in.
 - **A sample site to practise on**, with posts, pages, photos and drafts, which can be put back to its starting point at any time.
 - **New documentation**, step by step, for setting up and looking after a site.
 
+![Home on the sample site: your drafts and the latest posts](https://img.alasin.app/2026/10/21/home-desktop-light.jpg "Home on the sample site: your drafts and the latest posts")
+
 ## 1.5.0 (18 October 2026)
 
 - **New people show up at once.** Someone who has just accepted an invitation to the site appears in *Users* right away.
 - **Profile pictures update within minutes** when someone changes theirs on GitHub, instead of up to two days later.
 
+![Users: everyone who can sign in, with their access](https://img.alasin.app/2026/10/21/users-desktop-light.jpg "Users: everyone who can sign in, with their access")
+
 ## 1.4.1 (18 October 2026)
 
 - **Photos in use are recognised everywhere** in the site's content, so a photo used on a page isn't offered for deletion.
+
+![Media: every photo, and which posts use it](https://img.alasin.app/2026/10/21/media-desktop-light.jpg "Media: every photo, and which posts use it")
 
 ## 1.4.0 (18 October 2026)
 
 - **Delete unused photos.** Photos that nothing uses any more can be deleted in *Media*. They go to the Bin first, so they can still be recovered.
 
+![An orphaned photo selected in Media, to move to the Bin](https://img.alasin.app/2026/10/21/media-delete-desktop-light.jpg "An orphaned photo selected in Media, to move to the Bin")
+
+![Deleted photos in the Bin, until it's emptied](https://img.alasin.app/2026/10/21/bin-desktop-light.jpg "Deleted photos in the Bin, until it's emptied")
+
 ## 1.3.0 (17 October 2026)
 
 - **Safer editing together.** When two people have the same post open, Alasin makes sure one can't overwrite the other's changes.
 
+![Someone else is editing this post: it's open read-only, with Take over editing](https://img.alasin.app/2026/10/21/editing-desktop-light.jpg "Someone else is editing this post: it's open read-only, with Take over editing")
+
 ## 1.2.0 (17 October 2026)
 
 - **Invite and remove people** from the *Users* section, which takes you straight to the right place on GitHub.
+
+![Users, with Invite on GitHub and Remove](https://img.alasin.app/2026/10/21/users-desktop-light.jpg "Users, with Invite on GitHub and Remove")
 
 ## 1.1.0 (17 October 2026)
 
@@ -47,3 +63,5 @@ The first stable release. Write and publish posts and pages for your Hugo site f
 - **Organising:** categories (also nested), tags, and a media library.
 - **People:** everyone who can write to the site's repository can sign in with GitHub, and every post shows who wrote it.
 - **In English and Finnish**, in light and dark mode.
+
+![The editor: text formatted as you type, a photo and a gallery](https://img.alasin.app/2026/10/21/editor-desktop-light.jpg "The editor: text formatted as you type, a photo and a gallery")
