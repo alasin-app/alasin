@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.9.0](https://github.com/alasin-app/alasin/compare/v1.8.1...v1.9.0) (2026-10-21)
+
+
+### Features
+
+* **scripts:** screenshots of What's New features, stored as in Media ([#365](https://github.com/alasin-app/alasin/issues/365)) ([f823ed8](https://github.com/alasin-app/alasin/commit/f823ed8de6a6728b1b359a6ac6b716aa83ae179e))
+* **web:** a link to alasin.app next to the version in the sidebar ([#366](https://github.com/alasin-app/alasin/issues/366)) ([f2699be](https://github.com/alasin-app/alasin/commit/f2699be9ee4ba487ac7c03363460b1da01def2d2)), closes [#364](https://github.com/alasin-app/alasin/issues/364)
+
 ## [1.8.1](https://github.com/alasin-app/alasin/compare/v1.8.0...v1.8.1) (2026-10-20)
 
 
