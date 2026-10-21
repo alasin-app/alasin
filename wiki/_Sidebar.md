@@ -1,4 +1,4 @@
-**[Home](Home.md)** · **[What's New](Whats-New.md)**
+**[Home](Home.md)** · **[What's New](What's-New.md)**
 
 ### Running a site
 
