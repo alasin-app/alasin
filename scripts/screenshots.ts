@@ -93,9 +93,14 @@ async function main() {
   if (!media.media.path_pattern.startsWith("{yyyy}/{mm}/")) throw new Error(`${target}'s [media] path_pattern doesn't keep photos by month, so Media wouldn't list the screenshots.`);
   mkdirSync(out, { recursive: true });
 
-  const server = spawn("npm", ["run", "-s", "dev", "--", "--site", site, "--https", "--remote-media"], { cwd: repoRoot, stdio: ["ignore", "ignore", "inherit"], detached: true });
   // The script's own requests to the local server, whose certificate is self-signed.
   const local = await request.newContext({ baseURL: BASE, ignoreHTTPSErrors: true });
+  // Another local Alasin (e.g. an earlier run) would answer instead of this one.
+  if (await local.get("/", { maxRedirects: 0 }).then(() => true, () => false)) {
+    await local.dispose();
+    throw new Error(`Something is already running at ${BASE}: stop it first.`);
+  }
+  const server = spawn("npm", ["run", "-s", "dev", "--", "--site", site, "--https", "--remote-media"], { cwd: repoRoot, stdio: ["ignore", "ignore", "inherit"], detached: true });
   const files: { key: string; type: string }[] = [];
   try {
     for (let i = 0; ; i++) {
@@ -270,7 +275,11 @@ async function main() {
     }
   } finally {
     await local.dispose();
-    if (server.pid) process.kill(-server.pid);
+    try {
+      if (server.pid) process.kill(-server.pid);
+    } catch {
+      // Already gone: it stopped by itself.
+    }
   }
   if (upload) uploadAll(files, media);
 }
