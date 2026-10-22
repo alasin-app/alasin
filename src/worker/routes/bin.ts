@@ -172,8 +172,8 @@ bin.post("/purge", async (c) => {
     const draftId = kindOf(config, origin!)?.draftId;
     if (!draftId) continue;
     try {
-      const listed = await c.env.DRAFTS.list({ prefix: `${draftId}/`, limit: 1000 });
-      if (listed.objects.length) await c.env.DRAFTS.delete(listed.objects.map((o) => o.key));
+      const listed = await c.var.drafts.list({ prefix: `${draftId}/`, limit: 1000 });
+      if (listed.objects.length) await c.var.drafts.delete(listed.objects.map((o) => o.key));
     } catch (err) {
       logError({ rid: c.get("requestId"), event: "draft_media_cleanup_failed", uid: c.get("session").uid }, err);
     }

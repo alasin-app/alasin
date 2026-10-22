@@ -147,10 +147,12 @@ describe("GitHub token refresh", () => {
   async function tokenApp() {
     const { Hono } = await import("hono");
     const { getUserToken, requireSession, SessionExpiredError } = await import("../../src/worker/session");
-    const { loadConfig } = await import("../../src/worker/config");
+    const { loadDeployment } = await import("../../src/worker/config");
     const app = new Hono<import("../../src/worker/app").AppEnv>();
     app.use("*", async (c, next) => {
-      c.set("config", loadConfig(c.env.ALASIN_CONFIG_JSON));
+      const deployment = loadDeployment(c.env.ALASIN_CONFIG_JSON);
+      c.set("deployment", deployment);
+      c.set("config", deployment.sites[0]!.config);
       c.set("requestId", "test");
       await next();
     });

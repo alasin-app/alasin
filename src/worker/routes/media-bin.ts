@@ -63,7 +63,7 @@ mediaBin.get("/", async (c) => {
   const deleted = new Map<string, { by: string; at: string }>();
   let cursor: string | undefined;
   do {
-    const page = await c.env.DRAFTS.list({ prefix: MEDIA_BIN, limit: 1000, include: ["customMetadata"], ...(cursor ? { cursor } : {}) });
+    const page = await c.var.drafts.list({ prefix: MEDIA_BIN, limit: 1000, include: ["customMetadata"], ...(cursor ? { cursor } : {}) });
     for (const o of page.objects) {
       const key = o.key.slice(MEDIA_BIN.length);
       if (!IMAGE.test(key)) continue;
@@ -80,7 +80,7 @@ mediaBin.get("/", async (c) => {
 mediaBin.get("/file", async (c) => {
   const key = c.req.query("key") ?? "";
   if (!safe(key) || !IMAGE.test(key)) return c.json({ error: "not_found", message: "No such image." }, 404);
-  const object = await c.env.DRAFTS.get(MEDIA_BIN + key);
+  const object = await c.var.drafts.get(MEDIA_BIN + key);
   if (!object) return c.json({ error: "not_found", message: "No such image." }, 404);
   return new Response(object.body, {
     headers: {
@@ -104,9 +104,9 @@ mediaBin.post("/delete", async (c) => {
   // Everything is checked before anything moves.
   const moves: { key: string; objects: string[] }[] = [];
   for (const key of keys) {
-    const objects = await withVariants(c.env.MEDIA, "", key);
+    const objects = await withVariants(c.var.media, "", key);
     if (!objects.includes(key)) return c.json({ error: "not_found", message: `${key} is no longer in the media bucket.`, key }, 404);
-    if ((await withVariants(c.env.DRAFTS, MEDIA_BIN, key)).length) {
+    if ((await withVariants(c.var.drafts, MEDIA_BIN, key)).length) {
       return c.json({ error: "exists", message: `An earlier copy of ${key} is already in the Bin. Delete that one permanently or recover it first.`, key }, 409);
     }
     moves.push({ key, objects });
@@ -117,9 +117,9 @@ mediaBin.post("/delete", async (c) => {
   for (const { key, objects } of moves) {
     // Into the Bin first, so a failure never loses an image; then out of MEDIA.
     for (const o of objects) {
-      await copy(c.env.MEDIA, o, c.env.DRAFTS, MEDIA_BIN + o, (m) => (o === key ? { ...m, [DELETED_BY]: session.name || session.login, [DELETED_AT]: at } : m));
+      await copy(c.var.media, o, c.var.drafts, MEDIA_BIN + o, (m) => (o === key ? { ...m, [DELETED_BY]: session.name || session.login, [DELETED_AT]: at } : m));
     }
-    await c.env.MEDIA.delete(objects);
+    await c.var.media.delete(objects);
   }
   return c.json({ deleted: keys });
 });
@@ -132,15 +132,15 @@ mediaBin.post("/recover", async (c) => {
   if (!imageKey(config, key)) return c.json({ error: "invalid", message: "This isn't in the Bin." }, 400);
   if (await limited(c)) return c.json({ error: "rate_limited", message: "Too many saves. Wait a moment and try again." }, 429);
 
-  const objects = await withVariants(c.env.DRAFTS, MEDIA_BIN, key);
+  const objects = await withVariants(c.var.drafts, MEDIA_BIN, key);
   if (!objects.includes(MEDIA_BIN + key)) return c.json({ error: "not_found", message: "This is no longer in the Bin." }, 404);
   // MEDIA is never overwritten: anything new at the image's key or one of its variants' keeps it in the Bin.
   for (const o of objects) {
-    if (await c.env.MEDIA.head(o.slice(MEDIA_BIN.length))) return c.json({ error: "exists", message: `Something new is at ${key} now.`, key }, 409);
+    if (await c.var.media.head(o.slice(MEDIA_BIN.length))) return c.json({ error: "exists", message: `Something new is at ${key} now.`, key }, 409);
   }
   const strip = (m: Record<string, string>) => Object.fromEntries(Object.entries(m).filter(([k]) => k !== DELETED_BY && k !== DELETED_AT));
-  for (const o of objects) await copy(c.env.DRAFTS, o, c.env.MEDIA, o.slice(MEDIA_BIN.length), strip);
-  await c.env.DRAFTS.delete(objects);
+  for (const o of objects) await copy(c.var.drafts, o, c.var.media, o.slice(MEDIA_BIN.length), strip);
+  await c.var.drafts.delete(objects);
   return c.json({ key });
 });
 
@@ -155,9 +155,9 @@ mediaBin.post("/purge", async (c) => {
   // Only inside the Bin: every key here starts with MEDIA_BIN.
   let removed = 0;
   for (const key of keys) {
-    const objects = await withVariants(c.env.DRAFTS, MEDIA_BIN, key);
+    const objects = await withVariants(c.var.drafts, MEDIA_BIN, key);
     if (!objects.length) continue;
-    await c.env.DRAFTS.delete(objects);
+    await c.var.drafts.delete(objects);
     removed++;
   }
   return c.json({ removed });

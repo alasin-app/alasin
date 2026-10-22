@@ -21,6 +21,8 @@ export interface LogFields {
   folders?: number;
   removedFolders?: number;
   removedObjects?: number;
+  /** The site, with sites/ (#325). */
+  site?: string;
 }
 
 export function log(fields: LogFields): void {

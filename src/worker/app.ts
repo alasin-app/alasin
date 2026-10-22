@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 
 import { Hono } from "hono";
+import type { Deployment, SiteEntry } from "../shared/config/deployment";
 import type { AlasinConfig } from "../shared/config/schema";
-import { loadConfig } from "./config";
+import { loadDeployment } from "./config";
 import type { Env } from "./env";
 import { log, logError } from "./lib/log";
 import { csrf } from "./middleware/csrf";
@@ -19,7 +20,17 @@ import { webManifest, withUiSettings } from "./shell";
 export interface AppEnv {
   Bindings: Env;
   Variables: {
+    deployment: Deployment;
+    /**
+     * The configuration of the request's site (see lib/site-context.ts).
+     * Outside a site's routes, the first site's: what every site shares
+     * ([app], [ui], [security], the GitHub App) is the same in each.
+     */
     config: AlasinConfig;
+    /** The request's site and its buckets, on a site's routes. */
+    site: SiteEntry;
+    media: R2Bucket;
+    drafts: R2Bucket;
     session: Session;
     requestId: string;
     /** One-time nonce for runtime `<style>` elements on an app page. */
@@ -36,9 +47,9 @@ export function createApp() {
     const rid = c.req.header("CF-Ray") ?? crypto.randomUUID();
     c.set("requestId", rid);
     const url = new URL(c.req.url);
-    let config: AlasinConfig | undefined;
+    let deployment: Deployment | undefined;
     try {
-      config = loadConfig(c.env.ALASIN_CONFIG_JSON);
+      deployment = loadDeployment(c.env.ALASIN_CONFIG_JSON);
     } catch (err) {
       logError({ rid, event: "config_invalid" }, err);
       c.res = withSecurityHeaders(
@@ -51,6 +62,8 @@ export function createApp() {
       );
       return;
     }
+    c.set("deployment", deployment);
+    const config = deployment.sites[0]!.config;
     c.set("config", config);
 
     const canonical = new URL(config.app.url);

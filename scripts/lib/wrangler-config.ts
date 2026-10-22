@@ -1,54 +1,26 @@
 // SPDX-License-Identifier: MIT
 // Builds the Wrangler configuration actually passed to `wrangler dev|deploy`:
 // the operator's wrangler.toml plus what Alasin manages itself (entry point,
-// static assets, the validated alasin.toml as a variable, the version). It is
+// static assets, the validated sites as a variable, the version). It is
 // written to .alasin/ (gitignored) so the operator's file stays untouched and
 // may live outside this repository.
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { AlasinConfig } from "../../src/shared/config/schema";
+import { type Deployment, serializeDeployment } from "../../src/shared/config/deployment";
 import { ConfigError } from "../../src/shared/config/schema";
 import { repoRoot } from "./args";
+import { checkBindings } from "./bindings";
+
+export { checkBindings };
 import { displayPath, readToml } from "./config";
 
 type Table = Record<string, unknown>;
 
 export const REQUIRED_SECRETS = ["SESSION_KEY", "TOKEN_KEY", "GITHUB_CLIENT_SECRET", "GITHUB_APP_PRIVATE_KEY"] as const;
-const RATE_LIMITS = ["RL_AUTH", "RL_UPLOAD", "RL_COMMIT"];
 
 export function packageVersion(): string {
   return (JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8")) as { version: string }).version;
-}
-
-function asArray(v: unknown): Table[] {
-  return Array.isArray(v) ? (v as Table[]) : [];
-}
-
-/** Checks the bindings the Worker needs. Returns problems as readable lines. */
-export function checkBindings(target: Table, where: string): string[] {
-  const problems: string[] = [];
-  const r2 = asArray(target.r2_buckets);
-  for (const b of ["MEDIA", "DRAFTS"]) {
-    const found = r2.find((x) => x.binding === b);
-    if (!found) problems.push(`${where}: missing [[r2_buckets]] with binding = "${b}"`);
-    else if (!found.bucket_name) problems.push(`${where}: the ${b} bucket has no bucket_name`);
-  }
-  const media = r2.find((x) => x.binding === "MEDIA");
-  const drafts = r2.find((x) => x.binding === "DRAFTS");
-  if (media && drafts && media.bucket_name === drafts.bucket_name && media.jurisdiction === drafts.jurisdiction) {
-    problems.push(`${where}: MEDIA and DRAFTS must be different buckets (DRAFTS is private, MEDIA is public)`);
-  }
-  const kv = asArray(target.kv_namespaces).find((x) => x.binding === "KV");
-  if (!kv) problems.push(`${where}: missing [[kv_namespaces]] with binding = "KV"`);
-  else if (!kv.id || /^0+$/.test(String(kv.id))) problems.push(`${where}: the KV namespace id is still a placeholder; run \`npm run setup\``);
-  const dos = asArray((target.durable_objects as Table | undefined)?.bindings);
-  if (!dos.some((x) => x.name === "LOCKS" && x.class_name === "EditLocks")) {
-    problems.push(`${where}: missing [[durable_objects.bindings]] name = "LOCKS", class_name = "EditLocks"`);
-  }
-  const rl = asArray(target.ratelimits);
-  for (const name of RATE_LIMITS) if (!rl.some((x) => x.name === name)) problems.push(`${where}: missing [[ratelimits]] name = "${name}"`);
-  return problems;
 }
 
 export interface GeneratedConfig {
@@ -59,7 +31,7 @@ export interface GeneratedConfig {
 export function generateWranglerConfig(opts: {
   wranglerPath: string;
   env: string | undefined;
-  config: AlasinConfig;
+  deployment: Deployment;
   outName: string;
 }): GeneratedConfig {
   const raw = readToml(opts.wranglerPath);
@@ -72,9 +44,9 @@ export function generateWranglerConfig(opts: {
   }
 
   const managed = {
-    vars: { ALASIN_CONFIG_JSON: JSON.stringify(opts.config) },
-    // The nightly cleanup of the DRAFTS bucket.
-    triggers: { crons: [opts.config.drafts.cleanup_cron] },
+    vars: { ALASIN_CONFIG_JSON: serializeDeployment(opts.deployment) },
+    // The nightly cleanup of each site's DRAFTS bucket.
+    triggers: { crons: [...new Set(opts.deployment.sites.map((s) => s.config.drafts.cleanup_cron))] },
     define: { __ALASIN_VERSION__: JSON.stringify(packageVersion()) },
   };
   // Preview URLs would be extra hostnames running this Worker with the same
@@ -111,7 +83,7 @@ export function generateWranglerConfig(opts: {
     delete out.env;
     Object.assign(out, previewUrls(raw), managed);
   }
-  const problems = checkBindings(target, opts.env ? `${label} [env.${opts.env}]` : label);
+  const problems = checkBindings(target, opts.env ? `${label} [env.${opts.env}]` : label, opts.deployment.sites);
   if (problems.length) throw new ConfigError(`${label} is not complete:\n${problems.map((p) => `  - ${p}`).join("\n")}`, problems);
 
   const dir = join(repoRoot, ".alasin");

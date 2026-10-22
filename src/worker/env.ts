@@ -8,9 +8,14 @@ export interface Env {
   /** Validated alasin.toml as JSON, injected by `npm run build|dev|deploy`. */
   ALASIN_CONFIG_JSON: string;
   ASSETS: Fetcher;
-  /** The site's public image bucket. Never overwritten; images leave it only for the Bin (routes/media-bin.ts). */
+  /**
+   * A site's public image bucket. Never overwritten; images leave it only for
+   * the Bin (routes/media-bin.ts). MEDIA with one site; MEDIA_<ID> for each
+   * site from sites/ (see shared/config/deployment.ts), when MEDIA isn't
+   * there. Routes use c.var.media, never this.
+   */
   MEDIA: R2Bucket;
-  /** Private bucket for draft images, and for images in the Bin under `media-bin/`. */
+  /** A site's private bucket for draft images, and for images in the Bin under `media-bin/`. DRAFTS or DRAFTS_<ID>; routes use c.var.drafts. */
   DRAFTS: R2Bucket;
   /** Sessions, encrypted GitHub tokens and OAuth state. */
   KV: KVNamespace;
@@ -30,6 +35,8 @@ export interface Env {
   GITHUB_CLIENT_SECRET: string;
   /** PKCS#8 PEM. Used for installation tokens (daily cleanup). */
   GITHUB_APP_PRIVATE_KEY: string;
+  /** The sites' buckets by binding name (MEDIA_<ID>, DRAFTS_<ID>). */
+  [binding: string]: unknown;
 }
 
 type AlasinEnv = Env;
