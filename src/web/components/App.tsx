@@ -4,14 +4,18 @@ import { useEffect, useState } from "preact/hooks";
 import { api, ApiError, clearLocalData, type Me, NetworkError } from "../lib/api";
 import { resetContent } from "../lib/use-content";
 import { t, useLanguage } from "../lib/i18n";
+import { chooseSite, sitePath } from "../lib/current-site";
 import { Login } from "./Login";
 import { Shell } from "./Shell";
+import { SiteChooser } from "./SiteChooser";
 
 type State =
   | { kind: "loading" }
   | { kind: "loggingOut" }
   | { kind: "anonymous" }
   | { kind: "signedIn"; me: Me }
+  /** A deployment with sites, and none chosen yet. */
+  | { kind: "chooseSite"; me: Me }
   | { kind: "error"; network: boolean };
 
 export function App() {
@@ -21,7 +25,20 @@ export function App() {
   const load = async () => {
     setState({ kind: "loading" });
     try {
-      setState({ kind: "signedIn", me: await api<Me>("/api/me") });
+      const me = await api<Me>("/api/me");
+      const site = chooseSite(me, location.pathname);
+      if (me.multi && !site) {
+        history.replaceState(null, "", "/");
+        setState({ kind: "chooseSite", me });
+        return;
+      }
+      if (site) {
+        // The chosen site in the address, and as the site the app shows.
+        const base = sitePath();
+        if (location.pathname !== base && !location.pathname.startsWith(`${base}/`)) history.replaceState(null, "", `${base}/`);
+        me.site = me.sites.find((s) => s.id === site) ?? me.site;
+      }
+      setState({ kind: "signedIn", me });
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) setState({ kind: "anonymous" });
       else setState({ kind: "error", network: err instanceof NetworkError });
@@ -71,6 +88,8 @@ export function App() {
           </button>
         </div>
       );
+    case "chooseSite":
+      return <SiteChooser me={state.me} onLogout={() => void logout()} />;
     case "signedIn":
       return <Shell me={state.me} onLogout={() => void logout()} />;
   }

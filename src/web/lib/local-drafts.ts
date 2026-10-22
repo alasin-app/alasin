@@ -2,8 +2,11 @@
 //
 // Local autosave: the text of drafts being edited is kept in IndexedDB while
 // typing, so nothing is lost if the tab closes or the phone goes offline. It
-// is tied to the signed-in user and removed on logout (clearLocalData).
+// is tied to the signed-in user (and the site, with sites) and removed on
+// logout (clearLocalData).
 // A GitHub commit happens only on "Save draft".
+
+import { currentSite, siteKey } from "./current-site";
 
 const DB = "alasin-drafts";
 const STORE = "drafts";
@@ -11,6 +14,8 @@ const STORE = "drafts";
 export interface LocalDraft {
   key: string;
   uid: number;
+  /** The site's id, in a deployment with sites. */
+  site?: string;
   type: "post" | "page";
   id: string;
   /** Full file text as last edited. */
@@ -40,7 +45,7 @@ async function tx<T>(mode: IDBTransactionMode, run: (s: IDBObjectStore) => IDBRe
   }).finally(() => db.close()) as Promise<T>;
 }
 
-export const localKey = (uid: number, type: string, id: string) => `${uid}:${type}:${id}`;
+export const localKey = (uid: number, type: string, id: string) => siteKey(`${uid}:${type}:${id}`);
 
 export async function getLocalDraft(uid: number, type: string, id: string): Promise<LocalDraft | undefined> {
   try {
@@ -50,9 +55,10 @@ export async function getLocalDraft(uid: number, type: string, id: string): Prom
   }
 }
 
-export async function putLocalDraft(d: Omit<LocalDraft, "key" | "updatedAt">): Promise<void> {
+export async function putLocalDraft(d: Omit<LocalDraft, "key" | "updatedAt" | "site">): Promise<void> {
+  const site = currentSite();
   try {
-    await tx("readwrite", (s) => s.put({ ...d, key: localKey(d.uid, d.type, d.id), updatedAt: Date.now() }));
+    await tx("readwrite", (s) => s.put({ ...d, ...(site ? { site } : {}), key: localKey(d.uid, d.type, d.id), updatedAt: Date.now() }));
   } catch {
     // Private browsing without IndexedDB: the draft is only in memory.
   }
@@ -69,7 +75,7 @@ export async function deleteLocalDraft(uid: number, type: string, id: string): P
 export async function listLocalDrafts(uid: number): Promise<LocalDraft[]> {
   try {
     const all = await tx<LocalDraft[]>("readonly", (s) => s.getAll());
-    return all.filter((d) => d.uid === uid);
+    return all.filter((d) => d.uid === uid && (d.site ?? null) === currentSite());
   } catch {
     return [];
   }

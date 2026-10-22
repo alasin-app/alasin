@@ -5,6 +5,7 @@
 // the site repository. If the file changed on GitHub meanwhile, the user
 // chooses which version to keep — nothing is overwritten silently.
 
+import { apiPath } from "../lib/current-site";
 import { Bold, Check, ChevronLeft, Ellipsis, FileCode, Heading2, ImageOff, ImagePlus, Italic, Link, List, Pencil, Quote, RotateCw, TvMinimalPlay, X } from "lucide-preact";
 import { PhotoError, photosMarkdown, processPhoto, uploadPhoto } from "../lib/photos";
 import type { ImageTarget, MarkdownEditor } from "../editor/markdown-editor";
@@ -736,7 +737,7 @@ export function Editor(props: { me: Me; source: EditSource }) {
   const categoryNode = (slug: string) => categories.find((c) => c.slug === slug);
   // Published images are referred to by the site's own prefix (e.g. /img/…).
   const { contentPrefix, publicUrl } = state.site.media;
-  const coverSrc = contentPrefix.startsWith("/") && f.cover.startsWith(contentPrefix) ? publicUrl + f.cover.slice(contentPrefix.length) : f.cover;
+  const coverSrc = contentPrefix.startsWith("/") && f.cover.startsWith(contentPrefix) ? publicUrl + f.cover.slice(contentPrefix.length) : apiPath(f.cover);
   const dateText = Number.isNaN(Date.parse(f.date))
     ? ""
     : new Date(f.date).toLocaleString(getLanguage(), { day: "numeric", month: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -1237,7 +1238,7 @@ export function Editor(props: { me: Me; source: EditSource }) {
                     setCoverOpen(false);
                   }}
                 >
-                  <img src={img.thumb} alt="" loading="lazy" />
+                  <img src={apiPath(img.thumb)} alt="" loading="lazy" />
                   {f.cover === img.url && <Check class="image-check" size={20} aria-hidden="true" />}
                 </button>
               ))}

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Preact wrapper around the CodeMirror Markdown editor.
 
+import { apiPath } from "../lib/current-site";
 import { useEffect, useRef } from "preact/hooks";
 import type { ImageTarget, MarkdownEditor } from "../editor/markdown-editor";
 import { t } from "../lib/i18n";
@@ -51,8 +52,9 @@ export function BodyEditor(props: {
     void import("../editor/markdown-editor").then(({ createMarkdownEditor }) => {
       if (cancelled) return;
     const { media, gallery } = props.site;
+    // Published photos from the media bucket; a draft's from the site's routes.
     const resolveImage = (url: string) =>
-      media.contentPrefix.startsWith("/") && url.startsWith(media.contentPrefix) ? media.publicUrl + url.slice(media.contentPrefix.length) : url;
+      media.contentPrefix.startsWith("/") && url.startsWith(media.contentPrefix) ? media.publicUrl + url.slice(media.contentPrefix.length) : apiPath(url);
     const ed = createMarkdownEditor({
       parent: host.current!,
       doc: latest.current.value,

@@ -5,6 +5,7 @@
 // main image and its variants with progress and retries.
 
 import type { ImageErrorCode, ImageJob, ImageResult, ProcessedImage } from "./image-types";
+import { apiPath } from "./current-site";
 import type { SiteSettings } from "./site-types";
 
 let worker: Worker | undefined;
@@ -113,7 +114,7 @@ export async function uploadPhoto(
   image: ProcessedImage,
   onProgress: (fraction: number) => void,
 ): Promise<UploadedPhoto> {
-  const res = await fetch(`/api/draft-media/${draftId}/names`, {
+  const res = await fetch(apiPath(`/api/draft-media/${draftId}/names`), {
     method: "POST",
     headers: { "X-Alasin": "1", "Content-Type": "application/json" },
     body: JSON.stringify({ name: originalName }),
@@ -133,7 +134,7 @@ export async function uploadPhoto(
   // Variants first, so the main image's URL only appears once everything is there.
   for (const p of [...parts.slice(1), parts[0]!]) {
     await withRetry(() =>
-      put(`/api/draft-media/${draftId}/${p.name}`, p.blob, p.type, (loaded) => {
+      put(apiPath(`/api/draft-media/${draftId}/${p.name}`), p.blob, p.type, (loaded) => {
         done.set(p.name, loaded);
         report();
       }),
@@ -141,6 +142,7 @@ export async function uploadPhoto(
     done.set(p.name, p.blob.size);
     report();
   }
+  // As written in the draft: the same with or without sites (shown from apiPath()).
   return { url: `/api/draft-media/${draftId}/${parts[0]!.name}`, base };
 }
 
