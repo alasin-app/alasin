@@ -10,14 +10,14 @@ deployments/
     site/              a clone of the site repository (create-site makes it)
 ```
 
-A site with a [test environment](Test-Environment.md) has it as `[env.dev]` in both files.
+A site with a [test environment](Test-Environment.md) has it as `[env.dev]` in both files. A deployment that serves [several sites](Several-Sites.md) also has a `sites/` folder, with one `<id>.toml` per site.
 
-## Several sites in one clone
+## Several deployments in one clone
 
 Choose the site with `--site` (or `ALASIN_SITE`):
 
 ```sh
-npm run sites                      # lists the deployments with their Workers and app addresses
+npm run sites                      # lists the deployments with their sites, Workers and app addresses
 npm run deploy -- --site my-site
 ```
 

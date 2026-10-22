@@ -7,11 +7,22 @@ type Table = Record<string, unknown>;
 const table = (v: unknown): Table => (v && typeof v === "object" && !Array.isArray(v) ? (v as Table) : {});
 const text = (v: unknown) => (typeof v === "string" && v ? v : "?");
 
-/** One line per environment: production first, then [env.*]. */
-export function describeDeployment(alasin: Table | null, wrangler: Table | null): string[] {
+const repoLine = (github: Table) => `${text(github.owner)}/${text(github.repo)} (${typeof github.branch === "string" ? github.branch : "main"})`;
+
+/**
+ * The site repository (or, with sites/, each site: `sites` by id, null without
+ * the folder), then one line per environment: production first, then [env.*].
+ */
+export function describeDeployment(alasin: Table | null, wrangler: Table | null, sites: Record<string, Table | null> | null = null): string[] {
   if (!alasin) return ["  alasin.toml can't be read"];
-  const github = table(alasin.github);
-  const lines = [`  site repository: ${text(github.owner)}/${text(github.repo)} (${typeof github.branch === "string" ? github.branch : "main"})`];
+  const lines = sites
+    ? [
+        `  sites (${Object.keys(sites).length}):`,
+        ...Object.entries(sites).map(([id, s]) =>
+          s ? `    ${id}: ${repoLine({ ...table(alasin.github), ...table(s.github) })}, ${text(table(s.site).url)}` : `    ${id}: sites/${id}.toml can't be read`,
+        ),
+      ]
+    : [`  site repository: ${repoLine(table(alasin.github))}`];
   const envs = { "": {}, ...table(alasin.env) } as Record<string, unknown>;
   for (const [name, override] of Object.entries(envs)) {
     const o = table(override);
