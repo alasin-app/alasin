@@ -1,5 +1,9 @@
 The new and improved features in each Alasin release, newest first. To get them on your site, see [Updating](Updating.md); for every change in detail, including upgrade steps, see the [release notes](https://github.com/alasin-app/alasin/releases).
 
+## 1.11.0 (22 October 2026)
+
+- **Several sites in one app.** One Alasin can serve several Hugo sites: sign in once, choose a site, and switch between sites from your account. Each site keeps its own repository, photos and settings, and people see only the sites they can write for.
+
 ## 1.9.0 (21 October 2026)
 
 - **Alasin's website at hand.** A link to alasin.app, next to the version in the sidebar, leads to what's new, the features and how to get started.
