@@ -65,19 +65,24 @@ export function useSite(): MiddlewareHandler<AppEnv> {
  * Checks the session's write access to a site when it's due: at first use (a
  * site the user didn't have at sign-in), then about once an hour. Returns the
  * answer refusing the request, or null. `quiet`: a site that's lost or can't
- * be checked doesn't refuse the request (the user's other sites go on).
+ * be checked doesn't refuse the request (the user's other sites go on), and a
+ * site the user doesn't have is checked too, and given if they can write for it.
  */
 async function checkAccess(c: Context<AppEnv>, entry: SiteEntry, quiet: boolean): Promise<Response | null> {
   const session = c.get("session");
   const checked = siteAccess(session, entry.id, c.get("deployment").multi);
   if (checked !== undefined && Date.now() - checked <= ACCESS_RECHECK) return null;
-  if (checked === undefined && quiet) return null;
   let permission: RepoPermission | null;
   try {
     permission = await repoPermission(await getUserToken(c), entry.config, session.login);
   } catch (err) {
     if (!(err instanceof SessionExpiredError)) throw err;
     return unauthenticated(c);
+  }
+  // A site the user didn't have (e.g. the app was installed on its repository since): theirs now if they can write for it.
+  if (checked === undefined && quiet) {
+    if (canWrite(permission)) await saveSiteAccess(c, entry.id, Date.now());
+    return null;
   }
   const { owner, repo } = entry.config.github;
   if (permission === null) {
@@ -99,7 +104,11 @@ async function checkAccess(c: Context<AppEnv>, entry: SiteEntry, quiet: boolean)
   return quiet ? null : c.json({ error: "not_allowed", message: `You don't have write access to ${owner}/${repo}.` }, 403);
 }
 
-/** Checks the session's sites that are due (for /api/me): lost ones are dropped; with none left, the user is logged out. */
+/**
+ * For /api/me, when the app loads: checks the session's sites that are due
+ * (lost ones are dropped; with none left, the user is logged out), and the
+ * deployment's other sites, which the user gets if they can write for them now.
+ */
 export function checkSites(): MiddlewareHandler<AppEnv> {
   return async (c, next) => {
     for (const entry of c.get("deployment").sites) {
