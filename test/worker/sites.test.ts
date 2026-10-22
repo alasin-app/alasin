@@ -79,6 +79,19 @@ describe("a deployment with sites", () => {
     await media.delete(photo);
   });
 
+  it("takes a site's photo uploads, which aren't JSON", async () => {
+    const { cookie } = await login(gh, ALLOWED_USER);
+    const draft = "01JABCDEFGHJKMNPQRSTVWXYZ0";
+    const res = await call(`/api/sites/one/draft-media/${draft}/lake.jpg`, {
+      method: "PUT",
+      cookie,
+      headers: { "X-Alasin": "1", Origin: "https://alasin.example.com", "Content-Type": "image/jpeg" },
+      body: new Uint8Array([0xff, 0xd8, 0xff, 0xd9]),
+    });
+    expect(res.status).not.toBe(415);
+    expect(res.status).not.toBe(403);
+  });
+
   it("keeps each site's edit locks apart", async () => {
     second.collaborators.set(ALLOWED_USER.login, { permission: "write", id: ALLOWED_USER.id });
     const { cookie } = await login(gh, ALLOWED_USER);
