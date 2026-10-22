@@ -5,10 +5,14 @@
 // the background: if the branch has moved (also by changes made outside
 // Alasin), only the files changed since that commit are read again. The whole
 // content is read only the first time, after a big change, or on request.
-// Removed on logout (clearLocalData).
+// Kept per site, with sites. Removed on logout (clearLocalData).
 
 import { api, NetworkError } from "./api";
+import { hasSites, siteKey } from "./current-site";
 import { buildIndex, type ChangedFile, changedPaths, type ContentIndex, type ContentItem, imagesIn, INDEX_VERSION, type IndexSettings, itemFromFile, reusable, settingsKey } from "./content-index";
+
+/** The kept list's key: the user, and the site with sites (the user alone with one site, as before). */
+const storeKey = (uid: number): IDBValidKey => (hasSites() ? siteKey(String(uid)) : uid);
 
 const DB = "alasin-content";
 const STORE = "index";
@@ -31,7 +35,7 @@ export async function cachedContent(uid: number): Promise<ContentIndex | undefin
   try {
     const db = await open();
     return await new Promise<ContentIndex | undefined>((resolve, reject) => {
-      const req = db.transaction(STORE).objectStore(STORE).get(uid);
+      const req = db.transaction(STORE).objectStore(STORE).get(storeKey(uid));
       // A copy kept by an older version lacks newer fields: read again.
       req.onsuccess = () => resolve((req.result as ContentIndex | undefined)?.version === INDEX_VERSION ? (req.result as ContentIndex) : undefined);
       req.onerror = () => reject(req.error);
@@ -46,7 +50,7 @@ async function store(uid: number, index: ContentIndex): Promise<void> {
     const db = await open();
     await new Promise<void>((resolve, reject) => {
       const t = db.transaction(STORE, "readwrite");
-      t.objectStore(STORE).put(index, uid);
+      t.objectStore(STORE).put(index, storeKey(uid));
       t.oncomplete = () => resolve();
       t.onerror = () => reject(t.error);
     }).finally(() => db.close());

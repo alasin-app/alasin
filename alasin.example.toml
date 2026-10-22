@@ -21,6 +21,11 @@
 #
 # A second deployment (e.g. a dev app next to production) overrides only what
 # differs in an [env.<name>] table at the end of the file; see [env.dev].
+#
+# One deployment can also serve several sites: then each site's own sections
+# ([site], [github] owner/repo/branch, [media], [drafts] ...) are in
+# sites/<id>.toml next to this file, and this file keeps what every site shares
+# (`npm run setup -- --add-site <id>`; Several Sites in the wiki).
 
 
 # -----------------------------------------------------------------------------

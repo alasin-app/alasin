@@ -33,7 +33,7 @@ media.post("/:id/names", async (c) => {
   if (!id) return c.json({ error: "not_found", message: "No such draft." }, 404);
   const body = z.strictObject({ name: z.string().max(255) }).safeParse(await c.req.json().catch(() => undefined));
   if (!body.success) return c.json({ error: "invalid", message: "Invalid file name." }, 400);
-  const listed = await c.env.DRAFTS.list({ prefix: `${id}/`, limit: 1000 });
+  const listed = await c.var.drafts.list({ prefix: `${id}/`, limit: 1000 });
   // A name like "photo-2024" could also be read as "photo" at width 2024: both count as taken.
   const taken = new Set<string>();
   for (const o of listed.objects) {
@@ -48,7 +48,7 @@ media.post("/:id/names", async (c) => {
 media.get("/:id", async (c) => {
   const id = draftId(c.req.param("id"));
   if (!id) return c.json({ error: "not_found", message: "No such draft." }, 404);
-  const listed = await c.env.DRAFTS.list({ prefix: `${id}/`, limit: 1000 });
+  const listed = await c.var.drafts.list({ prefix: `${id}/`, limit: 1000 });
   const files = listed.objects.map((o) => o.key.slice(id.length + 1)).filter((f) => FILE.test(f));
   const stems = new Set(files.map((f) => f.replace(/\.[a-z]+$/, "")));
   // "<stem>-<width>" is a variant only if "<stem>" itself exists.
@@ -101,7 +101,7 @@ media.put("/:id/:file", async (c) => {
     return c.json({ error: "gps", message: "The image still contains its GPS location. It must be removed before upload." }, 422);
   }
 
-  await c.env.DRAFTS.put(`${id}/${file}`, bytes, {
+  await c.var.drafts.put(`${id}/${file}`, bytes, {
     httpMetadata: { contentType: actual },
     customMetadata: { uploadedBy: String(c.get("session").uid) },
   });
@@ -112,7 +112,7 @@ media.get("/:id/:file", async (c) => {
   const id = draftId(c.req.param("id"));
   const file = c.req.param("file");
   if (!id || !FILE.test(file)) return c.json({ error: "not_found", message: "No such image." }, 404);
-  const object = await c.env.DRAFTS.get(`${id}/${file}`);
+  const object = await c.var.drafts.get(`${id}/${file}`);
   if (!object) return c.json({ error: "not_found", message: "No such image." }, 404);
   return new Response(object.body, {
     headers: {

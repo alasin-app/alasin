@@ -1,18 +1,26 @@
 // SPDX-License-Identifier: MIT
 //
-// npm run setup [-- --env <name>] [--site <name> | --config <alasin.toml>] [--wrangler-config <wrangler.toml>] [--rotate-keys] [--rotate-github]
+// npm run setup [-- --env <name>] [--site <name> | --config <alasin.toml>] [--wrangler-config <wrangler.toml>] [--rotate-keys] [--rotate-github] [--add-site <id>]
 //
 // Interactive and safe to re-run: every step checks the current state first
 // and only asks for, creates or changes what is missing. Re-running for one
 // environment never changes another.
+//
+// Sites (#325): with a sites/ folder next to alasin.toml, the deployment
+// serves several sites, and each one's own values go to sites/<id>.toml
+// (scripts/lib/site-files.ts). --add-site <id> adds one: a deployment with
+// one site is first split into alasin.toml and sites/<id of that site>.toml,
+// and its buckets are named for it in wrangler.toml.
 
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { randomBytes } from "node:crypto";
 import { dirname, join } from "node:path";
 import { parse } from "smol-toml";
-import { ConfigError, selectEnvironment } from "../../src/shared/config/schema";
+import { ConfigError, deepMerge, selectEnvironment } from "../../src/shared/config/schema";
 import { deploymentLine, parseArgs, repoRoot } from "../lib/args";
-import { displayPath, loadAlasinConfig } from "../lib/config";
+import { displayPath, loadDeployment, sitesDir } from "../lib/config";
+import { SINGLE_SITE_ID, siteBindings, siteIdProblem } from "../../src/shared/config/deployment";
+import { isSiteValue, renameBucketBindings, siteTemplate, splitSiteConfig, suggestSiteId } from "../lib/site-files";
 import { appendSection, setValue, type TomlValue } from "../lib/toml-edit";
 import { normalizeUrl, urlProblem } from "../lib/urls";
 import { poll } from "../lib/poll";
@@ -70,15 +78,49 @@ let alasinText = "";
 function alasinRaw(): Table {
   return parse(alasinText) as Table;
 }
-/** The effective (environment-merged) raw values. */
-function effective(): Table {
-  return selectEnvironment(alasinRaw(), env);
+
+/** The site the steps work on: with sites/, its file; with one site, alasin.toml itself (id null). */
+interface SiteTarget {
+  id: string | null;
+  path: string;
+  text: string;
+  media: string;
+  drafts: string;
 }
-/** Writes a value; with --env it goes into [env.<name>.<table>]. */
+let site: SiteTarget = { id: null, path: "", text: "", ...siteBindings(SINGLE_SITE_ID, false) };
+
+function useSite(id: string | null) {
+  site = id
+    ? { id, path: join(sitesDir(args.configPath), `${id}.toml`), text: readText(join(sitesDir(args.configPath), `${id}.toml`)), ...siteBindings(id, true) }
+    : { id: null, path: args.configPath, text: "", ...siteBindings(SINGLE_SITE_ID, false) };
+}
+/** The site's own file as written (alasin.toml with one site). */
+function siteRaw(): Table {
+  return site.id ? (parse(site.text) as Table) : alasinRaw();
+}
+const siteLabel = () => (site.id ? ` (site ${site.id})` : "");
+
+/** The effective (environment-merged) raw values: alasin.toml, and the site's file merged into it. */
+function effective(): Table {
+  const base = selectEnvironment(alasinRaw(), env);
+  return site.id ? deepMerge(base, selectEnvironment(siteRaw(), env)) : base;
+}
+/** Writes a value, a site's own into its file; with --env it goes into [env.<name>.<table>]. */
 function setAlasin(table: string, key: string, value: TomlValue) {
   const header = env ? `[env.${env}.${table}]` : `[${table}]`;
+  if (site.id && isSiteValue(table, key)) {
+    site.text = setValue(site.text, header, key, value);
+    writeFileSync(site.path, site.text);
+    return;
+  }
   alasinText = setValue(alasinText, header, key, value);
   writeFileSync(args.configPath, alasinText);
+}
+
+/** The ids of the sites in sites/; none with one site. */
+function siteIds(): string[] {
+  const dir = sitesDir(args.configPath);
+  return existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith(".toml")).map((f) => f.slice(0, -".toml".length)).sort() : [];
 }
 
 // ── wrangler.toml editing ────────────────────────────────────────────────────
@@ -170,15 +212,23 @@ function ensureFiles() {
   }
 }
 
-async function askSiteValues() {
-  step(`Site and app${envLabel}`);
-  const e = effective();
-  if (isUnset(get(e, "app.url"))) {
+async function askAppValues() {
+  step(`App${envLabel}`);
+  if (isUnset(get(effective(), "app.url"))) {
     info("The app's public address: a hostname on a zone in this Cloudflare account (e.g. alasin.example.com),");
     info("or the Worker's workers.dev address.");
     setAlasin("app", "url", new URL(await askUrl("App address (hostname or URL)", true)).origin);
   }
   ok(`App URL: ${String(get(effective(), "app.url"))}`);
+  if (env && !get(effective(), "ui.environment_label")) {
+    setAlasin("ui", "environment_label", env.toUpperCase().slice(0, 12));
+    ok(`Environment badge: ${env.toUpperCase()}`);
+  }
+}
+
+async function askSiteValues() {
+  step(`Site${siteLabel()}${envLabel}`);
+  const e = effective();
 
   if (isUnset(get(e, "github.owner")) || isUnset(get(e, "github.repo"))) {
     const full = await ask("Site repository on GitHub (owner/name)", {
@@ -201,7 +251,7 @@ async function askSiteValues() {
   } else {
     ok(`Repository ${owner}/${repo} is private, as recommended (the GitHub App step confirms it exists)`);
   }
-  if (!get(alasinRaw(), env ? `env.${env}.github.branch` : "github.branch")) {
+  if (!get(siteRaw(), env ? `env.${env}.github.branch` : "github.branch")) {
     const branch = await ask("Branch Alasin commits to", { default: env === "dev" ? "dev" : (vis.defaultBranch ?? "main"), validate: validName });
     setAlasin("github", "branch", branch);
   }
@@ -211,11 +261,6 @@ async function askSiteValues() {
     setAlasin("site", "url", await askUrl("Public address of the site built from that branch", false));
   }
   ok(`Site URL: ${String(get(effective(), "site.url"))}`);
-
-  if (env && !get(effective(), "ui.environment_label")) {
-    setAlasin("ui", "environment_label", env.toUpperCase().slice(0, 12));
-    ok(`Environment badge: ${env.toUpperCase()}`);
-  }
 }
 
 function workerName(): string {
@@ -235,18 +280,26 @@ const validWorker = (v: string) =>
  */
 async function confirmDeployment() {
   step(`Deployment${envLabel}`);
+  const ids = siteIds();
   const show = () => {
     const e = effective();
     const label = get(e, "ui.environment_label") as string | undefined;
     info(`Worker:         ${bold(workerName())}`);
     info(`App address:    ${String(get(e, "app.url"))}`);
-    info(`Commits to:     ${String(get(e, "github.owner"))}/${String(get(e, "github.repo"))}, branch ${bold(String(get(e, "github.branch")))}`);
+    for (const id of ids.length ? ids : [null]) {
+      useSite(id);
+      const s = effective();
+      info(`${id ? `Site ${id}: `.padEnd(16) : "Commits to:     "}${String(get(s, "github.owner"))}/${String(get(s, "github.repo"))}, branch ${bold(String(get(s, "github.branch")))}`);
+    }
     info(`Badge in app:   ${label ? label : "none (production)"}`);
   };
   show();
   if (await confirm("Is this right?")) return;
   setWrangler("name", await ask("Worker name", { default: workerName(), validate: validWorker }));
-  setAlasin("github", "branch", await ask("Site branch to commit to", { default: String(get(effective(), "github.branch")), validate: validName }));
+  for (const id of ids.length ? ids : [null]) {
+    useSite(id);
+    setAlasin("github", "branch", await ask(`Branch to commit to${siteLabel()}`, { default: String(get(effective(), "github.branch")), validate: validName }));
+  }
   const current = (get(effective(), "ui.environment_label") as string | undefined) ?? "";
   const label = await ask("Badge for a non-production deployment, e.g. DEV (empty for production)", {
     default: current || undefined,
@@ -257,27 +310,27 @@ async function confirmDeployment() {
 }
 
 async function setupBuckets() {
-  step(`R2 buckets${envLabel}`);
+  step(`R2 buckets${siteLabel()}${envLabel}`);
   const target = wranglerTarget();
   const buckets = (target.r2_buckets as Table[] | undefined) ?? [];
-  const media = buckets.find((b) => b.binding === "MEDIA") ?? {};
+  const media = buckets.find((b) => b.binding === site.media) ?? {};
   let mediaName = media.bucket_name as string | undefined;
   let jurisdiction = media.jurisdiction as string | undefined;
 
   if (isUnset(mediaName)) {
-    info("The site's existing public image bucket (MEDIA). Alasin only adds objects to it; it never overwrites or deletes.");
-    mediaName = await ask("MEDIA bucket name", { validate: validBucket });
+    info(`The site's existing public image bucket (${site.media}). Alasin only adds objects to it; it never overwrites or deletes.`);
+    mediaName = await ask(`${site.media} bucket name`, { validate: validBucket });
     jurisdiction = (await ask("Its jurisdiction (e.g. eu), or empty for none", { default: "none", validate: () => null })).toLowerCase();
     if (jurisdiction === "none" || jurisdiction === "") jurisdiction = undefined;
-    setWrangler("bucket_name", mediaName, { table: "r2_buckets", where: { key: "binding", value: "MEDIA" } });
-    if (jurisdiction) setWrangler("jurisdiction", jurisdiction, { table: "r2_buckets", where: { key: "binding", value: "MEDIA" } });
+    setWrangler("bucket_name", mediaName, { table: "r2_buckets", where: { key: "binding", value: site.media } });
+    if (jurisdiction) setWrangler("jurisdiction", jurisdiction, { table: "r2_buckets", where: { key: "binding", value: site.media } });
   }
   if (!cf.bucketExists(mediaName!, jurisdiction)) {
     throw new Error(
       `Bucket "${mediaName}"${jurisdiction ? ` (jurisdiction ${jurisdiction})` : ""} not found. Check the name and jurisdiction under R2 in the dashboard (Existing Site, step 1, in the wiki).`,
     );
   }
-  ok(`MEDIA: ${mediaName}${jurisdiction ? ` (${jurisdiction})` : ""}`);
+  ok(`${site.media}: ${mediaName}${jurisdiction ? ` (${jurisdiction})` : ""}`);
 
   if (isUnset(get(effective(), "media.public_url"))) {
     setAlasin(
@@ -288,24 +341,24 @@ async function setupBuckets() {
   }
   ok(`Media URL: ${String(get(effective(), "media.public_url"))}`);
 
-  const drafts = buckets.find((b) => b.binding === "DRAFTS") ?? {};
+  const drafts = buckets.find((b) => b.binding === site.drafts) ?? {};
   let draftsName = drafts.bucket_name as string | undefined;
   if (isUnset(draftsName)) {
-    draftsName = await ask("Name for the private DRAFTS bucket", { default: `${mediaName}-drafts${env ? `-${env}` : ""}`, validate: validBucket });
-    setWrangler("bucket_name", draftsName, { table: "r2_buckets", where: { key: "binding", value: "DRAFTS" } });
-    if (jurisdiction) setWrangler("jurisdiction", jurisdiction, { table: "r2_buckets", where: { key: "binding", value: "DRAFTS" } });
+    draftsName = await ask(`Name for the private ${site.drafts} bucket`, { default: `${mediaName}-drafts${env ? `-${env}` : ""}`, validate: validBucket });
+    setWrangler("bucket_name", draftsName, { table: "r2_buckets", where: { key: "binding", value: site.drafts } });
+    if (jurisdiction) setWrangler("jurisdiction", jurisdiction, { table: "r2_buckets", where: { key: "binding", value: site.drafts } });
   }
-  const draftsJ = (wranglerTarget().r2_buckets as Table[]).find((b) => b.binding === "DRAFTS")!.jurisdiction as string | undefined;
-  if (draftsName === mediaName && draftsJ === jurisdiction) throw new Error("DRAFTS must be a different bucket from MEDIA.");
+  const draftsJ = (wranglerTarget().r2_buckets as Table[]).find((b) => b.binding === site.drafts)!.jurisdiction as string | undefined;
+  if (draftsName === mediaName && draftsJ === jurisdiction) throw new Error(`${site.drafts} must be a different bucket from ${site.media}.`);
   if (cf.bucketExists(draftsName!, draftsJ)) {
-    ok(`DRAFTS: ${draftsName} (exists)`);
+    ok(`${site.drafts}: ${draftsName} (exists)`);
     // Each deployment's daily cleanup removes draft images whose draft isn't on its own branch.
     warn("Use this bucket for this deployment only: deployments sharing a drafts bucket would delete each other's draft images.");
   }
   else {
     const r = cf.createBucket(draftsName!, draftsJ);
     if (!r.ok) throw new Error(`Couldn't create bucket ${draftsName}:\n${r.output}`);
-    ok(`DRAFTS: created ${draftsName}${draftsJ ? ` (${draftsJ})` : ""} — private, no public access`);
+    ok(`${site.drafts}: created ${draftsName}${draftsJ ? ` (${draftsJ})` : ""} — private, no public access`);
   }
 }
 
@@ -411,23 +464,42 @@ async function setupGitHubApp(): Promise<Record<string, string>> {
     }
   }
 
-  // Installation ID (used by the daily cleanup's read-only token).
-  if (privateKey && isUnset(get(effective(), "github.installation_id"))) {
-    const appId = Number(get(effective(), "github.app_id"));
-    for (;;) {
+  await installOn(privateKey);
+  return secrets;
+}
+
+/**
+ * The app installed on each site's repository (the sites being set up). With
+ * the private key at hand (a new app, or rotated secrets), the installation is
+ * found and recorded; otherwise the operator is asked to install it.
+ */
+async function installOn(privateKey: string | undefined) {
+  const appId = Number(get(effective(), "github.app_id"));
+  for (const id of targets) {
+    useSite(id);
+    const owner = String(get(effective(), "github.owner"));
+    const repo = String(get(effective(), "github.repo"));
+    if (!isUnset(get(effective(), "github.installation_id"))) continue;
+    if (!privateKey) {
+      if (!addedSite || id !== addedSite) continue;
+      info(`Install the GitHub App on ${bold(`${owner}/${repo}`)}: on GitHub, open the app (Settings → Developer settings → GitHub Apps,`);
+      info("or the organisation's), then Install App, and add the repository to the installation on its owner's account.");
       await ask("Press Enter once the app is installed on the repository", { validate: () => null });
+      continue;
+    }
+    for (;;) {
+      await ask(`Press Enter once the app is installed on ${owner}/${repo}`, { validate: () => null });
       info("Checking (GitHub can take a few seconds)…");
-      const id = await poll(() => gh.findInstallation(appId, privateKey, owner, repo).catch(() => null), Boolean);
-      if (id) {
-        setAlasin("github", "installation_id", id);
-        ok(`Installed on ${owner}/${repo} (installation ${id})`);
+      const found = await poll(() => gh.findInstallation(appId, privateKey, owner, repo).catch(() => null), Boolean);
+      if (found) {
+        setAlasin("github", "installation_id", found);
+        ok(`Installed on ${owner}/${repo} (installation ${found})`);
         break;
       }
       warn(`Not installed on ${owner}/${repo} yet.`);
       if (!(await confirm("Check again?"))) break;
     }
   }
-  return secrets;
 }
 
 function devVarsPath(): string {
@@ -494,11 +566,12 @@ async function storeSecrets(fromApp: Record<string, string>) {
 
 function finalCheck() {
   step("Checking the result");
-  const config = loadAlasinConfig(args.configPath, env);
-  ok(`${displayPath(args.configPath)}${envLabel} is valid`);
-  const problems = checkBindings(wranglerTarget(), `${displayPath(args.wranglerPath)}${envLabel}`);
+  const deployment = loadDeployment(args.configPath, env);
+  const config = deployment.sites[0]!.config;
+  ok(`${displayPath(args.configPath)}${deployment.multi ? ` and ${deployment.sites.length} sites in ${displayPath(sitesDir(args.configPath))}` : ""}${envLabel} ${deployment.multi ? "are" : "is"} valid`);
+  const problems = checkBindings(wranglerTarget(), `${displayPath(args.wranglerPath)}${envLabel}`, deployment.sites);
   if (problems.length) throw new ConfigError(problems.join("\n"), problems);
-  generateWranglerConfig({ wranglerPath: args.wranglerPath, env, config, outName: env ?? "default" });
+  generateWranglerConfig({ wranglerPath: args.wranglerPath, env, deployment, outName: env ?? "default" });
   ok(`${displayPath(args.wranglerPath)}${envLabel} is complete`);
   const deployArgs = [
     args.site && !args.siteImplicit ? `--site ${args.site}` : !args.site && args.configPath !== join(repoRoot, "alasin.toml") ? `--config ${displayPath(args.configPath)}` : "",
@@ -509,20 +582,110 @@ function finalCheck() {
   console.log(`\n${bold("Done.")} Deploy with:\n\n    npm run deploy${deployArgs ? ` -- ${deployArgs}` : ""}\n\nthen open ${config.app.url} and log in with GitHub.`);
 }
 
+/** The sites setup works on: all of them (null: the one site), or the one --add-site adds. */
+let targets: (string | null)[] = [null];
+let addedSite: string | null = null;
+
+/** --add-site <id>: the value after it, or in --add-site=<id>. */
+function addSiteArg(): string | null {
+  const i = args.rest.indexOf("--add-site");
+  if (i >= 0) {
+    const v = args.rest[i + 1];
+    if (!v || v.startsWith("--")) throw new Error("--add-site needs the new site's id, e.g. --add-site blog");
+    return v;
+  }
+  const eq = args.rest.find((a) => a.startsWith("--add-site="));
+  return eq ? eq.slice("--add-site=".length) : null;
+}
+
+/**
+ * The deployment's sites: with --add-site, a deployment with one site is first
+ * split into alasin.toml and sites/<its id>.toml (its buckets renamed for it in
+ * wrangler.toml), and the new site's file is made from the example to fill in.
+ */
+async function prepareSites() {
+  addedSite = addSiteArg();
+  if (addedSite) {
+    const problem = siteIdProblem(addedSite);
+    if (problem) throw new Error(`--add-site ${addedSite}: ${problem}.`);
+    const dir = sitesDir(args.configPath);
+    if (!siteIds().length) {
+      step("Sites");
+      info("This deployment has one site, set up in alasin.toml. To add another, its own settings move to");
+      info(`${displayPath(dir)}/<id>.toml, and its buckets are named for it in ${displayPath(args.wranglerPath)}.`);
+      info("The id is in the app's addresses for the site (/<id>/posts). Have everyone save drafts kept only on their devices first:");
+      info("the app keeps device drafts per site, so ones from before aren't shown afterwards.");
+      const repo = String(get(selectEnvironment(alasinRaw(), env), "github.repo") ?? "site");
+      const id = await ask("Id for the site already set up", { default: suggestSiteId(repo), validate: (v) => siteIdProblem(v) ?? (v === addedSite ? "that's the new site's id" : null) });
+      // [env.<name>] overrides of the site's own values belong in its file's [env.<name>]: moved by hand.
+      const envs = (alasinRaw().env as Table | undefined) ?? {};
+      const overridden = Object.entries(envs).flatMap(([name, t]) =>
+        Object.entries((t as Table) ?? {}).flatMap(([table, values]) =>
+          Object.keys((values as Table) ?? {}).filter((key) => isSiteValue(table, key)).map((key) => `env.${name}.${table}.${key}`),
+        ),
+      );
+      if (overridden.length) {
+        throw new Error(
+          `${displayPath(args.configPath)} overrides the site's own values for an environment (${overridden.join(", ")}). Move those into sites/${id}.toml under the same [env.<name>] tables by hand, then run setup again.`,
+        );
+      }
+      const split = splitSiteConfig(alasinText);
+      if (!split) throw new Error(`${displayPath(args.configPath)} has no section banners to split it at. Move the site's sections to sites/${id}.toml by hand (Configuration Files in the wiki).`);
+      if (!(await confirm(`Move the site's settings to sites/${id}.toml and rename its buckets to ${siteBindings(id, true).media} and ${siteBindings(id, true).drafts}?`))) {
+        throw new Error("Nothing was changed.");
+      }
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(join(dir, `${id}.toml`), split.site);
+      alasinText = split.app;
+      writeFileSync(args.configPath, alasinText);
+      const b = siteBindings(id, true);
+      wranglerText = renameBucketBindings(wranglerText, b.media, b.drafts);
+      writeFileSync(args.wranglerPath, wranglerText);
+      ok(`Moved the site's settings to ${displayPath(join(dir, `${id}.toml`))}; its buckets are ${b.media} and ${b.drafts}`);
+    }
+    const file = join(dir, `${addedSite}.toml`);
+    if (existsSync(file)) ok(`Using ${displayPath(file)}`);
+    else {
+      // The branch is asked for (the repository's default branch offered), and written where the example has it.
+      writeFileSync(file, siteTemplate(readText(join(repoRoot, "alasin.example.toml"))).replace(/^branch = "main"$/m, '# branch = "main"'));
+      ok(`Created ${displayPath(file)} from alasin.example.toml`);
+    }
+    targets = [addedSite];
+  } else {
+    const ids = siteIds();
+    targets = ids.length ? ids : [null];
+  }
+  useSite(targets[0]!);
+}
+
 async function main() {
-  const unexpected = args.rest.filter((a) => a !== "--rotate-keys" && a !== "--rotate-github");
+  const addSite = args.rest.indexOf("--add-site");
+  const unexpected = args.rest.filter(
+    (a, i) => a !== "--rotate-keys" && a !== "--rotate-github" && a !== "--add-site" && !a.startsWith("--add-site=") && !(addSite >= 0 && i === addSite + 1),
+  );
   if (unexpected.length) {
-    throw new Error(`Unexpected argument(s): ${unexpected.join(" ")}. Options: --env <name>, --site <name>, --config <alasin.toml>, --wrangler-config <wrangler.toml>, --rotate-keys, --rotate-github.`);
+    throw new Error(
+      `Unexpected argument(s): ${unexpected.join(" ")}. Options: --env <name>, --site <name>, --config <alasin.toml>, --wrangler-config <wrangler.toml>, --rotate-keys, --rotate-github, --add-site <id>.`,
+    );
   }
   console.log(bold(`Alasin setup — environment: ${env ?? "default (production)"}`));
   const deployment = deploymentLine(args);
   if (deployment) console.log(deployment);
   console.log(dim(`alasin.toml:   ${displayPath(args.configPath)}\nwrangler.toml: ${displayPath(args.wranglerPath)}`));
   ensureFiles();
+  await prepareSites();
   await checkPrerequisites();
-  await askSiteValues();
+  await askAppValues();
+  for (const id of targets) {
+    useSite(id);
+    await askSiteValues();
+  }
   await confirmDeployment();
-  await setupBuckets();
+  for (const id of targets) {
+    useSite(id);
+    await setupBuckets();
+  }
+  useSite(targets[0]!);
   setupKv();
   setupDomain();
   const appSecrets = await setupGitHubApp();

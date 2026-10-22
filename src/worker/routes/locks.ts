@@ -16,6 +16,7 @@ import { z } from "zod";
 import type { AlasinConfig } from "../../shared/config/schema";
 import { isUlid } from "../../shared/ulid";
 import type { AppEnv } from "../app";
+import { locksName } from "../lib/site-context";
 
 function validKey(config: AlasinConfig, key: string): boolean {
   if (key.startsWith("draft:")) return isUlid(key.slice("draft:".length));
@@ -31,7 +32,7 @@ const body = z.strictObject({
   takeOver: z.boolean().optional(),
 });
 
-const locksFor = (c: Context<AppEnv>) => c.env.LOCKS.get(c.env.LOCKS.idFromName("locks"));
+const locksFor = (c: Context<AppEnv>) => c.env.LOCKS.get(c.env.LOCKS.idFromName(locksName(c)));
 
 async function parse(c: Context<AppEnv>) {
   const parsed = body.safeParse(await c.req.json().catch(() => undefined));

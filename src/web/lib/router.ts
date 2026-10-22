@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT
-// A small History API router for the app's sections and the editor.
+// A small History API router for the app's sections and the editor. With
+// sites, every path starts with the site (/<id>/posts …; see current-site.ts).
 
 import { useEffect, useState } from "preact/hooks";
 import { isUlid } from "../../shared/ulid";
+import { sitePath } from "./current-site";
 
 export type Section = "home" | "pages" | "posts" | "drafts" | "categories" | "media" | "bin" | "users" | "more";
 export type DraftKind = "post" | "page";
@@ -22,7 +24,9 @@ const SECTION_PATHS: Record<Section, string> = {
 };
 
 export function parseRoute(pathname: string): Route {
-  const path = pathname.replace(/\/+$/, "") || "/";
+  const base = sitePath();
+  const inSite = base && (pathname === base || pathname.startsWith(`${base}/`)) ? pathname.slice(base.length) : pathname;
+  const path = inSite.replace(/\/+$/, "") || "/";
   const m = /^\/drafts\/(post|page)\/([0-9A-Z]{26})$/.exec(path);
   if (m && isUlid(m[2]!)) return { name: "editor", type: m[1] as DraftKind, id: m[2]! };
   // A published post or page: /edit/<repository path>
@@ -39,9 +43,10 @@ export function parseRoute(pathname: string): Route {
 }
 
 export function hrefFor(route: Route): string {
-  if (route.name === "editor") return `/drafts/${route.type}/${route.id}`;
-  if (route.name === "file") return `/edit/${route.path.split("/").map(encodeURIComponent).join("/")}`;
-  return SECTION_PATHS[route.name];
+  const base = sitePath();
+  if (route.name === "editor") return `${base}/drafts/${route.type}/${route.id}`;
+  if (route.name === "file") return `${base}/edit/${route.path.split("/").map(encodeURIComponent).join("/")}`;
+  return route.name === "home" && base ? `${base}/` : `${base}${SECTION_PATHS[route.name]}`;
 }
 
 const listeners = new Set<() => void>();

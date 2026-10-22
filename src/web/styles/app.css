@@ -532,6 +532,27 @@ img {
   font-weight: 700;
 }
 
+/* With sites: the current one under the app's name; opens the account sheet to switch. */
+.sidebar-site {
+  display: block;
+  max-width: 100%;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  background: none;
+  color: var(--secondary-label);
+  font-size: var(--footnote);
+  font-weight: 400;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.sidebar-site:hover {
+  color: var(--accent);
+}
+
 /* The hide/show button and the running version, at the bottom of the sidebar. */
 .sidebar-footer {
   display: flex;
@@ -2133,4 +2154,10 @@ img {
 
 .sheet-actions .btn {
   min-width: 200px;
+}
+
+/* The site chooser's list, inside the login card. */
+.site-list {
+  width: 100%;
+  text-align: left;
 }

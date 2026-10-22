@@ -4,13 +4,14 @@
 // npm run dev    [-- ...same, --port <n>]
 // npm run deploy [-- ...same]
 //
-// Validates alasin.toml, builds the web app and runs Wrangler with the
-// generated configuration (see scripts/lib/wrangler-config.ts).
+// Validates alasin.toml (and the sites in sites/ next to it), builds the web
+// app and runs Wrangler with the generated configuration (see
+// scripts/lib/wrangler-config.ts).
 
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { deploymentLine, parseArgs } from "./lib/args";
-import { displayPath, loadAlasinConfig } from "./lib/config";
+import { displayPath, loadDeployment } from "./lib/config";
 import { capture, run, start } from "./lib/proc";
 import { generateWranglerConfig, REQUIRED_SECRETS } from "./lib/wrangler-config";
 import { HOUSEKEEPING_HOWTO, housekeepingDue } from "../src/shared/housekeeping";
@@ -24,9 +25,9 @@ async function main() {
 
   switch (command) {
     case "build": {
-      const config = loadAlasinConfig(args.configPath, args.env);
+      const deployment = loadDeployment(args.configPath, args.env);
       if ((await run("vite", ["build", "--logLevel", "warn"])) !== 0) return 1;
-      const gen = generateWranglerConfig({ wranglerPath: args.wranglerPath, env: args.env, config, outName: args.env ?? "default" });
+      const gen = generateWranglerConfig({ wranglerPath: args.wranglerPath, env: args.env, deployment, outName: args.env ?? "default" });
       // Bundle without uploading, to catch build errors.
       return run("wrangler", ["deploy", "--dry-run", "--outdir", join(dirname(gen.path), "dist"), "--config", gen.path, ...envArgs]);
     }
@@ -34,13 +35,13 @@ async function main() {
     case "dev": {
       const portIndex = args.rest.indexOf("--port");
       const port = portIndex >= 0 ? Number(args.rest[portIndex + 1]) : 8787;
-      const config = loadAlasinConfig(args.configPath, args.env);
+      const deployment = loadDeployment(args.configPath, args.env);
       // Locally the app runs on localhost; the GitHub App needs
       // http://localhost:<port>/auth/callback as an extra callback URL.
       // --https serves it over HTTPS with a local certificate (npm run screenshots).
       const https = args.rest.includes("--https");
-      config.app.url = `${https ? "https" : "http"}://localhost:${port}`;
-      const gen = generateWranglerConfig({ wranglerPath: args.wranglerPath, env: args.env, config, outName: `dev-${args.env ?? "default"}` });
+      for (const site of deployment.sites) site.config.app.url = `${https ? "https" : "http"}://localhost:${port}`;
+      const gen = generateWranglerConfig({ wranglerPath: args.wranglerPath, env: args.env, deployment, outName: `dev-${args.env ?? "default"}` });
       // --remote-media: the photo buckets are the deployment's real ones, not local copies
       // (npm run screenshots, so Media shows the site's photos). Everything else stays local.
       if (args.rest.includes("--remote-media")) {
@@ -76,8 +77,10 @@ async function main() {
     }
 
     case "deploy": {
-      const config = loadAlasinConfig(args.configPath, args.env);
-      const gen = generateWranglerConfig({ wranglerPath: args.wranglerPath, env: args.env, config, outName: args.env ?? "default" });
+      const deployment = loadDeployment(args.configPath, args.env);
+      // What every site shares ([app], [security]) is the same in each.
+      const config = deployment.sites[0]!.config;
+      const gen = generateWranglerConfig({ wranglerPath: args.wranglerPath, env: args.env, deployment, outName: args.env ?? "default" });
       const list = capture("wrangler", ["secret", "list", "--format", "json", "--config", args.wranglerPath, ...envArgs]);
       if (list.code === 0) {
         const names = new Set((JSON.parse(list.stdout) as { name: string }[]).map((s) => s.name));
@@ -93,7 +96,11 @@ async function main() {
         console.warn(`Housekeeping: ${title}: ${when}.\n  ${howTo}`);
       }
       console.log(
-        `Deploying Worker ${gen.workerName} — environment: ${args.env ?? "default (production)"}, app ${config.app.url}, site branch ${config.github.branch}`,
+        deployment.multi
+          ? `Deploying Worker ${gen.workerName} — environment: ${args.env ?? "default (production)"}, app ${config.app.url}, sites:\n${deployment.sites
+              .map((s) => `  ${s.id}: ${s.config.github.owner}/${s.config.github.repo} branch ${s.config.github.branch}`)
+              .join("\n")}`
+          : `Deploying Worker ${gen.workerName} — environment: ${args.env ?? "default (production)"}, app ${config.app.url}, site branch ${config.github.branch}`,
       );
       if ((await run("vite", ["build", "--logLevel", "warn"])) !== 0) return 1;
       return run("wrangler", ["deploy", "--config", gen.path, ...envArgs, ...args.rest]);

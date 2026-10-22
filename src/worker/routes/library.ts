@@ -36,7 +36,7 @@ library.get("/folders", async (c) => {
   const folders: string[] = [];
   let cursor: string | undefined;
   do {
-    const page = await c.env.MEDIA.list({ prefix, delimiter: "/", limit: 1000, ...(cursor ? { cursor } : {}) });
+    const page = await c.var.media.list({ prefix, delimiter: "/", limit: 1000, ...(cursor ? { cursor } : {}) });
     folders.push(...page.delimitedPrefixes.filter((f) => towards(config, f)));
     cursor = page.truncated ? page.cursor : undefined;
   } while (cursor && folders.length < 5000);
@@ -47,7 +47,7 @@ library.get("/files", async (c) => {
   const prefix = c.req.query("prefix") ?? "";
   const cursor = c.req.query("cursor") || undefined;
   if (!prefix || !safe(prefix) || !inside(c.get("config"), prefix)) return c.json({ error: "invalid", message: "Not a media folder." }, 400);
-  const page = await c.env.MEDIA.list({ prefix, limit: 1000, ...(cursor ? { cursor } : {}) });
+  const page = await c.var.media.list({ prefix, limit: 1000, ...(cursor ? { cursor } : {}) });
   const files = page.objects.filter((o) => IMAGE.test(o.key)).map((o) => ({ key: o.key, size: o.size, uploaded: o.uploaded.toISOString() }));
   return c.json({ prefix, files, cursor: page.truncated ? page.cursor : null });
 });
@@ -62,7 +62,7 @@ library.get("/year", async (c) => {
   let cursor: string | undefined;
   for (let page = 0; ; page++) {
     if (page === YEAR_PAGES) return c.json({ prefix, months: null });
-    const listed = await c.env.MEDIA.list({ prefix, limit: 1000, ...(cursor ? { cursor } : {}) });
+    const listed = await c.var.media.list({ prefix, limit: 1000, ...(cursor ? { cursor } : {}) });
     keys.push(...listed.objects.map((o) => o.key).filter((k) => IMAGE.test(k)));
     if (!listed.truncated) break;
     cursor = listed.cursor;

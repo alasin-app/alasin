@@ -2,6 +2,8 @@
 // Client for the Worker API. State-changing requests carry the X-Alasin header
 // the Worker requires for CSRF protection; the browser adds Origin itself.
 
+import { apiPath } from "./current-site";
+
 export class ApiError extends Error {
   constructor(
     readonly status: number,
@@ -29,7 +31,7 @@ export async function api<T>(path: string, init: { method?: string; body?: unkno
   if (init.body !== undefined) headers["Content-Type"] = "application/json";
   let res: Response;
   try {
-    res = await fetch(path, {
+    res = await fetch(apiPath(path), {
       method,
       headers,
       body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
@@ -55,7 +57,12 @@ export interface Me {
   user: { id: number; login: string; name: string | null; avatar: string };
   version: string;
   environment: string | null;
+  /** The current site: the one site, or the one chosen (see current-site.ts). */
   site: { url: string };
+  /** Whether the deployment has sites/ (paths name the site). */
+  multi: boolean;
+  /** The sites the user can write for. */
+  sites: { id: string; url: string }[];
   housekeeping: { item: "session_keys" | "github_secrets"; lastRotated: string | null; ageDays: number | null }[];
 }
 

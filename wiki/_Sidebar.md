@@ -5,6 +5,7 @@
 - [Before You Start](Before-You-Start.md)
 - [New Site](New-Site.md)
 - [Existing Site](Existing-Site.md)
+- [Several Sites](Several-Sites.md)
 - [Users and Access](Users-and-Access.md)
 - [Authors](Authors.md)
 - [Updating](Updating.md)

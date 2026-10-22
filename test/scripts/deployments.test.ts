@@ -78,4 +78,20 @@ describe("npm run sites", () => {
     ]);
     expect(describeDeployment(null, null)).toEqual(["  alasin.toml can't be read"]);
   });
+
+  it("lists each site of a deployment with sites/", () => {
+    const alasin = { app: { url: "https://app.example.com" }, github: { app_id: 1, client_id: "x" } };
+    const sites = {
+      blog: { site: { url: "https://blog.example.com" }, github: { owner: "octocat", repo: "blog" } },
+      docs: { site: { url: "https://docs.example.com" }, github: { owner: "octocat", repo: "docs", branch: "live" } },
+      broken: null,
+    };
+    expect(describeDeployment(alasin, { name: "alasin" }, sites)).toEqual([
+      "  sites (3):",
+      "    blog: octocat/blog (main), https://blog.example.com",
+      "    docs: octocat/docs (live), https://docs.example.com",
+      "    broken: sites/broken.toml can't be read",
+      "  production: Worker alasin, https://app.example.com",
+    ]);
+  });
 });

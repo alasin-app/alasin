@@ -252,7 +252,7 @@ content.put("/file", async (c) => {
   if (!success) return c.json({ error: "rate_limited", message: "Too many saves. Wait a moment and try again." }, 429);
 
   // The editing session's photos are removed after saving: never a draft's own (its ID can't be an editId).
-  const editPhotos = editId ? await c.env.DRAFTS.list({ prefix: `${editId}/`, limit: 1000 }) : null;
+  const editPhotos = editId ? await c.var.drafts.list({ prefix: `${editId}/`, limit: 1000 }) : null;
   if (editId && editPhotos?.objects.length && (await isDraftId(c, editId))) {
     return c.json({ error: "invalid", message: "Invalid editing session." }, 400);
   }
@@ -261,7 +261,7 @@ content.put("/file", async (c) => {
   const refs = draftImageRefs(parsed.data.content);
   let urls: Map<string, string>;
   try {
-    urls = await copyDraftImages(c.env.DRAFTS, c.env.MEDIA, refs, day, {
+    urls = await copyDraftImages(c.var.drafts, c.var.media, refs, day, {
       pathPattern: config.media.path_pattern,
       contentPrefix: config.media.content_prefix,
       cacheControl: config.media.cache_control,
@@ -290,8 +290,8 @@ content.put("/file", async (c) => {
     // other drafts the text may refer to stay with their drafts.)
     if (editId && editPhotos?.objects.length) {
       try {
-        const listed = await c.env.DRAFTS.list({ prefix: `${editId}/`, limit: 1000 });
-        if (listed.objects.length) await c.env.DRAFTS.delete(listed.objects.map((o) => o.key));
+        const listed = await c.var.drafts.list({ prefix: `${editId}/`, limit: 1000 });
+        if (listed.objects.length) await c.var.drafts.delete(listed.objects.map((o) => o.key));
       } catch (err) {
         logError({ rid: c.get("requestId"), event: "draft_media_cleanup_failed", uid: c.get("session").uid }, err);
       }

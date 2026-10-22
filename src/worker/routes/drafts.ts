@@ -174,7 +174,7 @@ drafts.post("/:type/:id/publish", async (c) => {
 
   let urls: Map<string, string>;
   try {
-    urls = await copyDraftImages(c.env.DRAFTS, c.env.MEDIA, draftImageRefs(file.content), day, {
+    urls = await copyDraftImages(c.var.drafts, c.var.media, draftImageRefs(file.content), day, {
       pathPattern: config.media.path_pattern,
       contentPrefix: config.media.content_prefix,
       cacheControl: config.media.cache_control,
@@ -198,8 +198,8 @@ drafts.post("/:type/:id/publish", async (c) => {
     );
     // The draft's images now live in MEDIA (those it used) or are no longer needed.
     try {
-      const listed = await c.env.DRAFTS.list({ prefix: `${p.id}/`, limit: 1000 });
-      if (listed.objects.length) await c.env.DRAFTS.delete(listed.objects.map((o) => o.key));
+      const listed = await c.var.drafts.list({ prefix: `${p.id}/`, limit: 1000 });
+      if (listed.objects.length) await c.var.drafts.delete(listed.objects.map((o) => o.key));
     } catch (err) {
       // Left for the daily orphan cleanup.
       logError({ rid: c.get("requestId"), event: "draft_media_cleanup_failed", uid: c.get("session").uid }, err);

@@ -10,6 +10,7 @@
 
 import { useEffect, useRef, useState } from "preact/hooks";
 import { api, ApiError } from "./api";
+import { apiPath } from "./current-site";
 
 export interface Holder {
   uid: number;
@@ -30,7 +31,7 @@ type Result = { held: true; expires: number } | { held: false; holder: Holder };
 
 /** Releases a lock even while the page is closing (keepalive), with the headers every change needs. */
 function release(key: string, lockId: string): void {
-  void fetch("/api/locks/release", {
+  void fetch(apiPath("/api/locks/release"), {
     method: "POST",
     keepalive: true,
     credentials: "same-origin",

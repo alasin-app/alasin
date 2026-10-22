@@ -13,7 +13,8 @@ export default defineConfig({
         compatibilityDate: "2026-10-01",
         compatibilityFlags: [],
         kvNamespaces: ["KV"],
-        r2Buckets: ["MEDIA", "DRAFTS"],
+        // MEDIA_<ID> and DRAFTS_<ID>: the sites of a deployment with sites/ (test/worker/sites.test.ts).
+        r2Buckets: ["MEDIA", "DRAFTS", "MEDIA_ONE", "DRAFTS_ONE", "MEDIA_TWO", "DRAFTS_TWO"],
         durableObjects: { LOCKS: { className: "EditLocks", useSQLite: true } },
         ratelimits: {
           RL_AUTH: { namespace_id: "1001", simple: { limit: 5, period: 60 } },

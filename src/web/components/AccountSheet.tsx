@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 
-import { TriangleAlert } from "lucide-preact";
+import { Check, TriangleAlert } from "lucide-preact";
 import { useState } from "preact/hooks";
 import { avatarUrl, type Me } from "../lib/api";
+import { currentSite, openSite, siteLabel } from "../lib/current-site";
 import { getLanguage, LANGUAGES, type MessageKey, setLanguage, t, useLanguage } from "../lib/i18n";
 import { settings } from "../lib/settings";
 import { ActionSheet, Sheet } from "./Sheet";
@@ -29,7 +30,10 @@ export function AccountSheet(props: { open: boolean; onClose: () => void; me: Me
             </li>
           )}
           <li class="row">
-            <span class="row-label">{t("account.site")}</span>
+            <span class="row-label">
+              {t("account.site")}
+              {me.multi && <span class="row-subtitle">{siteLabel(me.site)}</span>}
+            </span>
             <a class="row-value link" href={me.site.url} target="_blank" rel="noopener noreferrer">
               {t("account.viewSite")}
             </a>
@@ -41,6 +45,27 @@ export function AccountSheet(props: { open: boolean; onClose: () => void; me: Me
             </span>
           </li>
         </ul>
+
+        {me.multi && me.sites.length > 1 && (
+          <>
+            <h3 class="group-header">{t("sites.title")}</h3>
+            <ul class="grouped-list">
+              {me.sites.map((s) => (
+                <li>
+                  <button
+                    type="button"
+                    class="row row-button-left"
+                    aria-current={s.id === currentSite() ? "true" : undefined}
+                    onClick={() => s.id !== currentSite() && openSite(s.id)}
+                  >
+                    <span class="row-label">{siteLabel(s)}</span>
+                    {s.id === currentSite() && <Check size={18} aria-label={t("sites.current")} />}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
 
         {me.housekeeping.length > 0 && (
           <>

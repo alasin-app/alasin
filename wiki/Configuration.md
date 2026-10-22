@@ -1,5 +1,7 @@
 Every option of `alasin.toml`, the site's Alasin settings (see [Configuration Files](Configuration-Files.md) for where it lives). The commented [`alasin.example.toml`](https://github.com/alasin-app/alasin/blob/main/alasin.example.toml) explains each one in more detail; Worker bindings and rate limits are in [`wrangler.example.toml`](https://github.com/alasin-app/alasin/blob/main/wrangler.example.toml).
 
+In a deployment with [several sites](Several-Sites.md), each site's own sections are in its `sites/<id>.toml`; `[app]`, `[ui]`, `[security]` and the GitHub App's `app_id` and `client_id` are only in `alasin.toml`.
+
 After changing `alasin.toml`, deploy again: `npm run deploy -- --site <site>`. When a release renames or adds options, `npm run setup` updates the file (see [Updating](Updating.md)).
 
 <!-- config-reference:start -->

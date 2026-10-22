@@ -26,6 +26,7 @@ import { chromium, devices, request, type Page, type Route } from "playwright";
 import { loadAlasinConfig, readToml } from "./lib/config";
 import { DEPLOYMENTS, repoRoot } from "./lib/args";
 import { groupImages } from "../src/shared/media-library";
+import { SINGLE_SITE_ID } from "../src/shared/config/deployment";
 
 const argv = process.argv.slice(2).filter((a) => a !== "--");
 const option = (name: string, fallback: string) => {
@@ -117,7 +118,8 @@ async function main() {
     // Worker code: imported at run time, so the scripts' type check stays free of Worker types.
     const workerSession = "../src/worker/session";
     const { createSession } = (await import(workerSession)) as { createSession: (...a: unknown[]) => Promise<string> };
-    const setCookie = await createSession(env, config, { id: user.id, login: user.login, name: user.name }, { accessToken: gh("auth", "token") });
+    // The test site is a deployment with one site.
+    const setCookie = await createSession(env, config, { id: user.id, login: user.login, name: user.name }, { accessToken: gh("auth", "token") }, [SINGLE_SITE_ID]);
     for (const [k, v] of kv) {
       execFileSync("npx", ["wrangler", "kv", "key", "put", k, v, "--binding", "KV", "--local", "--config", join(repoRoot, ".alasin", "wrangler.dev-default.json")], { cwd: repoRoot, stdio: "ignore", timeout: 60_000 });
     }

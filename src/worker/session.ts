@@ -15,8 +15,7 @@ import type { Env } from "./env";
 import { clearCookie, readCookie, serializeCookie, SESSION_COOKIE } from "./lib/cookies";
 import { importAesKey, open, randomToken, seal } from "./lib/crypto";
 import { refreshTokens, revokeToken, type GitHubUser, type UserTokens } from "./lib/github";
-import { log, logError } from "./lib/log";
-import { canWrite, type RepoPermission, repoPermission } from "./lib/access";
+import { logError } from "./lib/log";
 
 const COOKIE_CONTEXT = "alasin/session-cookie/v1";
 const DAY = 24 * 60 * 60 * 1000;
@@ -33,8 +32,10 @@ const sessionRecord = z.object({
   name: z.string().nullable(),
   createdAt: z.number(),
   lastSeenAt: z.number(),
-  /** When write access to the site repository was last confirmed (absent in older sessions). */
+  /** When write access to the site repository was last confirmed: sessions from before sites (#325), with one site. */
   accessCheckedAt: z.number().optional(),
+  /** The sites the user can write for, by id: when that was last confirmed (see lib/site-context.ts). */
+  sites: z.record(z.string(), z.number()).optional(),
   /** UserTokens as JSON, sealed with TOKEN_KEY and bound to the session ID. */
   tokens: z.string(),
 });
@@ -62,8 +63,8 @@ async function sealTokens(env: Env, sid: string, tokens: UserTokens): Promise<st
   return seal(await importAesKey("TOKEN_KEY", env.TOKEN_KEY), JSON.stringify(tokens), tokenContext(sid));
 }
 
-/** Creates a session and returns its Set-Cookie header value. */
-export async function createSession(env: Env, config: AlasinConfig, user: GitHubUser, tokens: UserTokens): Promise<string> {
+/** Creates a session for the sites the user can write for (their ids), and returns its Set-Cookie header value. */
+export async function createSession(env: Env, config: AlasinConfig, user: GitHubUser, tokens: UserTokens, sites: string[]): Promise<string> {
   const sid = randomToken(32);
   const now = Date.now();
   await writeRecord(env, config, sid, {
@@ -72,7 +73,7 @@ export async function createSession(env: Env, config: AlasinConfig, user: GitHub
     name: user.name ?? null,
     createdAt: now,
     lastSeenAt: now,
-    accessCheckedAt: now,
+    sites: Object.fromEntries(sites.map((id) => [id, now])),
     tokens: await sealTokens(env, sid, tokens),
   });
   const cookieKey = await importAesKey("SESSION_KEY", env.SESSION_KEY);
@@ -102,7 +103,7 @@ export async function readSession(c: Context<AppEnv>): Promise<Session | null> {
   const s = record.data;
   const expired =
     now - s.createdAt > maxAgeMs(config) || now - s.lastSeenAt > config.security.session_idle_days * DAY;
-  // (Write access to the site repository is re-checked about once an hour: see requireSession.)
+  // (Write access to each site is re-checked about once an hour: see lib/site-context.ts.)
   if (expired) {
     c.executionCtx.waitUntil(c.env.KV.delete(kvKey(payload.sid)));
     return null;
@@ -175,14 +176,31 @@ async function endSession(c: Context<AppEnv>, session: Session): Promise<Session
   return new SessionExpiredError();
 }
 
-/** How often a session's write access to the site repository is confirmed again. */
-const ACCESS_RECHECK = 60 * 60 * 1000;
+/** When the session's write access to a site was last confirmed; undefined if it hasn't been. */
+export function siteAccess(session: SessionRecord, id: string, multi: boolean): number | undefined {
+  return session.sites?.[id] ?? (multi ? undefined : session.accessCheckedAt);
+}
 
 /**
- * Rejects requests without a valid session with 401. About once an hour, it
- * also checks that the user still has write access to the site repository:
- * someone removed as a collaborator on GitHub is logged out. If GitHub can't
- * tell (e.g. it's down), the session goes on and the check is tried again.
+ * Records that the session can write for a site (when it was confirmed), or
+ * no longer can (null). Returns how many sites the session has left.
+ */
+export async function saveSiteAccess(c: Context<AppEnv>, id: string, at: number | null): Promise<number> {
+  // The session as it is now (getUserToken may have refreshed its tokens).
+  const { sid, accessCheckedAt: _old, ...rest } = c.get("session");
+  const multi = c.get("deployment").multi;
+  const sites = { ...(rest.sites ?? (!multi && _old !== undefined ? { [id]: _old } : {})) };
+  if (at === null) delete sites[id];
+  else sites[id] = at;
+  const record: SessionRecord = { ...rest, sites };
+  c.set("session", { ...record, sid });
+  await writeRecord(c.env, c.get("config"), sid, record);
+  return Object.keys(sites).length;
+}
+
+/**
+ * Rejects requests without a valid session with 401. Write access is checked
+ * per site, on the site's routes (lib/site-context.ts).
  */
 export function requireSession(): MiddlewareHandler<AppEnv> {
   return async (c, next) => {
@@ -192,30 +210,6 @@ export function requireSession(): MiddlewareHandler<AppEnv> {
       return c.json({ error: "unauthenticated", message: "Please log in." }, 401);
     }
     c.set("session", session);
-    if (Date.now() - (session.accessCheckedAt ?? 0) > ACCESS_RECHECK) {
-      const config = c.get("config");
-      let permission: RepoPermission | null;
-      try {
-        permission = await repoPermission(await getUserToken(c), config, session.login);
-      } catch (err) {
-        if (!(err instanceof SessionExpiredError)) throw err;
-        c.header("Set-Cookie", clearCookie(SESSION_COOKIE));
-        return c.json({ error: "unauthenticated", message: "Please log in." }, 401);
-      }
-      if (permission !== null && !canWrite(permission)) {
-        await destroySession(c, session);
-        log({ rid: c.get("requestId"), event: "session_ended_no_access", uid: session.uid });
-        c.header("Set-Cookie", clearCookie(SESSION_COOKIE));
-        return c.json({ error: "not_allowed", message: `You no longer have write access to ${config.github.owner}/${config.github.repo}.` }, 401);
-      }
-      if (permission !== null) {
-        // The session as it is now (getUserToken may have refreshed its tokens).
-        const { sid, ...rest } = c.get("session");
-        const checked = { ...rest, accessCheckedAt: Date.now() };
-        c.set("session", { ...checked, sid });
-        c.executionCtx.waitUntil(writeRecord(c.env, config, sid, checked));
-      }
-    }
     return next();
   };
 }
