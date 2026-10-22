@@ -4,6 +4,7 @@
 
 import { useEffect, useState } from "preact/hooks";
 import { api } from "./api";
+import { apiPath } from "./current-site";
 
 export interface BinImage {
   /** The MEDIA key it was deleted from (and is recovered to). */
@@ -16,7 +17,7 @@ export interface BinImage {
 }
 
 /** A thumbnail or the image itself, from the private bucket. */
-export const binImageUrl = (key: string) => `/api/media-bin/file?key=${encodeURIComponent(key)}`;
+export const binImageUrl = (key: string) => apiPath(`/api/media-bin/file?key=${encodeURIComponent(key)}`);
 
 let images: BinImage[] | null = null;
 let failed = false;

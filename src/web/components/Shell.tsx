@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // App frame: a sidebar split view on iPad and desktop, a tab bar on iPhone.
 
+import { siteLabel } from "../lib/current-site";
 import { ChevronRight, Ellipsis, FileText, House, Image, Newspaper, PanelLeftClose, PanelLeftOpen, PenLine, Plus, Tags, Trash2, Users } from "lucide-preact";
 import type { ComponentType } from "preact";
 import { useMemo, useState } from "preact/hooks";
@@ -131,6 +132,11 @@ export function Shell(props: { me: Me; onLogout: () => void }) {
           ) : (
             <span class="sidebar-app">
               {settings.appName} <EnvBadge />
+              {props.me.multi && (
+                <button type="button" class="sidebar-site" onClick={() => setAccountOpen(true)} title={t("sites.title")}>
+                  {siteLabel(props.me.site)}
+                </button>
+              )}
             </span>
           )}
           <AvatarButton me={props.me} onClick={() => setAccountOpen(true)} />

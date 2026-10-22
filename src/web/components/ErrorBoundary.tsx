@@ -2,6 +2,7 @@
 // Catches errors while drawing the app, so a crash shows a message with the
 // details and a way out instead of a blank page.
 
+import { sitePath } from "../lib/current-site";
 import { Component, type ComponentChildren } from "preact";
 import { t } from "../lib/i18n";
 
@@ -32,7 +33,7 @@ export class ErrorBoundary extends Component<{ children: ComponentChildren }, St
           <button type="button" class="btn btn-filled" onClick={() => location.reload()}>
             {t("crash.reload")}
           </button>
-          <button type="button" class="btn btn-tinted" onClick={() => location.assign("/drafts")}>
+          <button type="button" class="btn btn-tinted" onClick={() => location.assign(`${sitePath()}/drafts`)}>
             {t("crash.toDrafts")}
           </button>
         </div>
