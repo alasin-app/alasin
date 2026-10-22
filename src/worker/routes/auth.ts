@@ -4,7 +4,7 @@
 // single-use state) and logout.
 //
 //   GET  /auth/login     redirect to GitHub
-//   GET  /auth/callback  code exchange, allowlist check, session
+//   GET  /auth/callback  code exchange, access to the sites, session
 //   POST /auth/logout    end the session (CSRF-protected)
 
 import { Hono, type Context } from "hono";
@@ -99,20 +99,23 @@ auth.get("/callback", async (c) => {
     return redirectWithError(c, "github");
   }
 
-  // Who may log in: everyone with write access to the site repository.
-  const permission = await repoPermission(tokens.accessToken, config, user.login);
-  if (!canWrite(permission)) {
-    log({ rid, event: permission === null ? "login_access_unknown" : "login_rejected_not_allowed", uid: user.id });
+  // Who may log in: everyone with write access to a site's repository. They get the sites they can write for.
+  const sites = c.get("deployment").sites;
+  const permissions = await Promise.all(sites.map((s) => repoPermission(tokens.accessToken, s.config, user.login)));
+  const allowed = sites.filter((_, i) => canWrite(permissions[i]!));
+  if (!allowed.length) {
+    const unknown = permissions.includes(null);
+    log({ rid, event: unknown ? "login_access_unknown" : "login_rejected_not_allowed", uid: user.id });
     c.executionCtx.waitUntil(revokeToken({ ...credentials, accessToken: tokens.accessToken }).catch(() => undefined));
-    return redirectWithError(c, permission === null ? "github" : "not_allowed");
+    return redirectWithError(c, unknown ? "github" : "not_allowed");
   }
 
   // A previous session in this browser is replaced (session fixation).
   const previous = await readSession(c);
   if (previous) await destroySession(c, previous);
 
-  const cookie = await createSession(c.env, config, user, tokens);
-  await forgetMembersWithout(c.env.KV, config, user.id);
+  const cookie = await createSession(c.env, config, user, tokens, allowed.map((s) => s.id));
+  await Promise.all(allowed.map((s) => forgetMembersWithout(c.env.KV, s.config, user.id)));
   log({ rid, event: "login", uid: user.id });
   c.header("Set-Cookie", clearCookie(OAUTH_COOKIE), { append: true });
   c.header("Set-Cookie", cookie, { append: true });

@@ -30,6 +30,12 @@ export function freshIp(): string {
   return `198.51.100.${ipCounter % 250}`;
 }
 
+/** Overrides for every call (e.g. a deployment with sites), until reset with useEnv({}). */
+let defaultOverrides: Partial<Env> = {};
+export function useEnv(overrides: Partial<Env>): void {
+  defaultOverrides = overrides;
+}
+
 export async function call(
   path: string,
   init: RequestInit & { cookie?: string; ip?: string } = {},
@@ -40,7 +46,7 @@ export async function call(
   headers.set("CF-Connecting-IP", init.ip ?? "192.0.2.1");
   const url = path.startsWith("http") ? path : `${APP_URL}${path}`;
   const ctx = createExecutionContext();
-  const res = await app.fetch(new Request(url, { ...init, headers, redirect: "manual" }), { ...env, ASSETS: fakeAssets, ...envOverrides }, ctx);
+  const res = await app.fetch(new Request(url, { ...init, headers, redirect: "manual" }), { ...env, ASSETS: fakeAssets, ...defaultOverrides, ...envOverrides }, ctx);
   await waitOnExecutionContext(ctx);
   return res;
 }
@@ -68,6 +74,8 @@ export interface FakeGitHub {
   profiles: Map<number, string | null>;
   /** The site repository (owner/name/branch from the test config). */
   repo: FakeRepo;
+  /** More site repositories, for deployments with sites (REST only; GraphQL goes to `repo`). */
+  others: FakeRepo[];
 }
 
 /** Replaces global fetch with a fake GitHub (OAuth, /user, token revocation, avatars). */
@@ -81,6 +89,7 @@ export function fakeGitHub(): FakeGitHub {
     failRefresh: false,
     profiles: new Map(),
     repo: new FakeRepo("example-owner", "example-site", "main"),
+    others: [],
   };
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
     const req = new Request(input, init);
@@ -111,8 +120,10 @@ export function fakeGitHub(): FakeGitHub {
       gh.avatars.push(url.href);
       return new Response(new Uint8Array([0x89, 0x50, 0x4e, 0x47]), { headers: { "Content-Type": "image/png", "Content-Length": "4", ETag: '"avatar-v1"' } });
     }
-    const repoResponse = await gh.repo.handle(req);
-    if (repoResponse) return repoResponse;
+    for (const repo of [gh.repo, ...gh.others]) {
+      const repoResponse = await repo.handle(req);
+      if (repoResponse) return repoResponse;
+    }
     throw new Error(`unexpected fetch in test: ${req.method} ${url.href}`);
   });
   return gh;

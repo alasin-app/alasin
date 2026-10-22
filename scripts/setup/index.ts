@@ -13,6 +13,7 @@ import { parse } from "smol-toml";
 import { ConfigError, selectEnvironment } from "../../src/shared/config/schema";
 import { deploymentLine, parseArgs, repoRoot } from "../lib/args";
 import { displayPath, loadAlasinConfig } from "../lib/config";
+import { SINGLE_SITE_ID, siteBindings } from "../../src/shared/config/deployment";
 import { appendSection, setValue, type TomlValue } from "../lib/toml-edit";
 import { normalizeUrl, urlProblem } from "../lib/urls";
 import { poll } from "../lib/poll";
@@ -498,7 +499,7 @@ function finalCheck() {
   ok(`${displayPath(args.configPath)}${envLabel} is valid`);
   const problems = checkBindings(wranglerTarget(), `${displayPath(args.wranglerPath)}${envLabel}`);
   if (problems.length) throw new ConfigError(problems.join("\n"), problems);
-  generateWranglerConfig({ wranglerPath: args.wranglerPath, env, config, outName: env ?? "default" });
+  generateWranglerConfig({ wranglerPath: args.wranglerPath, env, deployment: { multi: false, sites: [{ id: SINGLE_SITE_ID, config, ...siteBindings(SINGLE_SITE_ID, false) }] }, outName: env ?? "default" });
   ok(`${displayPath(args.wranglerPath)}${envLabel} is complete`);
   const deployArgs = [
     args.site && !args.siteImplicit ? `--site ${args.site}` : !args.site && args.configPath !== join(repoRoot, "alasin.toml") ? `--config ${displayPath(args.configPath)}` : "",

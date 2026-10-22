@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: MIT
 // Authenticated JSON API. Every route requires a valid session; state-changing
-// routes are additionally CSRF-checked (see app.ts).
+// routes are additionally CSRF-checked (see app.ts). A site's routes are under
+// /api/sites/<id>/ with sites/, and under /api/ with one site (lib/site-context.ts).
 
 import { Hono } from "hono";
 import type { AppEnv } from "../app";
-import { requireSession } from "../session";
+import { requireSession, siteAccess } from "../session";
+import { checkSites, useSite } from "../lib/site-context";
 import { housekeepingDue } from "../../shared/housekeeping";
 import { bin } from "./bin";
 import { categories } from "./categories";
@@ -26,14 +28,20 @@ api.use("*", async (c, next) => {
 });
 api.use("*", requireSession());
 
-api.get("/me", (c) => {
+api.get("/me", checkSites(), (c) => {
   const config = c.get("config");
   const s = c.get("session");
+  const { multi, sites } = c.get("deployment");
+  // The sites the user can write for, as last confirmed.
+  const mine = sites.filter((site) => siteAccess(s, site.id, multi) !== undefined);
   return c.json({
     user: { id: s.uid, login: s.login, name: s.name, avatar: `/api/avatar/${s.uid}` },
     version: __ALASIN_VERSION__,
     environment: config.ui.environment_label ?? null,
-    site: { url: config.site.url },
+    // The one site, or the first of the user's (until the app chooses among them).
+    site: { url: (mine[0] ?? sites[0]!).config.site.url },
+    multi,
+    sites: mine.map((site) => ({ id: site.id, url: site.config.site.url })),
     housekeeping: housekeepingDue(config),
   });
 });
@@ -69,16 +77,22 @@ api.get("/avatar/:id{[0-9]{1,12}}", async (c) => {
   return c.body(body, 200, { "Content-Type": type, ...cache });
 });
 
-api.route("/bin", bin);
-api.route("/categories", categories);
-api.route("/content", content);
-api.route("/drafts", drafts);
-api.route("/lifecycle", lifecycle);
-api.route("/locks", locks);
-api.route("/draft-media", media);
-api.route("/media", library);
-api.route("/media-bin", mediaBin);
-api.route("/site", site);
-api.route("/users", users);
+/** A site's routes. */
+const perSite = new Hono<AppEnv>();
+perSite.use("*", useSite());
+perSite.route("/bin", bin);
+perSite.route("/categories", categories);
+perSite.route("/content", content);
+perSite.route("/drafts", drafts);
+perSite.route("/lifecycle", lifecycle);
+perSite.route("/locks", locks);
+perSite.route("/draft-media", media);
+perSite.route("/media", library);
+perSite.route("/media-bin", mediaBin);
+perSite.route("/site", site);
+perSite.route("/users", users);
+
+api.route("/sites/:site", perSite);
+api.route("/", perSite);
 
 api.all("*", (c) => c.json({ error: "not_found", message: "No such API route." }, 404));

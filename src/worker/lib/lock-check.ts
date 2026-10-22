@@ -6,10 +6,11 @@
 
 import type { Context } from "hono";
 import type { AppEnv } from "../app";
+import { locksName } from "./site-context";
 
 /** A 409 answer if someone else holds the lock `key`; null if the change can go ahead. */
 export async function lockedBy(c: Context<AppEnv>, key: string, lockId: string | undefined, what = "this"): Promise<Response | null> {
-  const found = await c.env.LOCKS.get(c.env.LOCKS.idFromName("locks")).holderOf(key);
+  const found = await c.env.LOCKS.get(c.env.LOCKS.idFromName(locksName(c))).holderOf(key);
   if (!found || found.lockId === lockId) return null;
   const { lockId: _held, ...holder } = found;
   return c.json({ error: "locked", message: `${holder.name ?? holder.login} is editing ${what}. Try again when they're done.`, holder }, 409);
