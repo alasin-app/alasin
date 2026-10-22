@@ -75,6 +75,13 @@ describe("a deployment with sites", () => {
     expect(await sites()).toEqual(["one", "two"]);
   });
 
+  it("allows every site's photos in the Content-Security-Policy", async () => {
+    const csp = (await call("/")).headers.get("Content-Security-Policy") ?? "";
+    const imgSrc = csp.split("; ").find((d) => d.startsWith("img-src")) ?? "";
+    expect(imgSrc).toContain("https://media.example.com");
+    expect(imgSrc).toContain("https://media.two.example.com");
+  });
+
   it("keeps each site's photos in its own bucket", async () => {
     second.collaborators.set(ALLOWED_USER.login, { permission: "write", id: ALLOWED_USER.id });
     const { cookie } = await login(gh, ALLOWED_USER);
