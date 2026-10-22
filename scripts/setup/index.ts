@@ -447,7 +447,17 @@ async function setupGitHubApp(): Promise<Record<string, string>> {
       secrets.GITHUB_APP_PRIVATE_KEY = app.privateKeyPkcs8;
       privateKey = app.privateKeyPkcs8;
       ok(`Created ${app.htmlUrl}`);
-      info(`Now install it on ${bold(`${owner}/${repo}`)} only (choose "Only select repositories").`);
+      const current = site.id;
+      const repos = (siteIds().length ? siteIds() : [null]).map((id) => {
+        useSite(id);
+        return `${String(get(effective(), "github.owner"))}/${String(get(effective(), "github.repo"))}`;
+      });
+      useSite(current);
+      info(
+        repos.length > 1
+          ? `Now install it on each site's repository, on its owner's account (choose "Only select repositories"): ${repos.map((r) => bold(r)).join(", ")}.`
+          : `Now install it on ${bold(`${owner}/${repo}`)} only (choose "Only select repositories").`,
+      );
       const installUrl = `https://github.com/apps/${app.slug}/installations/new`;
       info(installUrl);
       gh.openBrowser(installUrl);
@@ -469,13 +479,15 @@ async function setupGitHubApp(): Promise<Record<string, string>> {
 }
 
 /**
- * The app installed on each site's repository (the sites being set up). With
- * the private key at hand (a new app, or rotated secrets), the installation is
- * found and recorded; otherwise the operator is asked to install it.
+ * The app installed on the sites' repositories. With the private key at hand
+ * (a new app, or rotated secrets), every site's installation is found and
+ * recorded: a new app isn't installed anywhere yet. Otherwise the operator is
+ * asked to install it on the site being added.
  */
 async function installOn(privateKey: string | undefined) {
   const appId = Number(get(effective(), "github.app_id"));
-  for (const id of targets) {
+  const all = siteIds();
+  for (const id of privateKey && all.length ? all : targets) {
     useSite(id);
     const owner = String(get(effective(), "github.owner"));
     const repo = String(get(effective(), "github.repo"));

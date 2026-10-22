@@ -65,6 +65,8 @@ export function createApp() {
     c.set("deployment", deployment);
     const config = deployment.sites[0]!.config;
     c.set("config", config);
+    // Every site's media and preview stylesheet are allowed by the CSP.
+    const sites = deployment.sites.map((s) => s.config);
 
     const canonical = new URL(config.app.url);
     if (url.host !== canonical.host || url.protocol !== canonical.protocol) {
@@ -82,7 +84,7 @@ export function createApp() {
     }
 
     await next();
-    c.res = withSecurityHeaders(c.res, config, canonical.protocol === "https:", c.get("styleNonce"));
+    c.res = withSecurityHeaders(c.res, sites, canonical.protocol === "https:", c.get("styleNonce"));
     log({
       rid,
       method: c.req.method,
