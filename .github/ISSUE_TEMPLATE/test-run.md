@@ -162,3 +162,14 @@ Posts have `author_id` (the GitHub login) and `author` (the name).
 - [ ] **A.7 Author required**: Remove the author of a draft (*Someone else* with an empty name isn't possible; edit the file on GitHub to remove both lines): *Save* and *Publish* say "Choose an author first." and open the details
 - [ ] **A.8 Setup**: `npm run setup` on an `alasin.toml` with `# author_field = "author"` commented out turns it on and reports it; one that sets it keeps its value and gets the new description
 - [ ] **A.9 New avatar**: Change your picture on GitHub: within about 10 minutes, reloading the app shows the new one in the account sheet, *Users*, the lists and the editor's lock banner, without clearing the browser's data
+
+## Several sites
+
+Only on a deployment with a `sites/` folder and two sites (see Several Sites in the wiki); the test environment has one site, so skip these there.
+
+- [ ] **S.1 Add a site**: `npm run setup -- --add-site <id>` on a deployment with one site: it asks for the existing site's id, moves its settings to `sites/<id>.toml` with their comments, renames its buckets to `MEDIA_<ID>`/`DRAFTS_<ID>`, then asks for the new site's repository, branch, address and buckets; `npm run sites` lists both sites and `npm run deploy` names both
+- [ ] **S.2 Choose a site**: Sign in with access to both: the app asks which site; choosing one opens `/<id>/`, the sidebar shows it under the app's name, and after a reload `/` opens it again
+- [ ] **S.3 Switch**: In the account sheet, the other site in *Sites* opens it: its posts, drafts, categories, media and Bin, not the first site's
+- [ ] **S.4 Kept apart**: A photo added to a draft of one site is in that site's buckets only; a device-only draft of one site isn't listed on the other; the same post path open on both sites doesn't lock the other
+- [ ] **S.5 One site only**: Someone with write access to only one of the sites signs in straight to it, without the chooser; the other site's address (`/<other id>/`) opens their own site
+- [ ] **S.6 Access lost**: Remove someone from one site's repository: within the hour, that site is gone from their account sheet and refused, and the other still works; remove them from the other too, and they're logged out
