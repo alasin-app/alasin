@@ -67,6 +67,14 @@ describe("a deployment with sites", () => {
     expect(me.sites.map((s) => s.id)).toEqual(["one", "two"]);
   });
 
+  it("lists a site the user can write for since signing in, when the app loads", async () => {
+    const { cookie } = await login(gh, ALLOWED_USER);
+    const sites = async () => ((await (await call("/api/me", { cookie })).json()) as { sites: { id: string }[] }).sites.map((s) => s.id);
+    expect(await sites()).toEqual(["one"]);
+    second.collaborators.set(ALLOWED_USER.login, { permission: "write", id: ALLOWED_USER.id });
+    expect(await sites()).toEqual(["one", "two"]);
+  });
+
   it("keeps each site's photos in its own bucket", async () => {
     second.collaborators.set(ALLOWED_USER.login, { permission: "write", id: ALLOWED_USER.id });
     const { cookie } = await login(gh, ALLOWED_USER);
