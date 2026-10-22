@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.1](https://github.com/alasin-app/alasin/compare/v1.11.0...v1.11.1) (2026-10-22)
+
+
+### Bug Fixes
+
+* every site's photos show; sites gained after signing in appear; setup installs a new app on every site ([#388](https://github.com/alasin-app/alasin/issues/388)) ([1d08e4f](https://github.com/alasin-app/alasin/commit/1d08e4fc65c77c5cb43541ff55a00a9765b19bc3))
+
 ## [1.11.0](https://github.com/alasin-app/alasin/compare/v1.10.0...v1.11.0) (2026-10-22)
 
 
