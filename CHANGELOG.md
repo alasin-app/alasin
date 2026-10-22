@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.11.0](https://github.com/alasin-app/alasin/compare/v1.10.0...v1.11.0) (2026-10-22)
+
+
+### Features
+
+* **scripts:** setup adds sites to a deployment, documented ([#382](https://github.com/alasin-app/alasin/issues/382)) ([e6fe95c](https://github.com/alasin-app/alasin/commit/e6fe95c1a5a494f97e8f33eeea4b02e5d93cdfb9)), closes [#325](https://github.com/alasin-app/alasin/issues/325)
+* **web:** the app works with a deployment's sites ([#379](https://github.com/alasin-app/alasin/issues/379)) ([ae89af2](https://github.com/alasin-app/alasin/commit/ae89af2a532ef54bd0634064c9d3d148429f3040)), closes [#325](https://github.com/alasin-app/alasin/issues/325)
+* **worker:** one deployment serves several sites ([#378](https://github.com/alasin-app/alasin/issues/378)) ([c0f9a69](https://github.com/alasin-app/alasin/commit/c0f9a69b5d83b3c262ee28263020af7a7f16e0ea))
+
+
+### Bug Fixes
+
+* **ci:** the release's wiki job can push to the wiki ([#376](https://github.com/alasin-app/alasin/issues/376)) ([2639563](https://github.com/alasin-app/alasin/commit/2639563833e1ee46e88473d856427494ecc11e43)), closes [#370](https://github.com/alasin-app/alasin/issues/370)
+
 ## [1.10.0](https://github.com/alasin-app/alasin/compare/v1.9.0...v1.10.0) (2026-10-21)
 
 
