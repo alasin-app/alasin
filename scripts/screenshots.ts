@@ -1,32 +1,35 @@
 // SPDX-License-Identifier: MIT
 //
-// npm run screenshots [-- --site <name>] [--for <name>] [--date yyyy-mm-dd] [--out <dir>] [--upload]
+// npm run screenshots [-- --site <name>] [--for <deployment>[/<site id>]] [--only <shot,…>] [--date yyyy-mm-dd] [--out <dir>] [--upload]
 //
-// Screenshots of the app for alasin.app (#353, #363): runs Alasin locally (npm run
+// Screenshots of the app for alasin.app (#353, #363, #393): runs Alasin locally (npm run
 // dev --https --remote-media) with a test site's configuration (default app.alasin.dev, with the
 // sample content), signs in as the user `gh` is logged in as (a session made
 // with their gh token, written to the local KV), and takes the same set every
 // time: iPhone and desktop sizes (Chromium), light and dark, with the DEV
 // badge hidden. Some show a feature the way it looks in use: the rename sheet
 // in Categories, orphaned photos selected in Media, photos in the Bin, a post
-// someone else is editing, and Users. Everyone in them is made up. Needs the
+// someone else is editing, Users, and the account sheet's list of sites (the
+// app is shown a second, made-up site). Everyone in them is made up. --only
+// takes some of them (e.g. --only sites,users). Needs the
 // site's .dev.vars (setup writes it) and the browsers (npx playwright install chromium).
 //
-// Each one is stored the way Alasin stores a photo for the site in --for
-// (default app.alasin), so its Media lists them: a JPEG at most 1600 pixels on
+// Each one is stored the way Alasin stores a photo for the site in --for (a
+// deployment, and the site's id if it has sites/; default the test site
+// itself), so its Media lists them: a JPEG at most 1600 pixels on
 // the long side under its [media] path_pattern, dated --date (default today),
 // with its [images] variants next to it. The files go to --out (default
-// .alasin/screenshots/) by R2 key; --upload also puts them in that site's
-// media bucket, never over an existing image.
+// .alasin/screenshots/) by R2 key; --upload (which needs --for) also puts them
+// in that site's media bucket, never over an existing image.
 
 import { execFileSync, spawn } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { chromium, devices, request, type Page, type Route } from "playwright";
-import { loadAlasinConfig, readToml } from "./lib/config";
+import { loadAlasinConfig, loadDeployment, readToml } from "./lib/config";
 import { DEPLOYMENTS, repoRoot } from "./lib/args";
 import { groupImages } from "../src/shared/media-library";
-import { SINGLE_SITE_ID } from "../src/shared/config/deployment";
+import { type SiteEntry, SINGLE_SITE_ID } from "../src/shared/config/deployment";
 
 const argv = process.argv.slice(2).filter((a) => a !== "--");
 const option = (name: string, fallback: string) => {
@@ -34,7 +37,8 @@ const option = (name: string, fallback: string) => {
   return i === -1 ? fallback : argv[i + 1]!;
 };
 const site = option("--site", "app.alasin.dev");
-const target = option("--for", "app.alasin");
+const target = option("--for", "");
+const only = option("--only", "").split(",").filter(Boolean);
 const date = option("--date", new Date().toISOString().slice(0, 10));
 const out = option("--out", join(repoRoot, ".alasin", "screenshots"));
 const upload = argv.includes("--upload");
@@ -87,11 +91,23 @@ function keysFor(config: ReturnType<typeof loadAlasinConfig>, name: string) {
   return { main, variant };
 }
 
+/** The site in --for: a deployment, and the site's id in it with sites/ (`deployment/id`); the test site without --for. */
+function targetSite(): SiteEntry {
+  const [deployment, id] = (target || site).split("/") as [string, string | undefined];
+  const d = loadDeployment(join(repoRoot, DEPLOYMENTS, deployment, "alasin.toml"), undefined);
+  if (!d.multi) return d.sites[0]!;
+  const found = d.sites.find((s) => s.id === id);
+  if (!found) throw new Error(`--for ${target}: name one of ${deployment}'s sites: ${d.sites.map((s) => `${deployment}/${s.id}`).join(", ")}`);
+  return found;
+}
+
 async function main() {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error(`--date ${date}: use yyyy-mm-dd`);
   const config = loadAlasinConfig(join(dir, "alasin.toml"), undefined);
-  const media = loadAlasinConfig(join(repoRoot, DEPLOYMENTS, target, "alasin.toml"), undefined);
-  if (!media.media.path_pattern.startsWith("{yyyy}/{mm}/")) throw new Error(`${target}'s [media] path_pattern doesn't keep photos by month, so Media wouldn't list the screenshots.`);
+  if (upload && !target) throw new Error("--upload needs --for <deployment>[/<site id>]: the site whose media bucket gets the screenshots");
+  const forSite = targetSite();
+  const media = forSite.config;
+  if (!media.media.path_pattern.startsWith("{yyyy}/{mm}/")) throw new Error(`${target || site}'s [media] path_pattern doesn't keep photos by month, so Media wouldn't list the screenshots.`);
   mkdirSync(out, { recursive: true });
 
   // The script's own requests to the local server, whose certificate is self-signed.
@@ -200,6 +216,25 @@ async function main() {
         },
       },
       {
+        // 1.11.0: the account sheet's sites, the test site and a made-up one (the made-up site's routes go to the test site).
+        name: "sites",
+        path: "/dev/",
+        routes: {
+          [`${BASE}/api/me`]: async (route) => {
+            const real = (await (await route.fetch()).json()) as { site: { url: string } };
+            await json(route, { ...real, multi: true, sites: [{ id: "dev", url: real.site.url }, { id: "photos", url: "https://photos.example.com" }] });
+          },
+          [`${BASE}/api/sites/**`]: async (route) => {
+            const url = new URL(route.request().url());
+            url.pathname = url.pathname.replace(/^\/api\/sites\/[^/]+\//, "/api/");
+            await route.fulfill({ response: await route.fetch({ url: url.toString() }) });
+          },
+        },
+        prepare: async (page) => {
+          await page.getByRole("button", { name: "Account" }).first().click();
+        },
+      },
+      {
         // 1.2.0 and 1.5.0: Users, with made-up people.
         name: "users",
         path: "/users",
@@ -243,7 +278,7 @@ async function main() {
         await context.addInitScript({
           content: `addEventListener("DOMContentLoaded", () => {
             const s = document.createElement("style");
-            s.textContent = ".badge-env { display: none !important; }";
+            s.textContent = ".badge-env, .grouped-list li.row:has(.badge-env) { display: none !important; }";
             document.head.append(s);
             const pairs = ${replacements};
             const fix = (node) => {
@@ -257,7 +292,7 @@ async function main() {
           });`,
         });
         const page = await context.newPage();
-        for (const shot of shots) {
+        for (const shot of shots.filter((s) => !only.length || only.includes(s.name))) {
           for (const [url, handler] of Object.entries(shot.routes ?? {})) await page.route(url, handler);
           // The app keeps polling, so the network never goes quiet: load, then give it time to fill in.
           await page.goto(BASE + shot.path, { waitUntil: "load", timeout: 60_000 });
@@ -327,10 +362,11 @@ async function store(encoder: Page, png: Buffer, name: string, media: ReturnType
 
 /** Puts the files in the target site's media bucket. Like Alasin, never over an existing image: stops before any upload if one is there. */
 function uploadAll(files: { key: string; type: string }[], media: ReturnType<typeof loadAlasinConfig>) {
-  const wrangler = readToml(join(repoRoot, DEPLOYMENTS, target, "wrangler.toml")) as { r2_buckets?: { binding: string; bucket_name: string; jurisdiction?: string }[] };
-  const binding = wrangler.r2_buckets?.find((b) => b.binding === "MEDIA");
+  const deployment = target.split("/")[0]!;
+  const wrangler = readToml(join(repoRoot, DEPLOYMENTS, deployment, "wrangler.toml")) as { r2_buckets?: { binding: string; bucket_name: string; jurisdiction?: string }[] };
+  const binding = wrangler.r2_buckets?.find((b) => b.binding === targetSite().media);
   const bucket = binding?.bucket_name;
-  if (!bucket) throw new Error(`No MEDIA bucket in ${target}'s wrangler.toml`);
+  if (!bucket) throw new Error(`No ${targetSite().media} bucket in ${deployment}'s wrangler.toml`);
   const taken = files.filter((f) => {
     try {
       execFileSync("curl", ["-fsI", media.media.public_url + f.key], { stdio: "ignore" });
