@@ -1,5 +1,10 @@
 The new and improved features in each Alasin release, newest first. To get them on your site, see [Updating](Updating.md); for every change in detail, including upgrade steps, see the [release notes](https://github.com/alasin-app/alasin/releases).
 
+## 1.12.0 (23 October 2026)
+
+- **Oldest posts first.** *Posts* can be listed from the oldest, as well as from the newest.
+- **Share a list.** The filters, search and order of *Posts* and *Pages* are kept in the address, so a list can be bookmarked or shared with another writer, who sees the same list, even after signing in first. The share button sends it from a phone.
+
 ## 1.11.0 (22 October 2026)
 
 - **Several sites in one app.** One Alasin can serve several Hugo sites: sign in once, choose a site, and switch between sites from your account. Each site keeps its own repository, photos and settings, and people see only the sites they can write for.
