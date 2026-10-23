@@ -5,6 +5,7 @@ import { api, ApiError, clearLocalData, type Me, NetworkError } from "../lib/api
 import { resetContent } from "../lib/use-content";
 import { t, useLanguage } from "../lib/i18n";
 import { chooseSite, sitePath } from "../lib/current-site";
+import { takeReturnPath } from "../lib/router";
 import { Login } from "./Login";
 import { Shell } from "./Shell";
 import { SiteChooser } from "./SiteChooser";
@@ -26,6 +27,9 @@ export function App() {
     setState({ kind: "loading" });
     try {
       const me = await api<Me>("/api/me");
+      // Signed in from a link: back to where it led (sign-in itself returns to /).
+      const back = takeReturnPath();
+      if (back && location.pathname === "/") history.replaceState(null, "", back);
       const site = chooseSite(me, location.pathname);
       if (me.multi && !site) {
         history.replaceState(null, "", "/");

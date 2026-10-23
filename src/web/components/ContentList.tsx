@@ -1,17 +1,20 @@
 // SPDX-License-Identifier: MIT
 // The Posts and Pages sections: everything in the site repository of one kind,
-// with as-you-type search, a state filter and a category filter. Posts are
-// grouped by year and month (newest first), pages listed by title. Archived
-// items show only under their filter, items in the Bin not at all.
+// with as-you-type search, a state filter and category, author and tag
+// filters. Posts are grouped by year and month, newest or oldest first, pages
+// listed by title. Archived items show only under their filter, items in the
+// Bin not at all. What the list shows is kept in its address (list-params.ts),
+// so it can be shared.
 
-import { ChevronDown, ChevronRight, RotateCw, Search as SearchIcon, X } from "lucide-preact";
-import { useMemo, useState } from "preact/hooks";
+import { ArrowDownUp, Check, ChevronDown, ChevronRight, RotateCw, Search as SearchIcon, Share, X } from "lucide-preact";
+import { useEffect, useMemo, useState } from "preact/hooks";
 import { categoryTree, isCategory } from "../../shared/categories";
 import { api, ApiError, avatarUrl, type Me } from "../lib/api";
 import { authorKey, authorName, authorUser } from "../lib/authors";
 import { type ContentItem, type ItemKind, valueCounts } from "../lib/content-index";
 import { getLanguage, t, useLanguage } from "../lib/i18n";
-import { hrefFor, linkHandler, navigate, type Route } from "../lib/router";
+import { type ListParams, listSearch, parseListParams } from "../lib/list-params";
+import { hrefFor, linkHandler, navigate, replaceSearch, type Route, useSearch } from "../lib/router";
 import { createSearch, snippet } from "../lib/search";
 import type { SiteSettings } from "../lib/site";
 import { type Holder, lockKey, useLocks } from "../lib/edit-lock";
@@ -19,8 +22,6 @@ import { type LastUpdate, useLastUpdated } from "../lib/last-updated";
 import { useContent } from "../lib/use-content";
 import { PickerSheet } from "./PickerSheet";
 import { ActionSheet } from "./Sheet";
-
-type Filter = "all" | "draft" | "archived";
 
 /** Where a row leads; null while it can't be opened yet (archived items, the Bin). */
 export function routeFor(item: ContentItem): Route | null {
@@ -126,12 +127,33 @@ export function ContentPlaceholder(props: { error: boolean; refresh: () => void 
 export function ContentList(props: { me: Me; kind: ItemKind }) {
   useLanguage();
   const { site, content, updating, error, refresh } = useContent(props.me);
-  const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<Filter>("all");
-  /** Categories, authors and tags to show (any of each); empty for all. */
-  const [categories, setCategories] = useState<string[]>([]);
-  const [authors, setAuthors] = useState<string[]>([]);
-  const [tags, setTags] = useState<string[]>([]);
+  const address = useSearch();
+  /** Categories, authors and tags to show (any of each; empty for all), from the address. */
+  const { state: filter, categories, authors, tags, sort, query } = useMemo(() => parseListParams(address), [address]);
+  const update = (change: Partial<ListParams>) => replaceSearch(listSearch({ ...parseListParams(location.search), ...change }));
+  const setQuery = (q: string) => update({ query: q });
+  const setCategories = (v: string[]) => update({ categories: v });
+  const setAuthors = (v: string[]) => update({ authors: v });
+  const setTags = (v: string[]) => update({ tags: v });
+  /** "Link copied" for a moment, where the device has no share sheet. */
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    if (!copied) return;
+    const timer = setTimeout(() => setCopied(false), 2000);
+    return () => clearTimeout(timer);
+  }, [copied]);
+  const shareList = async () => {
+    const url = location.href;
+    try {
+      if (navigator.share) await navigator.share({ url });
+      else {
+        await navigator.clipboard.writeText(url);
+        setCopied(true);
+      }
+    } catch {
+      // Cancelled, or not allowed.
+    }
+  };
   const [picker, setPicker] = useState<"categories" | "authors" | "tags" | null>(null);
   /** An archived item waiting for "Republish" to be confirmed, and any error. */
   const [republishing, setRepublishing] = useState<ContentItem | null>(null);
@@ -174,8 +196,9 @@ export function ContentList(props: { me: Me; kind: ItemKind }) {
       return list.filter((i) => rank.has(i.path)).sort((a, b) => rank.get(a.path)! - rank.get(b.path)!);
     }
     const time = (i: ContentItem) => (Number.isNaN(i.time) ? -Infinity : i.time);
-    return props.kind === "post" ? list.sort((a, b) => time(b) - time(a)) : list.sort((a, b) => a.title.localeCompare(b.title));
-  }, [ofKind, filter, categories, authors, tags, query, search, site]);
+    if (props.kind === "page") return list.sort((a, b) => a.title.localeCompare(b.title));
+    return sort === "oldest" ? list.sort((a, b) => time(a) - time(b)) : list.sort((a, b) => time(b) - time(a));
+  }, [ofKind, filter, categories, authors, tags, sort, query, search, site]);
   // One entry per person (by login where known), shown by their current name.
   const authorCounts = useMemo(() => (site ? valueCounts(ofKind, (i) => authorKey(i, site)) : []), [ofKind, site]);
   const authorLabel = (key: string) => {
@@ -186,7 +209,7 @@ export function ContentList(props: { me: Me; kind: ItemKind }) {
   const filtering = categories.length > 0 || authors.length > 0 || tags.length > 0 || filter !== "all";
 
   const searching = query.trim() !== "";
-  // Posts by year and month, newest first; while searching, in order of relevance without groups.
+  // Posts by year and month, in the chosen order; while searching, in order of relevance without groups.
   const groups = useMemo(() => {
     const out: { year: string; months: { label: string; items: ContentItem[] }[] }[] = [];
     if (props.kind !== "post" || searching) return out;
@@ -215,7 +238,7 @@ export function ContentList(props: { me: Me; kind: ItemKind }) {
   const pickLabel = (list: string[], all: string, label: (v: string) => string) =>
     list.length === 0 ? all : list.length === 1 ? label(list[0]!) : t("content.chosenCount", { n: String(list.length) });
   const categoryLabel = pickLabel(categories, t("content.anyCategory"), (v) => tree.find((c) => c.slug === v)?.title ?? v);
-  const filters: [Filter, string][] = [
+  const filters: [ListParams["state"], string][] = [
     ["all", t("content.filterAll")],
     ["draft", t("content.filterDrafts")],
     ["archived", t("content.filterArchived")],
@@ -251,16 +274,35 @@ export function ContentList(props: { me: Me; kind: ItemKind }) {
           <button type="button" class="btn-plain icon-button" onClick={refresh} disabled={updating} aria-label={t("content.refresh")} title={t("content.refresh")}>
             <RotateCw size={18} class={updating ? "spinning" : ""} aria-hidden="true" />
           </button>
+          <button
+            type="button"
+            class="btn-plain icon-button"
+            onClick={() => void shareList()}
+            aria-label={copied ? t("content.linkCopied") : t("content.shareList")}
+            title={copied ? t("content.linkCopied") : t("content.shareList")}
+          >
+            {copied ? <Check size={18} aria-hidden="true" /> : <Share size={18} aria-hidden="true" />}
+          </button>
         </div>
         <div class="list-filters">
           <div class="segmented" role="radiogroup" aria-label={t("content.filter")}>
             {filters.map(([f, label]) => (
-              <button type="button" role="radio" aria-checked={filter === f} class={filter === f ? "selected" : ""} onClick={() => setFilter(f)}>
+              <button type="button" role="radio" aria-checked={filter === f} class={filter === f ? "selected" : ""} onClick={() => update({ state: f })}>
                 {label}
               </button>
             ))}
           </div>
 
+          {props.kind === "post" && (
+            <button
+              type="button"
+              class={`btn btn-small ${sort === "oldest" ? "btn-tinted" : "btn-plain"}`}
+              onClick={() => update({ sort: sort === "oldest" ? "newest" : "oldest" })}
+            >
+              <ArrowDownUp size={16} aria-hidden="true" />
+              {sort === "oldest" ? t("content.sortOldest") : t("content.sortNewest")}
+            </button>
+          )}
           {site.categories.length > 0 && (
             <button type="button" class={`btn btn-small ${categories.length ? "btn-tinted" : "btn-plain"}`} onClick={() => setPicker("categories")}>
               {categoryLabel}

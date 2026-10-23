@@ -117,6 +117,10 @@ Before starting, save a listing of the public media bucket (`npx wrangler r2 obj
 - [ ] **4.27 Settings change**: Change `[site] author_field` (or a folder or media setting) and deploy, without new commits in the site repository: opening Posts reads the list again by itself, and authors with avatars show without tapping ↻
 - [ ] **4.28 Invite and remove (admin)**: As a repository admin, *Users* shows *Invite on GitHub* and a *Remove* on everyone but you; both open the repository's *Collaborators and teams* settings on GitHub in a new tab. Invite someone with Write: as soon as they accept, coming back to *Users* lists them (no waiting); once they sign in, they're also in the author lists of everyone else's app after a reload
 - [ ] **4.29 Invite and remove (not admin)**: As a writer who isn't an admin, *Users* has no *Invite* or *Remove*, only the note that admins invite and remove people
+- [ ] **4.30 Oldest first**: In *Posts*, *Newest first* → *Oldest first*: years, months and posts run from the oldest; tapping it again goes back. *Pages* has no such button (always by title)
+- [ ] **4.31 List in the address**: In *Posts*, choose a state, a category, an author and a tag, *Oldest first* and type a search: the address shows them all (`?state=…&category=…&author=…&tag=…&sort=oldest&q=…`); reloading shows the same list; *Back* from a post opens it again as it was
+- [ ] **4.32 Share a list**: The share button next to ↻: on iOS and iPadOS it opens the share sheet with the list's address; on a computer it copies the address ("Link copied"). Opened by another writer (also on another site of a deployment with sites), it shows the same list
+- [ ] **4.33 Sign in from a link**: Signed out, open a list's shared address → *Log in with GitHub*: after signing in, the app opens that list with its filters, not the start page
 
 ## Categories and media
 
