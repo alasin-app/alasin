@@ -5,6 +5,7 @@
 import { useEffect, useState } from "preact/hooks";
 import { isUlid } from "../../shared/ulid";
 import { sitePath } from "./current-site";
+import { isReturnPath } from "./list-params";
 
 export type Section = "home" | "pages" | "posts" | "drafts" | "categories" | "media" | "bin" | "users" | "more";
 export type DraftKind = "post" | "page";
@@ -50,7 +51,12 @@ export function hrefFor(route: Route): string {
 }
 
 const listeners = new Set<() => void>();
-window.addEventListener("popstate", () => listeners.forEach((l) => l()));
+/** Listeners to the address's query only (a list's filters), which doesn't change the route. */
+const searchListeners = new Set<() => void>();
+window.addEventListener("popstate", () => {
+  listeners.forEach((l) => l());
+  searchListeners.forEach((l) => l());
+});
 
 export function navigate(route: Route, opts: { replace?: boolean } = {}): void {
   const href = hrefFor(route);
@@ -69,6 +75,49 @@ export function useRoute(): Route {
     return () => void listeners.delete(l);
   }, []);
   return route;
+}
+
+/** The address's query ("?…" or ""), updated when it changes. */
+export function useSearch(): string {
+  const [search, setSearch] = useState(location.search);
+  useEffect(() => {
+    const l = () => setSearch(location.search);
+    searchListeners.add(l);
+    return () => void searchListeners.delete(l);
+  }, []);
+  return search;
+}
+
+/** Replaces the address's query, keeping the route and the history entry. */
+export function replaceSearch(search: string): void {
+  if (search === location.search) return;
+  history.replaceState(null, "", `${location.pathname}${search}${location.hash}`);
+  searchListeners.forEach((l) => l());
+}
+
+/** Where the address asked for before signing in is kept, to open it again afterwards. */
+const RETURN_PATH = "alasin.returnTo";
+
+export function rememberReturnPath(): void {
+  // At / (the start page, or back after a failed sign-in) an address remembered earlier is kept.
+  if (location.pathname === "/") return;
+  const path = `${location.pathname}${location.search}`;
+  try {
+    if (isReturnPath(path)) sessionStorage.setItem(RETURN_PATH, path);
+  } catch {
+    // Storage unavailable: signing in opens the start page.
+  }
+}
+
+/** The address remembered before signing in, once; null if none. */
+export function takeReturnPath(): string | null {
+  try {
+    const path = sessionStorage.getItem(RETURN_PATH);
+    sessionStorage.removeItem(RETURN_PATH);
+    return path && isReturnPath(path) ? path : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Click handler for links: client-side navigation unless a modifier key asks for a new tab. */
