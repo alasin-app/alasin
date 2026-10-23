@@ -2,6 +2,7 @@
 
 import { LogIn, TriangleAlert } from "lucide-preact";
 import { type MessageKey, t, useLanguage } from "../lib/i18n";
+import { rememberReturnPath } from "../lib/router";
 import { settings } from "../lib/settings";
 import { EnvBadge } from "./Shell";
 
@@ -25,7 +26,7 @@ export function Login() {
             <span>{t(`login.error.${error}` as MessageKey)}</span>
           </p>
         )}
-        <a class="btn btn-filled btn-large" href="/auth/login">
+        <a class="btn btn-filled btn-large" href="/auth/login" onClick={rememberReturnPath}>
           <LogIn size={20} aria-hidden="true" />
           {t("login.button")}
         </a>
