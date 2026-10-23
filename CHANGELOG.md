@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.12.0](https://github.com/alasin-app/alasin/compare/v1.11.1...v1.12.0) (2026-10-23)
+
+
+### Features
+
+* **web:** posts oldest first, and lists in their address to share ([#401](https://github.com/alasin-app/alasin/issues/401)) ([cbb8fda](https://github.com/alasin-app/alasin/commit/cbb8fda7de21d3a8d74954e69b8f79d738427271))
+
 ## [1.11.1](https://github.com/alasin-app/alasin/compare/v1.11.0...v1.11.1) (2026-10-22)
 
 
