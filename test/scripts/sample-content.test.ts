@@ -23,7 +23,10 @@ const values = { SITE_TITLE: "Example", AUTHOR_NAME: "Jane Doe", AUTHOR_ID: "jan
 describe("dev sample content", () => {
   it("has every part #251 asks for", () => {
     const at = (prefix: string) => files.filter((f) => f.path.startsWith(prefix));
-    expect(at("content/posts/")).toHaveLength(5);
+    expect(at("content/posts/")).toHaveLength(6);
+    // A page bundle with a drawing next to its text.
+    expect(files.some((f) => f.path === "content/posts/trail-map/index.md" && f.text.includes('src="trail-map.svg"'))).toBe(true);
+    expect(Object.keys(import.meta.glob("../../templates/sample/repo/content/posts/trail-map/trail-map.svg"))).toHaveLength(1);
     expect(files.some((f) => f.path === "content/_index.md")).toBe(true);
     expect(at("content/pages/about/").length).toBeGreaterThanOrEqual(3); // a page with sub-pages
     expect(at("drafts/posts/")).toHaveLength(1);

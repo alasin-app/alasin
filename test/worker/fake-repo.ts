@@ -183,6 +183,7 @@ export class FakeRepo {
       const tree = this.treeAt(url.searchParams.get("ref") ?? this.branch);
       if (!tree) return json({ message: "No commit found" }, 404);
       const sha = tree.get(filePath);
+      if (sha && req.headers.get("Accept") === "application/vnd.github.raw") return new Response(this.blobs.get(sha)!);
       if (sha) return json({ type: "file", path: filePath, name: filePath.split("/").pop(), sha, encoding: "base64", content: b64(this.blobs.get(sha)!) });
       const children = new Map<string, { name: string; path: string; sha: string; type: string }>();
       for (const [p, s] of tree) {

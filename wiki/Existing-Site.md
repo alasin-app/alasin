@@ -21,6 +21,8 @@ npm run roundtrip -- ../my-site site/content    # or another one
 
 It opens every Markdown file with the editor's own code and saves it unchanged, in memory only. Any file that doesn't come back byte for byte is listed; please report those as [issues](https://github.com/alasin-app/alasin/issues).
 
+Posts and pages kept as page bundles (a folder with the text in `index.md` and other files next to it) are edited like any other. Images the bundle refers to by a path of their own are shown in the editor but never changed: one next to `index.md` named in a shortcode's `src` (e.g. `{{< figure src="map.svg" >}}`) or as the cover, and one in another page's bundle by its content path (e.g. `image: "/pages/guide/logo.png"`).
+
 ## 3. Run setup
 
 Keep each site's configuration in its own folder (see [Configuration Files](Configuration-Files.md)); name it after the site repository:

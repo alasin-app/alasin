@@ -49,6 +49,25 @@ describe("content", () => {
     expect(mediaUsage(index)("2020/01/01/readme.jpg")).toBe(false);
   });
 
+  it("serves a page bundle's image, an SVG with a policy of its own", async () => {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg"><rect width="1" height="1"/></svg>';
+    await gh.repo.write("content/posts/2026/solar/diagram.svg", svg);
+    const res = await call(`/api/content/asset?path=${encodeURIComponent("content/posts/2026/solar/diagram.svg")}`, { cookie });
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Content-Type")).toBe("image/svg+xml");
+    expect(res.headers.get("Content-Security-Policy")).toBe("default-src 'none'; style-src 'unsafe-inline'; sandbox");
+    expect(res.headers.get("X-Content-Type-Options")).toBe("nosniff");
+    expect(await res.text()).toBe(svg);
+  });
+
+  it("serves only images in the folders Alasin reads", async () => {
+    await gh.repo.write("content/posts/2026/solar/index.md", "---\ntitle: x\n---\n");
+    await gh.repo.write("static/logo.png", "png");
+    for (const path of ["content/posts/2026/solar/index.md", "static/logo.png", "content/../static/logo.png", "content/posts/missing.png"]) {
+      expect((await call(`/api/content/asset?path=${encodeURIComponent(path)}`, { cookie })).status).toBe(404);
+    }
+  });
+
   it("gives the head commit, to check a cached list", async () => {
     const res = await call("/api/content/head", { cookie });
     expect(await res.json()).toEqual({ commit: gh.repo.head });
