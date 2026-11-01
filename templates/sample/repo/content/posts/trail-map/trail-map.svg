@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180" width="640" height="360" font-family="sans-serif" font-size="12">
+  <style>
+    .land { fill: #eef3e8; }
+    .lake { fill: #9cc7e4; }
+    .trail { fill: none; stroke: #c0392b; stroke-width: 3; stroke-dasharray: 6 4; }
+    .peak { fill: #8a8f98; }
+    text { fill: #2b2b2b; }
+    @media (prefers-color-scheme: dark) {
+      .land { fill: #1f2a1c; }
+      .lake { fill: #2f5f80; }
+      .peak { fill: #b5bac2; }
+      text { fill: #e6e6e6; }
+    }
+  </style>
+  <rect class="land" width="320" height="180" rx="8"/>
+  <ellipse class="lake" cx="70" cy="125" rx="45" ry="25"/>
+  <polygon class="peak" points="235,40 270,100 200,100"/>
+  <path class="trail" d="M110,120 C150,110 180,90 225,75 C260,95 250,140 200,150 C160,158 130,145 110,130"/>
+  <text x="50" y="160">Lake</text>
+  <text x="220" y="30">Fell</text>
+</svg>

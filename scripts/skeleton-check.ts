@@ -97,10 +97,11 @@ try {
   console.log(run(join(dir, "node_modules", ".bin", "hugo"), ["--gc", "--minify", "--logLevel", "warn"]).trim());
 
   const posts = page("posts/index.html");
-  expect(["spring-blossoms", "lakes-of-the-north", "into-the-forest", "along-the-coast", "dry-valleys"].every((s) => !!page(`posts/${s}/index.html`)), "sample: five posts");
+  expect(["spring-blossoms", "lakes-of-the-north", "into-the-forest", "along-the-coast", "dry-valleys", "trail-map"].every((s) => !!page(`posts/${s}/index.html`)), "sample: six posts");
   expect(posts.includes("https://media.example.com/2026/09/28/dry-valley.jpg"), "sample: covers in the post list");
   expect(page("index.html").includes("https://media.example.com/2026/07/02/fell-lake.jpg"), "sample: home page cover");
   expect(page("posts/lakes-of-the-north/index.html").includes("John Roe"), "sample: second author");
+  expect(page("posts/trail-map/index.html").includes("trail-map.svg"), "sample: page bundle with its drawing");
   expect(!!page("pages/about/team/index.html") && !!page("pages/about/history/index.html"), "sample: page with two sub-pages");
   expect(page("pages/credits/index.html").includes("apple-blossoms.jpg"), "sample: credits page");
   const sampleMenu = menu(page("index.html"));

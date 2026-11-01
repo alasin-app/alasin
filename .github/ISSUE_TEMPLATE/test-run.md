@@ -65,6 +65,7 @@ Tick a check when it passes. For a failure, add a sub-issue (*Sub-issues* → *C
 - [ ] **2.20 Fast typing**: Type as fast as you can in the text, also in the middle of a paragraph: every character lands in order, before the cursor
 - [ ] **2.21 Details sheet**: *New post* opens a sheet asking the title, date, address, categories, tags and cover; categories and cover open on top of it, and Escape closes only the topmost. Afterwards the details show in short under the title, and *Edit* opens the sheet again (without the title). The title has a pencil after it and isn't hidden under the bar on a tablet or desktop
 - [ ] **2.22 Author**: A new draft has the signed-in user as author; *Author* in the details lists the names in use and the users, or takes another name; saving changes only that line. Home → *My drafts* shows only drafts with the signed-in user as author, with the author and no "updated by"
+- [ ] **2.23 Page bundle**: Open the sample post *A trail map* (a folder with `index.md` and `trail-map.svg`): the drawing shows above its `figure` shortcode, which stays a protected block, and follows the system's dark mode. Change a word and save: only `index.md` changes. In Markdown mode, set `image: "trail-map.svg"`: the cover thumbnail shows the drawing; in another post, `image: "/posts/trail-map/trail-map.svg"` (another page's bundle by its content path) shows it too
 
 ## Publishing, archive and Bin
 

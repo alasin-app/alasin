@@ -34,6 +34,7 @@ import {
   type GalleryImage,
   type ImageTarget,
   setImageTitleAt,
+  shortcodeSrc,
   standaloneImage,
 } from "./blocks";
 
@@ -65,6 +66,8 @@ export interface EditorOptions {
   };
   /** Image address to show for a Markdown image URL (e.g. /img/… → media domain). */
   resolveImage: (url: string) => string;
+  /** Image address to show for a file a shortcode's src names (a page bundle's image), or null if it isn't one. */
+  resolveFile?: (ref: string) => string | null;
   onChange: (text: string) => void;
   /** The + of a gallery or a single image: photos to add there (see MarkdownEditor.addImages). */
   onAddPhotos?: (target: ImageTarget) => void;
@@ -310,18 +313,30 @@ class ShortcodeWidget extends WidgetType {
   constructor(
     readonly text: string,
     readonly label: string,
+    /** Where to show the image the shortcode's src names (a page bundle's file), if it names one. */
+    readonly image: string | null,
   ) {
     super();
   }
   override eq(o: ShortcodeWidget) {
-    return o.text === this.text;
+    return o.text === this.text && o.image === this.image;
   }
   toDOM() {
     const d = document.createElement("div");
     d.className = "cm-md-shortcode";
     d.title = this.label;
     const video = shortcodeYoutubeId(this.text);
-    if (video) {
+    if (this.image) {
+      // The image as the site shows it, with the shortcode below: shown, not edited here.
+      d.classList.add("cm-md-figure");
+      const img = document.createElement("img");
+      img.src = this.image;
+      img.alt = "";
+      img.loading = "lazy";
+      const code = document.createElement("span");
+      code.textContent = this.text;
+      d.append(img, code);
+    } else if (video) {
       // A preview of the video: its thumbnail, with the shortcode below.
       d.classList.add("cm-md-youtube");
       const img = document.createElement("img");
@@ -338,6 +353,12 @@ class ShortcodeWidget extends WidgetType {
   override ignoreEvent() {
     return true;
   }
+}
+
+/** Where to show the image a shortcode tag's src names, or null. */
+function shortcodeImage(tag: string, opts: EditorOptions): string | null {
+  const src = shortcodeSrc(tag);
+  return src && opts.resolveFile ? opts.resolveFile(src) : null;
 }
 
 class GalleryWidget extends WidgetType {
@@ -447,7 +468,7 @@ function blockDecorations(opts: WidgetOptions) {
     }
     for (const s of findShortcodes(text, opts.gallery)) {
       if (inGallery(s.from)) continue;
-      ranges.push({ from: s.from, to: s.to, deco: Decoration.replace({ widget: new ShortcodeWidget(s.text, opts.labels.shortcode), block: true }) });
+      ranges.push({ from: s.from, to: s.to, deco: Decoration.replace({ widget: new ShortcodeWidget(s.text, opts.labels.shortcode, shortcodeImage(s.text, opts)), block: true }) });
     }
     for (let n = 1; n <= state.doc.lines; n++) {
       const line = state.doc.line(n);

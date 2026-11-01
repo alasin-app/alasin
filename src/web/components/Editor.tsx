@@ -6,6 +6,7 @@
 // chooses which version to keep — nothing is overwritten silently.
 
 import { apiPath } from "../lib/current-site";
+import { imageSrc } from "../lib/image-src";
 import { Bold, Check, ChevronLeft, Ellipsis, FileCode, Heading2, ImageOff, ImagePlus, Italic, Link, List, Pencil, Quote, RotateCw, TvMinimalPlay, X } from "lucide-preact";
 import { PhotoError, photosMarkdown, processPhoto, uploadPhoto } from "../lib/photos";
 import type { ImageTarget, MarkdownEditor } from "../editor/markdown-editor";
@@ -735,9 +736,8 @@ export function Editor(props: { me: Me; source: EditSource }) {
   const neverSaved = state.sha === null;
   const categories = categoryTree(state.site.categories);
   const categoryNode = (slug: string) => categories.find((c) => c.slug === slug);
-  // Published images are referred to by the site's own prefix (e.g. /img/…).
-  const { contentPrefix, publicUrl } = state.site.media;
-  const coverSrc = contentPrefix.startsWith("/") && f.cover.startsWith(contentPrefix) ? publicUrl + f.cover.slice(contentPrefix.length) : apiPath(f.cover);
+  // Published images are referred to by the site's own prefix (e.g. /img/…), page bundle images by their path.
+  const coverSrc = imageSrc(state.site, f.cover, source.kind === "file" ? source.path : undefined);
   const dateText = Number.isNaN(Date.parse(f.date))
     ? ""
     : new Date(f.date).toLocaleString(getLanguage(), { day: "numeric", month: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -980,6 +980,7 @@ export function Editor(props: { me: Me; source: EditSource }) {
           rich={mode === "rich"}
           readOnly={readOnly}
           site={state.site}
+          path={source.kind === "file" ? source.path : undefined}
           onChange={(text) => (mode === "rich" ? setForm({ body: text }) : onMarkdownChange(text))}
           onReady={(ed) => (editorRef.current = ed)}
           onFiles={(files) => addPhotos(files)}

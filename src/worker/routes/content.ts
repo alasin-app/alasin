@@ -18,6 +18,7 @@
 //   POST /api/content/files {paths}  the text of some files (GraphQL, unparsed), up to 100
 //   POST /api/content/history {paths}  each file's last commit: who and when (GraphQL, unparsed), up to 50
 //   GET  /api/content/file?path=     one published post or page {content, sha}
+//   GET  /api/content/asset?path=    an image of a page bundle, to show in the editor (never changed)
 //   PUT  /api/content/file           save one (see below)
 //
 // With the last two, a cached index is brought up to date by reading only
@@ -33,6 +34,7 @@ import { ConflictError, Repo } from "../lib/repo";
 import { contentPath, draftImageRefs, draftInfo, maintainedFields, parseDay, replaceImageUrls, withFields } from "../../shared/publish";
 import { isUlid } from "../../shared/ulid";
 import { contentRoot } from "../../shared/content-root";
+import { bundleImageType, isPlainPath } from "../../shared/bundle-files";
 import { lockedBy } from "../lib/lock-check";
 import { logError } from "../lib/log";
 import { getUserToken } from "../session";
@@ -196,6 +198,27 @@ content.get("/file", async (c) => {
   const file = await (await repoFor(c)).getFile(path);
   if (!file) return c.json({ error: "not_found", message: "No such post or page." }, 404);
   return c.json({ path, content: file.content, sha: file.sha });
+});
+
+/**
+ * An image in the folders Alasin reads, e.g. a drawing next to a bundle's
+ * index.md. An SVG gets a policy of its own: nothing it refers to loads and its
+ * scripts don't run, even when opened by itself.
+ */
+content.get("/asset", async (c) => {
+  const path = c.req.query("path") ?? "";
+  const type = bundleImageType(path);
+  const dirs = Object.values(contentDirs(c.get("config")));
+  if (!type || !isPlainPath(path) || !dirs.some((d) => path.startsWith(`${d}/`))) return c.json({ error: "not_found", message: "No such image." }, 404);
+  const res = await (await repoFor(c)).getRaw(path);
+  if (!res) return c.json({ error: "not_found", message: "No such image." }, 404);
+  return new Response(res.body, {
+    headers: {
+      "Content-Type": type,
+      "Cache-Control": "private, no-store",
+      ...(type === "image/svg+xml" ? { "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox" } : {}),
+    },
+  });
 });
 
 const saveBody = z.strictObject({

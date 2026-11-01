@@ -91,6 +91,16 @@ export class Repo {
     return { path, content: utf8.decode(bytes), sha: data.sha };
   }
 
+  /** A file's bytes on the branch as GitHub sends them (not limited to 1 MB like getFile), or null if it doesn't exist. */
+  async getRaw(path: string): Promise<Response | null> {
+    const res = await fetch(`${API}/repos/${this.owner}/${this.name}/contents/${encodePath(path)}?ref=${encodeURIComponent(this.branch)}`, {
+      headers: { Authorization: `Bearer ${this.token}`, Accept: "application/vnd.github.raw", "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "Alasin" },
+    });
+    if (res.status === 404) return null;
+    if (!res.ok) throw new GitHubError(`GET /contents returned ${res.status}`, res.status);
+    return res;
+  }
+
   /** Entries of a directory on the branch; empty if it doesn't exist. */
   async listDir(path: string): Promise<RepoEntry[]> {
     const { data } = await this.contents<{ name: string; path: string; sha: string; type: string }[]>(path, this.branch);
