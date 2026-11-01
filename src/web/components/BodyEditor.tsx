@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Preact wrapper around the CodeMirror Markdown editor.
 
-import { apiPath } from "../lib/current-site";
+import { bundleSrc, imageSrc } from "../lib/image-src";
 import { useEffect, useRef } from "preact/hooks";
 import type { ImageTarget, MarkdownEditor } from "../editor/markdown-editor";
 import { t } from "../lib/i18n";
@@ -14,6 +14,8 @@ export function BodyEditor(props: {
   /** Someone else is editing: shown, not editable. */
   readOnly?: boolean;
   site: SiteSettings;
+  /** Repository path of the published file, whose page bundle images the text may refer to. */
+  path?: string;
   onChange: (text: string) => void;
   onReady: (editor: MarkdownEditor | null) => void;
   onFiles: (files: File[]) => void;
@@ -51,10 +53,9 @@ export function BodyEditor(props: {
     // CodeMirror is loaded only when an editor opens.
     void import("../editor/markdown-editor").then(({ createMarkdownEditor }) => {
       if (cancelled) return;
-    const { media, gallery } = props.site;
-    // Published photos from the media bucket; a draft's from the site's routes.
-    const resolveImage = (url: string) =>
-      media.contentPrefix.startsWith("/") && url.startsWith(media.contentPrefix) ? media.publicUrl + url.slice(media.contentPrefix.length) : apiPath(url);
+    const { gallery } = props.site;
+    const resolveImage = (url: string) => imageSrc(props.site, url, props.path);
+    const resolveFile = (ref: string) => bundleSrc(props.site, ref, props.path);
     const ed = createMarkdownEditor({
       parent: host.current!,
       doc: latest.current.value,
@@ -77,6 +78,7 @@ export function BodyEditor(props: {
         addText: t("editor.addImageText"),
       },
       resolveImage,
+      resolveFile,
       onChange: (text) => {
         emitted.current.push(text);
         // Only the last few keystrokes can still be on their way.

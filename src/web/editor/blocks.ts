@@ -72,6 +72,12 @@ export function findShortcodes(text: string, except: string): ShortcodeBlock[] {
   return out;
 }
 
+/** The `src` parameter of a shortcode tag (e.g. a file of the page bundle), or null if it has none. */
+export function shortcodeSrc(tag: string): string | null {
+  const m = /\ssrc\s*=\s*(?:"([^"]*)"|'([^']*)'|`([^`]*)`|([^\s"'`>%}]+))/.exec(tag);
+  return m ? (m[1] ?? m[2] ?? m[3] ?? m[4]!) : null;
+}
+
 /** A line that is just one image. */
 export function standaloneImage(line: string): { alt: string; url: string; title: string } | null {
   const m = IMAGE.exec(line.trim());

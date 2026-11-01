@@ -69,10 +69,13 @@ export function withSecurityHeaders(res: Response, config: AlasinConfig | Alasin
   const out = new Response(res.body, res);
   const h = out.headers;
   // Without a valid config there is no media origin to allow; fall back to the strictest policy.
-  h.set(
-    "Content-Security-Policy",
-    config ? contentSecurityPolicy(config, styleNonce) : "default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'",
-  );
+  // A response with a policy of its own (an SVG from the repository) keeps it.
+  if (!h.has("Content-Security-Policy")) {
+    h.set(
+      "Content-Security-Policy",
+      config ? contentSecurityPolicy(config, styleNonce) : "default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'",
+    );
+  }
   if (isHttps) h.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
   h.set("X-Content-Type-Options", "nosniff");
   h.set("Referrer-Policy", "strict-origin-when-cross-origin");
