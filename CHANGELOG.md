@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.12.0](https://github.com/alasin-app/alasin/compare/v1.11.1...v1.12.0) (2026-11-01)
+
+
+### Features
+
+* **editor:** show page bundle images, not editable ([#417](https://github.com/alasin-app/alasin/issues/417)) ([6572fda](https://github.com/alasin-app/alasin/commit/6572fdac7fa7bdac0e9cfea9ed98231754463f0e)), closes [#416](https://github.com/alasin-app/alasin/issues/416)
+* **web:** posts oldest first, and lists in their address to share ([#401](https://github.com/alasin-app/alasin/issues/401)) ([cbb8fda](https://github.com/alasin-app/alasin/commit/cbb8fda7de21d3a8d74954e69b8f79d738427271))
+
 ## [1.11.1](https://github.com/alasin-app/alasin/compare/v1.11.0...v1.11.1) (2026-10-22)
 
 
