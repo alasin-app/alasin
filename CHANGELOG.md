@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.12.1](https://github.com/alasin-app/alasin/compare/v1.12.0...v1.12.1) (2026-11-26)
+
+
+### Bug Fixes
+
+* compile the configuration into the Worker, so three or more sites deploy ([#433](https://github.com/alasin-app/alasin/issues/433)) ([b0f9ae8](https://github.com/alasin-app/alasin/commit/b0f9ae8ebe10b92b70d11234ab1c66407f7b5682)), closes [#432](https://github.com/alasin-app/alasin/issues/432)
+
+## [1.12.0](https://github.com/alasin-app/alasin/compare/v1.11.1...v1.12.0) (2026-11-01)
+
+
+### Features
+
+* **editor:** show page bundle images, not editable ([#417](https://github.com/alasin-app/alasin/issues/417)) ([6572fda](https://github.com/alasin-app/alasin/commit/6572fdac7fa7bdac0e9cfea9ed98231754463f0e)), closes [#416](https://github.com/alasin-app/alasin/issues/416)
+* **web:** posts oldest first, and lists in their address to share ([#401](https://github.com/alasin-app/alasin/issues/401)) ([cbb8fda](https://github.com/alasin-app/alasin/commit/cbb8fda7de21d3a8d74954e69b8f79d738427271))
+
 ## [1.11.1](https://github.com/alasin-app/alasin/compare/v1.11.0...v1.11.1) (2026-10-22)
 
 
