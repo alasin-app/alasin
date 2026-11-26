@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.12.1](https://github.com/alasin-app/alasin/compare/v1.12.0...v1.12.1) (2026-11-26)
+
+
+### Bug Fixes
+
+* compile the configuration into the Worker, so three or more sites deploy ([#433](https://github.com/alasin-app/alasin/issues/433)) ([b0f9ae8](https://github.com/alasin-app/alasin/commit/b0f9ae8ebe10b92b70d11234ab1c66407f7b5682)), closes [#432](https://github.com/alasin-app/alasin/issues/432)
+
 ## [1.12.0](https://github.com/alasin-app/alasin/compare/v1.11.1...v1.12.0) (2026-11-01)
 
 
