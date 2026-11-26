@@ -5,7 +5,8 @@ import { parseConfig } from "./src/shared/config/schema.ts";
 import { testConfig, TEST_SESSION_KEY, TEST_TOKEN_KEY } from "./test/fixtures.ts";
 
 export default defineConfig({
-  define: { __ALASIN_VERSION__: JSON.stringify("0.0.0-test") },
+  // Nothing compiled in: tests pass their configuration as the ALASIN_CONFIG_JSON binding.
+  define: { __ALASIN_VERSION__: JSON.stringify("0.0.0-test"), __ALASIN_CONFIG_JSON__: JSON.stringify("") },
   plugins: [
     cloudflareTest({
       main: "./src/worker/index.ts",
