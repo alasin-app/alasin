@@ -5,8 +5,11 @@
 import type { EditLocks } from "./locks";
 
 export interface Env {
-  /** Validated alasin.toml as JSON, injected by `npm run build|dev|deploy`. */
-  ALASIN_CONFIG_JSON: string;
+  /**
+   * Tests only: a configuration in place of the compiled one. Deployments get
+   * theirs compiled in as __ALASIN_CONFIG_JSON__ (#432); config.ts.
+   */
+  ALASIN_CONFIG_JSON?: string;
   ASSETS: Fetcher;
   /**
    * A site's public image bucket. Never overwritten; images leave it only for
@@ -49,4 +52,6 @@ declare global {
   }
   /** Version from package.json, injected at build time. */
   const __ALASIN_VERSION__: string;
+  /** The validated deployment (shared/config/deployment.ts), compiled in by `npm run build|dev|deploy`. */
+  const __ALASIN_CONFIG_JSON__: string;
 }

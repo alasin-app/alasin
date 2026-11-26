@@ -3,8 +3,8 @@
 // A deployment's sites (#325). alasin.toml alone is one site, as before. With
 // a sites/ folder, each sites/<id>.toml is a site: its configuration is
 // alasin.toml merged with that file, so alasin.toml holds what every site
-// shares (and defaults for them). The build validates every site and injects
-// them all as ALASIN_CONFIG_JSON.
+// shares (and defaults for them). The build validates every site and compiles
+// them all into the Worker as __ALASIN_CONFIG_JSON__ (scripts/lib/managed.ts).
 
 import { type AlasinConfig, ConfigError, deepMerge, parseConfig } from "./schema";
 
@@ -86,12 +86,12 @@ export function buildDeployment(base: Raw, sites: Record<string, Raw> | null, so
   return { multi: true, sites: entries };
 }
 
-/** The deployment as the Worker gets it: ALASIN_CONFIG_JSON. */
+/** The deployment as the Worker gets it: __ALASIN_CONFIG_JSON__. */
 export function serializeDeployment(d: Deployment): string {
   return JSON.stringify({ multi: d.multi, sites: d.sites });
 }
 
-/** ALASIN_CONFIG_JSON, validated again. Also accepts a lone configuration (from before #325), as the one site. */
+/** __ALASIN_CONFIG_JSON__, validated again. Also accepts a lone configuration (from before #325), as the one site. */
 export function parseDeployment(json: string, source = "ALASIN_CONFIG_JSON"): Deployment {
   const raw = JSON.parse(json) as Raw;
   if (!Array.isArray(raw.sites)) return buildDeployment(raw, null, source);

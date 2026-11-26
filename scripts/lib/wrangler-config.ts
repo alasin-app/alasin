@@ -1,16 +1,18 @@
 // SPDX-License-Identifier: MIT
 // Builds the Wrangler configuration actually passed to `wrangler dev|deploy`:
 // the operator's wrangler.toml plus what Alasin manages itself (entry point,
-// static assets, the validated sites as a variable, the version). It is
+// static assets, and from managed.ts the validated sites and the version,
+// compiled into the script, and the cleanup cron). It is
 // written to .alasin/ (gitignored) so the operator's file stays untouched and
 // may live outside this repository.
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { type Deployment, serializeDeployment } from "../../src/shared/config/deployment";
+import type { Deployment } from "../../src/shared/config/deployment";
 import { ConfigError } from "../../src/shared/config/schema";
 import { repoRoot } from "./args";
 import { checkBindings } from "./bindings";
+import { managedSettings } from "./managed";
 
 export { checkBindings };
 import { displayPath, readToml } from "./config";
@@ -43,12 +45,7 @@ export function generateWranglerConfig(opts: {
     throw new ConfigError(`${label}: missing the [[migrations]] for the EditLocks Durable Object (see wrangler.example.toml)`, []);
   }
 
-  const managed = {
-    vars: { ALASIN_CONFIG_JSON: serializeDeployment(opts.deployment) },
-    // The nightly cleanup of each site's DRAFTS bucket.
-    triggers: { crons: [...new Set(opts.deployment.sites.map((s) => s.config.drafts.cleanup_cron))] },
-    define: { __ALASIN_VERSION__: JSON.stringify(packageVersion()) },
-  };
+  const managed = managedSettings(opts.deployment, packageVersion());
   // Preview URLs would be extra hostnames running this Worker with the same
   // bindings and secrets; Alasin serves one canonical origin, so they're off
   // unless wrangler.toml enables them explicitly.
